@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BIOS vs UEFI — AR Experience</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+  :root {
+    --bios: #00ff88;
+    --uefi: #00b8ff;
+    --bg: #020408;
+    --panel: rgba(0,255,136,0.06);
+    --panel-uefi: rgba(0,184,255,0.06);
+    --glow-bios: 0 0 20px #00ff8866;
+    --glow-uefi: 0 0 20px #00b8ff66;
+    --text: #c8ffd4;
+    --accent: #ff6b35;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+  }
+
+  /* ── SCAN LINES ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,136,0.015) 2px, rgba(0,255,136,0.015) 4px);
+    pointer-events:none; z-index:9999;
+  }
+
+  /* ── GYRO SCENE ── */
+  #scene {
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    transition: transform 0.1s ease-out;
+    perspective: 800px;
+  }
+
+  /* ── HEADER ── */
+  .hdr {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(10px,3vw,14px);
+    letter-spacing: 4px;
+    color: var(--bios);
+    opacity:.7;
+    margin-bottom: 8px;
+    text-align:center;
+  }
+  .title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(18px,5vw,28px);
+    font-weight:900;
+    text-align:center;
+    background: linear-gradient(90deg, var(--bios), var(--uefi));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+    letter-spacing:2px;
+  }
+  .subtitle {
+    font-size: clamp(9px,2.5vw,12px);
+    color:#4a8a6a;
+    text-align:center;
+    margin-bottom: 20px;
+    letter-spacing:1px;
+  }
+
+  /* ── CHIP AREA ── */
+  .chips-row {
+    display:flex;
+    gap: clamp(16px,4vw,40px);
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ── CHIP CARD ── */
+  .chip {
+    width: clamp(130px,38vw,180px);
+    cursor: pointer;
+    user-select:none;
+    position:relative;
+  }
+  .chip-body {
+    background: linear-gradient(145deg, #0a1a0e, #061210);
+    border: 2px solid;
+    border-radius:6px;
+    padding: 14px 10px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+    transition: transform .2s, box-shadow .2s;
+    aspect-ratio: 1/1;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .chip.bios .chip-body {
+    border-color: var(--bios);
+    box-shadow: var(--glow-bios), inset 0 0 30px rgba(0,255,136,0.04);
+  }
+  .chip.uefi .chip-body {
+    border-color: var(--uefi);
+    box-shadow: var(--glow-uefi), inset 0 0 30px rgba(0,184,255,0.04);
+  }
+  .chip-body:active { transform: scale(0.96); }
+  .chip.bios .chip-body:active { box-shadow: 0 0 40px #00ff8899; }
+  .chip.uefi .chip-body:active { box-shadow: 0 0 40px #00b8ff99; }
+
+  /* Chip circuit lines */
+  .chip-body::before {
+    content:'';
+    position:absolute; inset:-1px;
+    background:
+      linear-gradient(90deg, transparent 10%, currentColor 10%, currentColor 11%, transparent 11%) top/100% 1px no-repeat,
+      linear-gradient(90deg, transparent 85%, currentColor 85%, currentColor 86%, transparent 86%) bottom/100% 1px no-repeat,
+      linear-gradient(0deg, transparent 10%, currentColor 10%, currentColor 11%, transparent 11%) left/1px 100% no-repeat,
+      linear-gradient(0deg, transparent 85%, currentColor 85%, currentColor 86%, transparent 86%) right/1px 100% no-repeat;
+    opacity:.2;
+    pointer-events:none;
+  }
+  .chip.bios .chip-body::before { color: var(--bios); }
+  .chip.uefi .chip-body::before { color: var(--uefi); }
+
+  /* Chip pins */
+  .pins {
+    display:flex; justify-content:space-between;
+    padding: 0 4px;
+    margin-bottom:4px;
+  }
+  .pin {
+    width: 6px; height: 10px;
+    border-radius: 1px 1px 3px 3px;
+  }
+  .bios .pin { background: var(--bios); box-shadow: 0 0 4px var(--bios); }
+  .uefi .pin { background: var(--uefi); box-shadow: 0 0 4px var(--uefi); }
+
+  .chip-ic {
+    font-family:'Orbitron',sans-serif;
+    font-weight:900;
+    font-size: clamp(22px,7vw,36px);
+    line-height:1;
+    margin: 8px 0 4px;
+  }
+  .chip.bios .chip-ic { color: var(--bios); text-shadow: var(--glow-bios); }
+  .chip.uefi .chip-ic { color: var(--uefi); text-shadow: var(--glow-uefi); }
+
+  .chip-label {
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size: clamp(10px,3vw,13px);
+    letter-spacing:3px;
+    opacity:.8;
+  }
+  .chip.bios .chip-label { color:var(--bios); }
+  .chip.uefi .chip-label { color:var(--uefi); }
+
+  .chip-year {
+    font-size: clamp(8px,2vw,10px);
+    opacity:.4;
+    margin-top:2px;
+  }
+
+  .chip-tap {
+    font-size: clamp(8px,2vw,10px);
+    margin-top:8px;
+    opacity:.5;
+    letter-spacing:1px;
+    animation: blink 1.5s infinite;
+  }
+  .chip.bios .chip-tap { color:var(--bios); }
+  .chip.uefi .chip-tap { color:var(--uefi); }
+
+  /* Pulse ring */
+  .chip-body::after {
+    content:'';
+    position:absolute;
+    width:60%; height:60%;
+    border-radius:50%;
+    border: 1px solid;
+    animation: pulse-ring 2s infinite;
+    opacity:0;
+  }
+  .chip.bios .chip-body::after { border-color:var(--bios); animation-delay:0s; }
+  .chip.uefi .chip-body::after { border-color:var(--uefi); animation-delay:1s; }
+
+  @keyframes pulse-ring {
+    0%   { transform:scale(.3); opacity:.6; }
+    100% { transform:scale(2); opacity:0; }
+  }
+  @keyframes blink { 0%,100%{opacity:.5} 50%{opacity:.1} }
+
+  /* VS divider */
+  .vs-divider {
+    font-family:'Orbitron',sans-serif;
+    font-size: clamp(12px,4vw,18px);
+    font-weight:900;
+    color:#ffffff22;
+    letter-spacing:2px;
+    flex-shrink:0;
+  }
+
+  /* ── GYRO HINT ── */
+  .gyro-hint {
+    margin-top: 16px;
+    font-size: clamp(8px,2.2vw,11px);
+    color:#2a4a3a;
+    letter-spacing:1px;
+    text-align:center;
+    animation: blink 3s infinite;
+  }
+
+  /* ── OVERLAY PANEL ── */
+  .overlay {
+    position:fixed; inset:0;
+    display:none; flex-direction:column;
+    z-index:100;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .overlay.active { display:flex; }
+
+  .overlay-bg {
+    position:fixed; inset:0;
+    backdrop-filter: blur(4px);
+    z-index:-1;
+  }
+  .overlay.bios-panel .overlay-bg { background: rgba(0,20,10,0.97); }
+  .overlay.uefi-panel .overlay-bg { background: rgba(0,8,20,0.97); }
+
+  .overlay-content {
+    max-width: 480px;
+    width:100%;
+    margin:0 auto;
+    padding: 20px 16px 40px;
+    min-height:100%;
+  }
+
+  .back-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:1px solid;
+    border-radius:4px;
+    padding: 6px 14px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px;
+    cursor:pointer;
+    letter-spacing:1px;
+    margin-bottom:20px;
+    transition: all .2s;
+  }
+  .bios-panel .back-btn { color:var(--bios); border-color:var(--bios); }
+  .uefi-panel .back-btn { color:var(--uefi); border-color:var(--uefi); }
+  .back-btn:hover { background:rgba(255,255,255,0.05); }
+
+  .panel-title {
+    font-family:'Orbitron',sans-serif;
+    font-weight:900;
+    font-size: clamp(20px,6vw,30px);
+    margin-bottom:4px;
+    letter-spacing:2px;
+  }
+  .bios-panel .panel-title { color:var(--bios); text-shadow:var(--glow-bios); }
+  .uefi-panel .panel-title { color:var(--uefi); text-shadow:var(--glow-uefi); }
+
+  .panel-subtitle {
+    font-family:'Rajdhani',sans-serif;
+    font-weight:300;
+    font-size:13px;
+    opacity:.5;
+    margin-bottom:24px;
+    letter-spacing:2px;
+  }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    width:100%;
+    margin-bottom:24px;
+    border-radius:8px;
+    overflow:visible;
+  }
+
+  /* Operation flow */
+  .op-section {
+    margin-bottom:20px;
+  }
+  .op-title {
+    font-family:'Orbitron',sans-serif;
+    font-size:11px;
+    letter-spacing:3px;
+    opacity:.6;
+    margin-bottom:10px;
+  }
+
+  .op-steps {
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .op-step {
+    display:flex; align-items:flex-start; gap:10px;
+    padding:10px 12px;
+    border-radius:4px;
+    border-left:2px solid;
+    font-size:11px;
+    line-height:1.5;
+    animation: slide-in .4s ease both;
+  }
+  .bios-panel .op-step { background:var(--panel); border-color:var(--bios); }
+  .uefi-panel .op-step { background:var(--panel-uefi); border-color:var(--uefi); }
+  .op-step:nth-child(1){animation-delay:.05s}
+  .op-step:nth-child(2){animation-delay:.1s}
+  .op-step:nth-child(3){animation-delay:.15s}
+  .op-step:nth-child(4){animation-delay:.2s}
+  .op-step:nth-child(5){animation-delay:.25s}
+  .op-step:nth-child(6){animation-delay:.3s}
+
+  .step-num {
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    flex-shrink:0;
+    margin-top:-1px;
+  }
+  .bios-panel .step-num { color:var(--bios); }
+  .uefi-panel .step-num { color:var(--uefi); }
+
+  .step-text strong {
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    display:block;
+    letter-spacing:.5px;
+  }
+  .bios-panel .step-text strong { color:#aaffcc; }
+  .uefi-panel .step-text strong { color:#aaddff; }
+
+  @keyframes slide-in {
+    from { opacity:0; transform:translateX(-10px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+
+  /* Comparison bar */
+  .compare-bar {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:2px; border-radius:6px; overflow:hidden;
+    margin-bottom:20px; border:1px solid #1a2a1a;
+  }
+  .compare-item {
+    padding:10px 12px;
+    font-size:10px;
+    line-height:1.6;
+  }
+  .compare-item.bios-col { background:rgba(0,255,136,0.06); }
+  .compare-item.uefi-col { background:rgba(0,184,255,0.06); }
+  .compare-label {
+    font-family:'Orbitron',sans-serif;
+    font-size:9px; letter-spacing:2px;
+    opacity:.5; margin-bottom:4px;
+  }
+  .compare-label.b { color:var(--bios); }
+  .compare-label.u { color:var(--uefi); }
+
+  /* ── QUIZ ── */
+  #quiz-overlay {
+    position:fixed; inset:0;
+    background:rgba(0,4,8,0.98);
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:200;
+    padding:20px;
+    overflow-y:auto;
+  }
+  #quiz-overlay.active { display:flex; }
+
+  .quiz-header {
+    font-family:'Orbitron',sans-serif;
+    font-size: clamp(16px,5vw,22px);
+    font-weight:900;
+    background: linear-gradient(90deg, var(--bios), var(--uefi));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:6px; text-align:center; letter-spacing:2px;
+  }
+  .quiz-prog {
+    font-size:11px; color:#3a5a4a; letter-spacing:2px; margin-bottom:24px;
+  }
+
+  .quiz-q {
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size: clamp(14px,4vw,18px);
+    color:#ddeedd;
+    margin-bottom:18px;
+    text-align:center;
+    line-height:1.4;
+    max-width:380px;
+  }
+  .quiz-options {
+    display:flex; flex-direction:column; gap:10px;
+    width:100%; max-width:380px;
+    margin-bottom:20px;
+  }
+  .quiz-opt {
+    background:rgba(255,255,255,0.03);
+    border:1px solid #1a3a2a;
+    border-radius:6px;
+    padding:12px 16px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px;
+    color:#8ab898;
+    cursor:pointer;
+    text-align:left;
+    transition: all .2s;
+    letter-spacing:.5px;
+  }
+  .quiz-opt:hover { background:rgba(0,255,136,0.08); border-color:var(--bios); color:var(--bios); }
+  .quiz-opt.correct { background:rgba(0,255,136,0.15); border-color:var(--bios); color:var(--bios); }
+  .quiz-opt.wrong   { background:rgba(255,60,60,0.12); border-color:#ff4444; color:#ff8888; }
+  .quiz-opt:disabled { cursor:default; }
+
+  .quiz-feedback {
+    font-size:12px; letter-spacing:1px;
+    min-height:20px; text-align:center;
+    margin-bottom:16px;
+  }
+  .quiz-feedback.ok  { color:var(--bios); }
+  .quiz-feedback.err { color:#ff6666; }
+
+  .quiz-next-btn {
+    background:transparent;
+    border:1px solid var(--bios);
+    color:var(--bios);
+    font-family:'Orbitron',sans-serif;
+    font-size:12px; letter-spacing:2px;
+    padding:10px 28px; border-radius:4px;
+    cursor:pointer; display:none;
+    transition:all .2s;
+  }
+  .quiz-next-btn:hover { background:rgba(0,255,136,0.1); }
+
+  .quiz-result {
+    text-align:center;
+    display:none;
+  }
+  .quiz-score {
+    font-family:'Orbitron',sans-serif;
+    font-size: clamp(40px,15vw,70px);
+    font-weight:900;
+    background: linear-gradient(90deg, var(--bios), var(--uefi));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  .quiz-score-label {
+    font-size:13px; color:#4a7a5a; letter-spacing:3px; margin-bottom:20px;
+  }
+  .quiz-msg { font-family:'Rajdhani',sans-serif; font-size:16px; color:#aaccbb; line-height:1.5; margin-bottom:24px; max-width:340px; }
+  .quiz-restart-btn {
+    background:transparent; border:1px solid var(--uefi);
+    color:var(--uefi); font-family:'Orbitron',sans-serif;
+    font-size:11px; letter-spacing:2px;
+    padding:10px 24px; border-radius:4px;
+    cursor:pointer; transition:all .2s; margin:6px;
+  }
+  .quiz-restart-btn:hover { background:rgba(0,184,255,0.1); }
+
+  /* Quiz trigger button */
+  .quiz-btn {
+    margin-top:14px;
+    background:transparent;
+    border:1px solid #2a4a3a;
+    color:#4a8a6a;
+    font-family:'Orbitron',sans-serif;
+    font-size:10px; letter-spacing:2px;
+    padding:8px 20px; border-radius:4px;
+    cursor:pointer; transition:all .2s;
+    display:block; margin-left:auto; margin-right:auto;
+  }
+  .quiz-btn:hover { border-color:var(--bios); color:var(--bios); }
+
+  /* Floating particles */
+  .particles {
+    position:fixed; inset:0; pointer-events:none; z-index:1;
+    overflow:hidden;
+  }
+  .particle {
+    position:absolute;
+    width:1px; height:1px;
+    border-radius:50%;
+    animation: float-up linear infinite;
+    opacity:0;
+  }
+  @keyframes float-up {
+    0%   { transform:translateY(100vh) translateX(0); opacity:0; }
+    10%  { opacity:.6; }
+    90%  { opacity:.3; }
+    100% { transform:translateY(-20px) translateX(30px); opacity:0; }
+  }
+
+  /* ── SVG Architecture diagram ── */
+  .arch-svg { width:100%; }
+</style>
+</head>
+<body>
+
+<!-- Floating particles -->
+<div class="particles" id="particles"></div>
+
+<!-- MAIN SCENE -->
+<div id="scene">
+  <div class="hdr">◈ ARQUITECTURA DE FIRMWARE ◈</div>
+  <div class="title">BIOS vs UEFI</div>
+  <div class="subtitle">TAP PARA EXPLORAR EL INTERIOR DEL CHIP</div>
+
+  <div class="chips-row">
+    <!-- BIOS CHIP -->
+    <div class="chip bios" onclick="openPanel('bios')">
+      <div class="pins">
+        <div class="pin"></div><div class="pin"></div>
+        <div class="pin"></div><div class="pin"></div>
+      </div>
+      <div class="chip-body">
+        <div class="chip-ic">BIOS</div>
+        <div class="chip-label">ROM CHIP</div>
+        <div class="chip-year">1975 — 2010</div>
+      </div>
+      <div class="pins" style="margin-top:4px;transform:rotate(180deg)">
+        <div class="pin"></div><div class="pin"></div>
+        <div class="pin"></div><div class="pin"></div>
+      </div>
+      <div class="chip-tap">[ TAP TO ENTER ]</div>
+    </div>
+
+    <div class="vs-divider">VS</div>
+
+    <!-- UEFI CHIP -->
+    <div class="chip uefi" onclick="openPanel('uefi')">
+      <div class="pins">
+        <div class="pin"></div><div class="pin"></div>
+        <div class="pin"></div><div class="pin"></div>
+      </div>
+      <div class="chip-body">
+        <div class="chip-ic">UEFI</div>
+        <div class="chip-label">SPI FLASH</div>
+        <div class="chip-year">2005 — presente</div>
+      </div>
+      <div class="pins" style="margin-top:4px;transform:rotate(180deg)">
+        <div class="pin"></div><div class="pin"></div>
+        <div class="pin"></div><div class="pin"></div>
+      </div>
+      <div class="chip-tap">[ TAP TO ENTER ]</div>
+    </div>
+  </div>
+
+  <div class="gyro-hint">◦ INCLINA EL DISPOSITIVO PARA EFECTO 3D ◦</div>
+
+  <button class="quiz-btn" onclick="openQuiz()">▶ INICIAR TEST DE 3 PREGUNTAS</button>
+</div>
+
+<!-- ═══ BIOS PANEL ═══ -->
+<div class="overlay bios-panel" id="bios-panel">
+  <div class="overlay-bg"></div>
+  <div class="overlay-content">
+    <button class="back-btn" onclick="closePanel('bios')">← SALIR</button>
+
+    <div class="panel-title">BIOS</div>
+    <div class="panel-subtitle">BASIC INPUT/OUTPUT SYSTEM • 8-BIT ERA</div>
+
+    <!-- SVG Architecture -->
+    <svg class="arch-svg" viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-b">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <marker id="arr-b" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#00ff88" opacity=".6"/>
+        </marker>
+      </defs>
+
+      <!-- BIOS chip center -->
+      <rect x="130" y="70" width="80" height="60" rx="4" fill="none" stroke="#00ff88" stroke-width="1.5" filter="url(#glow-b)" opacity=".9"/>
+      <text x="170" y="94" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="11" font-weight="700" fill="#00ff88">BIOS</text>
+      <text x="170" y="107" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#00cc66" opacity=".7">POST • ISA • MBR</text>
+      <text x="170" y="118" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#00aa44" opacity=".5">16-bit Real Mode</text>
+
+      <!-- CPU -->
+      <rect x="8" y="80" width="60" height="40" rx="3" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1" opacity=".7"/>
+      <text x="38" y="97" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="8" fill="#00ff88">CPU</text>
+      <text x="38" y="109" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#00aa55" opacity=".6">x86 16-bit</text>
+      <line x1="68" y1="100" x2="130" y2="100" stroke="#00ff88" stroke-width="1" stroke-dasharray="3,3" opacity=".5" marker-end="url(#arr-b)"/>
+
+      <!-- RAM -->
+      <rect x="272" y="60" width="60" height="35" rx="3" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1" opacity=".6"/>
+      <text x="302" y="74" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00dd77">RAM</text>
+      <text x="302" y="85" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#009944" opacity=".6">Seg. 0x7C00</text>
+      <line x1="210" y1="90" x2="272" y2="78" stroke="#00ff88" stroke-width="1" stroke-dasharray="3,3" opacity=".4" marker-end="url(#arr-b)"/>
+
+      <!-- HDD -->
+      <rect x="272" y="110" width="60" height="35" rx="3" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1" opacity=".6"/>
+      <text x="302" y="124" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00dd77">DISCO</text>
+      <text x="302" y="136" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#009944" opacity=".6">MBR • IDE/ATA</text>
+      <line x1="210" y1="110" x2="272" y2="122" stroke="#00ff88" stroke-width="1" stroke-dasharray="3,3" opacity=".4" marker-end="url(#arr-b)"/>
+
+      <!-- Keyboard -->
+      <rect x="8" y="140" width="60" height="35" rx="3" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1" opacity=".5"/>
+      <text x="38" y="154" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00cc66">TECLADO</text>
+      <text x="38" y="166" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#008833" opacity=".6">PS/2 • INT 09h</text>
+      <line x1="68" y1="157" x2="130" y2="120" stroke="#00ff88" stroke-width="1" stroke-dasharray="3,3" opacity=".3" marker-end="url(#arr-b)"/>
+
+      <!-- VGA -->
+      <rect x="8" y="20" width="60" height="35" rx="3" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1" opacity=".5"/>
+      <text x="38" y="34" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00cc66">VIDEO</text>
+      <text x="38" y="46" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#008833" opacity=".6">VGA • INT 10h</text>
+      <line x1="68" y1="37" x2="130" y2="80" stroke="#00ff88" stroke-width="1" stroke-dasharray="3,3" opacity=".3" marker-end="url(#arr-b)"/>
+
+      <!-- POST label -->
+      <text x="170" y="18" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#00aa44" opacity=".5">SECUENCIA POST: CPU→RAM→VIDEO→DISCO→OS</text>
+      <!-- animated data flow dot -->
+      <circle r="3" fill="#00ff88" opacity=".8" filter="url(#glow-b)">
+        <animateMotion dur="2.5s" repeatCount="indefinite" path="M68,100 L130,100"/>
+      </circle>
+      <circle r="3" fill="#00ff88" opacity=".6" filter="url(#glow-b)">
+        <animateMotion dur="3s" repeatCount="indefinite" begin="1s" path="M210,90 L272,78"/>
+      </circle>
+    </svg>
+
+    <!-- Operations -->
+    <div class="op-section">
+      <div class="op-title">▸ OPERACIÓN POST (POWER-ON SELF-TEST)</div>
+      <div class="op-steps">
+        <div class="op-step">
+          <div class="step-num">01</div>
+          <div class="step-text"><strong>RESET VECTOR → CPU</strong>Procesador salta a dirección física 0xFFFF0 en memoria ROM. Primer instrucción ejecutada tras encendido.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">02</div>
+          <div class="step-text"><strong>VERIFICACIÓN DE RAM</strong>Escritura y lectura en cada celda de memoria para detectar fallas (Interrupt 17h → controlador de memoria).</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">03</div>
+          <div class="step-text"><strong>INICIALIZACIÓN VGA</strong>INT 10h activa controlador de video. Muestra POST code en pantalla. Modo 16-bit Real Mode exclusivo.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">04</div>
+          <div class="step-text"><strong>DETECCIÓN DE DISCO</strong>Bus IDE/ATA interrogado vía I/O port 0x1F0. Lee sector MBR (512 bytes, firma 0x55AA).</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">05</div>
+          <div class="step-text"><strong>CARGA BOOTLOADER</strong>MBR copiado a 0x7C00 en RAM. CPU transfiere control: jmp 0000:7C00 → OS toma el mando.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison -->
+    <div class="op-section">
+      <div class="op-title">▸ CARACTERÍSTICAS TÉCNICAS</div>
+      <div class="compare-bar">
+        <div class="compare-item bios-col">
+          <div class="compare-label b">BIOS</div>
+          Modo: 16-bit Real<br>
+          ROM: 256KB–1MB<br>
+          Interface: Texto<br>
+          Boot: MBR (2TB max)<br>
+          Red: No nativa<br>
+          Seguridad: Nula<br>
+          Init time: ~30s
+        </div>
+        <div class="compare-item uefi-col">
+          <div class="compare-label u">UEFI</div>
+          Modo: 32/64-bit<br>
+          Flash: 4MB–32MB<br>
+          Interface: GUI<br>
+          Boot: GPT (8ZB max)<br>
+          Red: PXE nativo<br>
+          Seguridad: Secure Boot<br>
+          Init time: ~5s
+        </div>
+      </div>
+    </div>
+
+    <button class="quiz-btn" onclick="closePanel('bios'); openQuiz()">▶ HACER EL TEST AHORA</button>
+  </div>
+</div>
+
+<!-- ═══ UEFI PANEL ═══ -->
+<div class="overlay uefi-panel" id="uefi-panel">
+  <div class="overlay-bg"></div>
+  <div class="overlay-content">
+    <button class="back-btn" onclick="closePanel('uefi')">← SALIR</button>
+
+    <div class="panel-title">UEFI</div>
+    <div class="panel-subtitle">UNIFIED EXTENSIBLE FIRMWARE INTERFACE • INTEL 2005</div>
+
+    <!-- SVG Architecture UEFI -->
+    <svg class="arch-svg" viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-u">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <marker id="arr-u" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#00b8ff" opacity=".6"/>
+        </marker>
+      </defs>
+
+      <!-- UEFI chip center -->
+      <rect x="120" y="65" width="100" height="70" rx="4" fill="none" stroke="#00b8ff" stroke-width="1.5" filter="url(#glow-u)" opacity=".9"/>
+      <text x="170" y="89" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="11" font-weight="700" fill="#00b8ff">UEFI</text>
+      <text x="170" y="102" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#0099ee" opacity=".7">DXE • BDS • PEI • SEC</text>
+      <text x="170" y="114" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#0077cc" opacity=".5">64-bit Protected Mode</text>
+      <text x="170" y="126" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#005599" opacity=".4">Secure Boot • TPM</text>
+
+      <!-- CPU 64-bit -->
+      <rect x="4" y="70" width="68" height="42" rx="3" fill="rgba(0,184,255,.06)" stroke="#00b8ff" stroke-width="1" opacity=".7"/>
+      <text x="38" y="88" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="8" fill="#00b8ff">CPU</text>
+      <text x="38" y="100" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="6" fill="#0088cc" opacity=".6">64-bit • PCIe</text>
+      <line x1="72" y1="91" x2="120" y2="100" stroke="#00b8ff" stroke-width="1" stroke-dasharray="3,3" opacity=".5" marker-end="url(#arr-u)"/>
+
+      <!-- NVMe SSD -->
+      <rect x="268" y="50" width="68" height="38" rx="3" fill="rgba(0,184,255,.06)" stroke="#00b8ff" stroke-width="1" opacity=".6"/>
+      <text x="302" y="65" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00aaee">NVMe SSD</text>
+      <text x="302" y="78" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#007799" opacity=".6">GPT • EFI Part.</text>
+      <line x1="220" y1="85" x2="268" y2="69" stroke="#00b8ff" stroke-width="1" stroke-dasharray="3,3" opacity=".4" marker-end="url(#arr-u)"/>
+
+      <!-- TPM -->
+      <rect x="268" y="105" width="68" height="38" rx="3" fill="rgba(0,184,255,.06)" stroke="#00b8ff" stroke-width="1" opacity=".6"/>
+      <text x="302" y="120" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#00aaee">TPM 2.0</text>
+      <text x="302" y="132" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#007799" opacity=".6">Secure Boot Keys</text>
+      <line x1="220" y1="115" x2="268" y2="120" stroke="#00b8ff" stroke-width="1" stroke-dasharray="3,3" opacity=".4" marker-end="url(#arr-u)"/>
+
+      <!-- NIC -->
+      <rect x="4" y="140" width="68" height="38" rx="3" fill="rgba(0,184,255,.06)" stroke="#00b8ff" stroke-width="1" opacity=".5"/>
+      <text x="38" y="155" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#0099cc">NIC / PXE</text>
+      <text x="38" y="167" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#006688" opacity=".6">Network Boot</text>
+      <line x1="72" y1="157" x2="120" y2="130" stroke="#00b8ff" stroke-width="1" stroke-dasharray="3,3" opacity=".3" marker-end="url(#arr-u)"/>
+
+      <!-- GPU -->
+      <rect x="4" y="14" width="68" height="38" rx="3" fill="rgba(0,184,255,.06)" stroke="#00b8ff" stroke-width="1" opacity=".5"/>
+      <text x="38" y="29" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="7" fill="#0099cc">GPU / GUI</text>
+      <text x="38" y="41" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#006688" opacity=".6">GOP • HII</text>
+      <line x1="72" y1="33" x2="120" y2="75" stroke="#00b8ff" stroke-width="1" stroke-dasharray="3,3" opacity=".3" marker-end="url(#arr-u)"/>
+
+      <!-- Phases label -->
+      <text x="170" y="15" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#0077aa" opacity=".5">SEC→PEI→DXE→BDS→RT→AL</text>
+
+      <!-- animated data flow -->
+      <circle r="3" fill="#00b8ff" opacity=".8" filter="url(#glow-u)">
+        <animateMotion dur="2s" repeatCount="indefinite" path="M72,91 L120,100"/>
+      </circle>
+      <circle r="3" fill="#00b8ff" opacity=".6" filter="url(#glow-u)">
+        <animateMotion dur="2.8s" repeatCount="indefinite" begin=".8s" path="M220,85 L268,69"/>
+      </circle>
+      <circle r="2.5" fill="#00b8ff" opacity=".5" filter="url(#glow-u)">
+        <animateMotion dur="3.5s" repeatCount="indefinite" begin="1.5s" path="M220,115 L268,120"/>
+      </circle>
+    </svg>
+
+    <!-- Operations -->
+    <div class="op-section">
+      <div class="op-title">▸ FASES DE INICIALIZACIÓN UEFI</div>
+      <div class="op-steps">
+        <div class="op-step">
+          <div class="step-num">SEC</div>
+          <div class="step-text"><strong>SECURITY PHASE</strong>CPU resetea en modo real. UEFI verifica integridad de firmware con hash SHA-256 antes de ejecutar cualquier código.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">PEI</div>
+          <div class="step-text"><strong>PRE-EFI INIT</strong>Inicializa controlador de memoria (XMP/EXPO), configura PCIe lanes. Pasa HOBs (Hand-Off Blocks) a siguiente fase.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">DXE</div>
+          <div class="step-text"><strong>DRIVER EXECUTION ENV</strong>Carga drivers EFI de GPU (GOP), NVMe, USB 3.x, Red (PXE). Protocolo EFI_BLOCK_IO para cada dispositivo.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">BDS</div>
+          <div class="step-text"><strong>BOOT DEVICE SELECT</strong>Lee variables NVRAM (boot order). Detecta partición ESP (FAT32) con bootloader EFI (BOOTX64.EFI). Secure Boot valida firma.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">RT</div>
+          <div class="step-text"><strong>RUNTIME SERVICES</strong>GetTime, SetVariable, ResetSystem siguen disponibles para el OS. Windows/Linux acceden vía syscall directo.</div>
+        </div>
+        <div class="op-step">
+          <div class="step-num">AL</div>
+          <div class="step-text"><strong>AFTER LIFE</strong>ExitBootServices() llamado por OS kernel. UEFI libera memoria. Solo Runtime Services permanecen activos.</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="quiz-btn" onclick="closePanel('uefi'); openQuiz()">▶ HACER EL TEST AHORA</button>
+  </div>
+</div>
+
+<!-- ═══ QUIZ ═══ -->
+<div id="quiz-overlay">
+  <div class="quiz-header">TEST DE CONOCIMIENTO</div>
+  <div class="quiz-prog" id="quiz-prog">PREGUNTA 1 DE 3</div>
+
+  <div class="quiz-q" id="quiz-q">—</div>
+  <div class="quiz-options" id="quiz-opts"></div>
+  <div class="quiz-feedback" id="quiz-fb"></div>
+  <button class="quiz-next-btn" id="quiz-next" onclick="nextQuestion()">SIGUIENTE →</button>
+
+  <div class="quiz-result" id="quiz-result">
+    <div class="quiz-score" id="quiz-score-num">0/3</div>
+    <div class="quiz-score-label">RESULTADO FINAL</div>
+    <div class="quiz-msg" id="quiz-msg"></div>
+    <button class="quiz-restart-btn" onclick="restartQuiz()">↺ REPETIR TEST</button>
+    <button class="quiz-restart-btn" onclick="closeQuiz()" style="border-color:var(--bios);color:var(--bios)">✓ CONTINUAR</button>
+  </div>
+</div>
+
+<script>
+// ── PARTICLES ──
+(function(){
+  const c=document.getElementById('particles');
+  for(let i=0;i<20;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.cssText=`
+      left:${Math.random()*100}%;
+      background:${Math.random()>.5?'#00ff88':'#00b8ff'};
+      width:${Math.random()*2+1}px;
+      height:${Math.random()*2+1}px;
+      animation-duration:${4+Math.random()*8}s;
+      animation-delay:${Math.random()*8}s;
+    `;
+    c.appendChild(p);
+  }
+})();
+
+// ── GYROSCOPE / ACCELEROMETER ──
+let gyroActive = false;
+const scene = document.getElementById('scene');
+
+function applyGyro(x, y) {
+  const maxTilt = 12;
+  const tx = Math.max(-maxTilt, Math.min(maxTilt, y));
+  const ty = Math.max(-maxTilt, Math.min(maxTilt, -x));
+  scene.style.transform = `rotateX(${tx}deg) rotateY(${ty}deg)`;
+}
+
+// DeviceOrientation (gyroscope)
+function handleOrientation(e) {
+  if (e.beta === null) return;
+  const beta  = e.beta  || 0; // front-back tilt
+  const gamma = e.gamma || 0; // left-right tilt
+  applyGyro(gamma * 0.3, beta * 0.15);
+}
+
+// DeviceMotion (accelerometer fallback)
+function handleMotion(e) {
+  if (gyroActive) return;
+  const acc = e.accelerationIncludingGravity;
+  if (!acc) return;
+  applyGyro(acc.x * 1.2, -acc.y * 0.8);
+}
+
+// Request permission (iOS 13+)
+function requestMotionPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation);
+        gyroActive = true;
+      }
+    }).catch(()=>{});
+  } else {
+    window.addEventListener('deviceorientation', e => {
+      gyroActive = true;
+      handleOrientation(e);
+    });
+    window.addEventListener('devicemotion', handleMotion);
+  }
+}
+
+document.addEventListener('click', function initMotion(){
+  requestMotionPermission();
+  document.removeEventListener('click', initMotion);
+}, { once: true });
+
+// Mouse parallax for desktop
+window.addEventListener('mousemove', e => {
+  if (gyroActive) return;
+  const cx = window.innerWidth  / 2;
+  const cy = window.innerHeight / 2;
+  const dx = (e.clientX - cx) / cx;
+  const dy = (e.clientY - cy) / cy;
+  applyGyro(dx * 8, dy * 6);
+});
+
+// ── PANELS ──
+function openPanel(type) {
+  document.getElementById(type+'-panel').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closePanel(type) {
+  document.getElementById(type+'-panel').classList.remove('active');
+}
+
+// ── QUIZ DATA ──
+const questions = [
+  {
+    q: "¿En qué dirección física de memoria inicia la ejecución el BIOS al encender la PC?",
+    opts: ["0x00000000", "0xFFFF0 (1MB - 16 bytes)", "0x7C00 (sector MBR)", "0xA0000 (VGA buffer)"],
+    correct: 1,
+    exp: "El BIOS salta al Reset Vector en 0xFFFF0, los últimos 16 bytes del primer megabyte de ROM."
+  },
+  {
+    q: "¿Qué protocolo de UEFI reemplaza a las funciones de video del BIOS (INT 10h)?",
+    opts: ["ACPI 2.0 Tables", "GOP — Graphics Output Protocol", "AHCI Controller Driver", "EFI_BLOCK_IO_PROTOCOL"],
+    correct: 1,
+    exp: "GOP (Graphics Output Protocol) es el driver EFI que abstrae la GPU y habilita la interfaz gráfica del UEFI."
+  },
+  {
+    q: "¿Cuál es la diferencia clave en el esquema de partición entre BIOS y UEFI?",
+    opts: [
+      "BIOS usa GPT; UEFI usa MBR exclusivamente",
+      "Ambos son compatibles con GPT y MBR sin restricciones",
+      "BIOS usa MBR (límite 2TB); UEFI usa GPT con partición ESP (FAT32)",
+      "UEFI solo funciona con discos SSD NVMe, no SATA"
+    ],
+    correct: 2,
+    exp: "BIOS lee el MBR (512 bytes, límite 2TB por direccionamiento de 32 bits). UEFI usa GPT y requiere una partición ESP (FAT32) donde reside el bootloader .EFI."
+  }
+];
+
+let currentQ = 0;
+let score = 0;
+let answered = false;
+
+function openQuiz() {
+  currentQ = 0; score = 0; answered = false;
+  document.getElementById('quiz-overlay').classList.add('active');
+  document.getElementById('quiz-result').style.display = 'none';
+  document.getElementById('quiz-q').style.display = 'block';
+  document.getElementById('quiz-opts').style.display = 'flex';
+  document.getElementById('quiz-fb').style.display = 'block';
+  document.getElementById('quiz-next').style.display = 'none';
+  document.getElementById('quiz-prog').style.display = 'block';
+  renderQuestion();
+}
+
+function closeQuiz() {
+  document.getElementById('quiz-overlay').classList.remove('active');
+}
+
+function renderQuestion() {
+  const q = questions[currentQ];
+  document.getElementById('quiz-prog').textContent = `PREGUNTA ${currentQ+1} DE ${questions.length}`;
+  document.getElementById('quiz-q').textContent = q.q;
+  document.getElementById('quiz-fb').textContent = '';
+  document.getElementById('quiz-fb').className = 'quiz-feedback';
+  document.getElementById('quiz-next').style.display = 'none';
+  answered = false;
+
+  const opts = document.getElementById('quiz-opts');
+  opts.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.textContent = opt;
+    btn.onclick = () => selectAnswer(i);
+    opts.appendChild(btn);
+  });
+}
+
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  const q = questions[currentQ];
+  const btns = document.querySelectorAll('.quiz-opt');
+  btns.forEach(b => b.disabled = true);
+  btns[q.correct].classList.add('correct');
+
+  const fb = document.getElementById('quiz-fb');
+  if (idx === q.correct) {
+    score++;
+    btns[idx].classList.add('correct');
+    fb.textContent = '✓ CORRECTO — ' + q.exp;
+    fb.className = 'quiz-feedback ok';
+  } else {
+    btns[idx].classList.add('wrong');
+    fb.textContent = '✗ INCORRECTO — ' + q.exp;
+    fb.className = 'quiz-feedback err';
+  }
+
+  const nextBtn = document.getElementById('quiz-next');
+  nextBtn.style.display = 'inline-block';
+  nextBtn.textContent = currentQ < questions.length-1 ? 'SIGUIENTE →' : 'VER RESULTADO →';
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= questions.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  document.getElementById('quiz-q').style.display = 'none';
+  document.getElementById('quiz-opts').style.display = 'none';
+  document.getElementById('quiz-fb').style.display = 'none';
+  document.getElementById('quiz-next').style.display = 'none';
+  document.getElementById('quiz-prog').style.display = 'none';
+
+  const res = document.getElementById('quiz-result');
+  res.style.display = 'block';
+  document.getElementById('quiz-score-num').textContent = `${score}/3`;
+
+  const msgs = [
+    "Revisa los paneles de BIOS y UEFI nuevamente. El fundamento es clave para entender la arquitectura x86.",
+    "Buen progreso. Dominas algunos conceptos pero hay zonas grises — repasa las fases de arranque UEFI.",
+    "¡Excelente! Comprendes la diferencia fundamental entre firmware legacy y moderno. Base sólida para sistemas operativos avanzados."
+  ];
+  document.getElementById('quiz-msg').textContent = msgs[score];
+}
+
+function restartQuiz() {
+  openQuiz();
+}
+</script>
+</body>
+</html>
