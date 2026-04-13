@@ -1,1 +1,253 @@
 
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono,monospace);background:#000;color:#fff;padding:12px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 0 10px}
+.filter-btn{font-size:18px;padding:6px 14px;border-radius:20px;border:1.5px solid #444;background:transparent;cursor:pointer;color:#aaa;transition:all .15s;font-family:var(--font-mono,monospace)}
+.filter-btn.active-all{background:#0000ff;color:#fff;border-color:#0000ff}
+.filter-btn.active-active{background:#00aa00;color:#fff;border-color:#00aa00}
+.filter-btn.active-inactive{background:#888;color:#fff;border-color:#888}
+.filter-btn.active-failed{background:#cc0000;color:#fff;border-color:#cc0000}
+.filter-btn.active-service{background:#ffcc00;color:#000;border-color:#ffcc00}
+.filter-btn.active-socket{background:#ff6600;color:#000;border-color:#ff6600}
+.filter-btn.active-timer{background:#cc00cc;color:#fff;border-color:#cc00cc}
+.filter-btn.active-mount{background:#00aaaa;color:#000;border-color:#00aaaa}
+.search-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.search-row input{flex:1;font-size:18px;padding:7px 12px;border-radius:6px;border:1.5px solid #444;background:#111;color:#fff;font-family:var(--font-mono,monospace)}
+.cmd-box{font-family:var(--font-mono,monospace);font-size:18px;padding:10px 14px;border-radius:6px;background:#111;border:1px solid #333;color:#888;margin-bottom:12px;word-break:break-all}
+.cmd-box .prompt{color:#ffcc00}
+.cmd-box .cmd{color:#fff}
+.cmd-box .flags{color:#00ccff}
+.table-wrap{border:1px solid #333;border-radius:8px;overflow:hidden}
+table{width:100%;font-size:18px;border-collapse:collapse;table-layout:fixed;font-family:var(--font-mono,monospace)}
+thead th{padding:8px 10px;text-align:left;font-size:15px;font-weight:500;color:#666;background:#111;border-bottom:1px solid #333}
+tbody tr{border-bottom:1px solid #1a1a1a;cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#1a1a1a}
+tbody tr.selected{background:#001a33}
+td{padding:7px 10px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.dot-active{background:#00dd00}
+.dot-inactive{background:#666}
+.dot-failed{background:#ff3333}
+.badge{font-size:13px;padding:2px 8px;border-radius:10px;font-weight:500;font-family:var(--font-mono,monospace)}
+.badge-service{background:#000066;color:#6699ff;border:1px solid #0000cc}
+.badge-socket{background:#003300;color:#00ff88;border:1px solid #006600}
+.badge-timer{background:#330033;color:#ff66ff;border:1px solid #660066}
+.badge-mount{background:#003333;color:#00ffff;border:1px solid #006666}
+.detail-panel{margin-top:10px;padding:14px 16px;border:1px solid #333;border-radius:8px;background:#0a0a0a;display:none}
+.detail-panel.open{display:block}
+.detail-grid{display:grid;grid-template-columns:140px 1fr;gap:5px 14px;font-size:16px;margin-top:8px;font-family:var(--font-mono,monospace)}
+.dk{color:#555}
+.dv{color:#00ccff;font-size:15px}
+.action-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.action-btn{font-size:15px;padding:5px 12px;border-radius:6px;border:1px solid #333;background:#111;cursor:pointer;color:#aaa;transition:background .15s;font-family:var(--font-mono,monospace)}
+.action-btn:hover{background:#222;color:#fff}
+.stat-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.stat{border-radius:6px;padding:7px 14px;font-size:15px;text-align:center;font-family:var(--font-mono,monospace);border:1px solid #222}
+.stat strong{display:block;font-size:24px;font-weight:500}
+.stat-active{background:#001400;color:#00dd00;border-color:#004400}
+.stat-inactive{background:#111;color:#888;border-color:#333}
+.stat-failed{background:#1a0000;color:#ff3333;border-color:#440000}
+.stat-total{background:#000033;color:#6699ff;border-color:#000066}
+.unit-name{color:#fff}
+.unit-loaded{color:#555}
+.unit-sub{color:#888}
+</style>
+
+<div style="background:#000;min-height:100%;padding:4px 0 16px">
+
+<div class="cmd-box">
+  <span class="prompt">root@server</span><span style="color:#555">:</span><span style="color:#6699ff">~</span><span style="color:#555"># </span><span class="cmd">systemctl list-units </span><span class="flags" id="cmd-flags"></span>
+</div>
+
+<div class="stat-row" id="stat-row"></div>
+
+<div class="toolbar">
+  <button class="filter-btn" id="btn-all" onclick="setFilter('all')">todos</button>
+  <button class="filter-btn" id="btn-active" onclick="setFilter('active')">active</button>
+  <button class="filter-btn" id="btn-inactive" onclick="setFilter('inactive')">inactive</button>
+  <button class="filter-btn" id="btn-failed" onclick="setFilter('failed')">failed</button>
+  <button class="filter-btn" id="btn-service" onclick="setType('service')">service</button>
+  <button class="filter-btn" id="btn-socket" onclick="setType('socket')">socket</button>
+  <button class="filter-btn" id="btn-timer" onclick="setType('timer')">timer</button>
+  <button class="filter-btn" id="btn-mount" onclick="setType('mount')">mount</button>
+</div>
+
+<div class="search-row">
+  <input type="text" id="search" placeholder="filtrar por nombre..." oninput="render()">
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+  <tr>
+    <th style="width:38%">UNIT</th>
+    <th style="width:12%">LOAD</th>
+    <th style="width:16%">ACTIVE</th>
+    <th style="width:16%">SUB</th>
+    <th style="width:18%">TIPO</th>
+  </tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div class="detail-panel" id="detail">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong style="font-size:19px;color:#fff" id="d-name"></strong>
+    <span id="d-badge"></span>
+  </div>
+  <p style="font-size:16px;color:#666;margin-top:5px" id="d-desc"></p>
+  <div class="detail-grid" id="d-grid"></div>
+  <div class="action-row" id="d-actions"></div>
+</div>
+
+</div>
+
+<script>
+const units = [
+  {name:'NetworkManager.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Gestión de interfaces de red',pid:'PID 812',mem:'8.2 MB',since:'Mon 2026-04-07 08:01:11'},
+  {name:'sshd.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'OpenSSH daemon – acceso remoto seguro',pid:'PID 1024',mem:'3.1 MB',since:'Mon 2026-04-07 08:01:15'},
+  {name:'cron.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Planificador de tareas periódicas',pid:'PID 877',mem:'1.2 MB',since:'Mon 2026-04-07 08:01:09'},
+  {name:'nginx.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Servidor web / proxy inverso',pid:'PID 2234',mem:'12.4 MB',since:'Mon 2026-04-07 08:02:01'},
+  {name:'docker.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Motor de contenedores Docker',pid:'PID 1500',mem:'45.7 MB',since:'Mon 2026-04-07 08:01:50'},
+  {name:'systemd-resolved.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Resolución de nombres DNS del sistema',pid:'PID 543',mem:'4.8 MB',since:'Mon 2026-04-07 08:01:02'},
+  {name:'rsyslog.service',load:'loaded',active:'active',sub:'running',type:'service',desc:'Sistema de logging centralizado',pid:'PID 901',mem:'2.0 MB',since:'Mon 2026-04-07 08:01:11'},
+  {name:'bluetooth.service',load:'loaded',active:'inactive',sub:'dead',type:'service',desc:'Stack Bluetooth – no hay dispositivo',pid:'—',mem:'—',since:'—'},
+  {name:'cups.service',load:'loaded',active:'inactive',sub:'dead',type:'service',desc:'Sistema de impresión CUPS',pid:'—',mem:'—',since:'—'},
+  {name:'apache2.service',load:'loaded',active:'failed',sub:'failed',type:'service',desc:'Apache HTTP Server – error al iniciar',pid:'—',mem:'—',since:'—'},
+  {name:'ssh.socket',load:'loaded',active:'active',sub:'listening',type:'socket',desc:'Socket de activación para sshd',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:00'},
+  {name:'docker.socket',load:'loaded',active:'active',sub:'listening',type:'socket',desc:'Socket de API del daemon Docker',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:00'},
+  {name:'systemd-tmpfiles-clean.timer',load:'loaded',active:'active',sub:'waiting',type:'timer',desc:'Limpieza periódica de /tmp',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:00'},
+  {name:'apt-daily.timer',load:'loaded',active:'active',sub:'waiting',type:'timer',desc:'Actualización automática de paquetes',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:00'},
+  {name:'proc-sys-fs-binfmt_misc.mount',load:'loaded',active:'active',sub:'mounted',type:'mount',desc:'Soporte para formatos binarios especiales',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:01'},
+  {name:'dev-hugepages.mount',load:'loaded',active:'active',sub:'mounted',type:'mount',desc:'Huge pages del kernel',pid:'—',mem:'—',since:'Mon 2026-04-07 08:01:00'},
+];
+
+let filterState = 'all';
+let typeFilter = null;
+let selected = null;
+
+function clearActive() {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'filter-btn';
+  });
+}
+
+function setFilter(f) {
+  filterState = f; typeFilter = null;
+  clearActive();
+  const map = {all:'active-all',active:'active-active',inactive:'active-inactive',failed:'active-failed'};
+  document.getElementById('btn-'+f).classList.add(map[f]);
+  render();
+}
+
+function setType(t) {
+  typeFilter = (typeFilter === t) ? null : t;
+  filterState = 'all';
+  clearActive();
+  if(typeFilter) {
+    const map = {service:'active-service',socket:'active-socket',timer:'active-timer',mount:'active-mount'};
+    document.getElementById('btn-'+t).classList.add(map[t]);
+  } else {
+    document.getElementById('btn-all').classList.add('active-all');
+  }
+  render();
+}
+
+function dotClass(active) {
+  if(active==='active') return 'dot-active';
+  if(active==='failed') return 'dot-failed';
+  return 'dot-inactive';
+}
+
+function activeColor(active) {
+  if(active==='active') return '#00dd00';
+  if(active==='failed') return '#ff3333';
+  return '#666';
+}
+
+function subColor(sub) {
+  if(['running','listening','mounted','waiting'].includes(sub)) return '#00ccff';
+  if(sub==='failed') return '#ff3333';
+  return '#555';
+}
+
+function badgeHtml(type) {
+  return `<span class="badge badge-${type}">${type}</span>`;
+}
+
+function updateCmd() {
+  let flags = '';
+  if(filterState !== 'all') flags += `--state=${filterState} `;
+  if(typeFilter) flags += `--type=${typeFilter} `;
+  const q = document.getElementById('search').value.trim();
+  if(q) flags += `"*${q}*"`;
+  document.getElementById('cmd-flags').textContent = flags.trim();
+}
+
+function render() {
+  updateCmd();
+  const q = document.getElementById('search').value.toLowerCase();
+  let data = units.filter(u => {
+    if(filterState !== 'all' && u.active !== filterState) return false;
+    if(typeFilter && u.type !== typeFilter) return false;
+    if(q && !u.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const all = units;
+  document.getElementById('stat-row').innerHTML = [
+    ['active', all.filter(u=>u.active==='active').length, 'stat-active'],
+    ['inactive', all.filter(u=>u.active==='inactive').length, 'stat-inactive'],
+    ['failed', all.filter(u=>u.active==='failed').length, 'stat-failed'],
+    ['total', all.length, 'stat-total'],
+  ].map(([l,n,c])=>`<div class="stat ${c}"><strong>${n}</strong>${l}</div>`).join('');
+
+  const tbody = document.getElementById('tbody');
+  if(!data.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;text-align:center;color:#444;font-size:18px">sin resultados</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(u => `
+    <tr onclick="selectUnit('${u.name}')" ${selected===u.name?'class="selected"':''}>
+      <td class="unit-name" style="font-size:16px">${u.name}</td>
+      <td class="unit-loaded">${u.load}</td>
+      <td style="color:${activeColor(u.active)}"><span class="dot ${dotClass(u.active)}"></span>${u.active}</td>
+      <td style="color:${subColor(u.sub)}">${u.sub}</td>
+      <td>${badgeHtml(u.type)}</td>
+    </tr>`).join('');
+}
+
+function selectUnit(name) {
+  selected = (selected === name) ? null : name;
+  render();
+  const panel = document.getElementById('detail');
+  if(!selected){ panel.classList.remove('open'); return; }
+  const u = units.find(x=>x.name===name);
+  document.getElementById('d-name').textContent = u.name;
+  document.getElementById('d-badge').innerHTML = badgeHtml(u.type);
+  document.getElementById('d-desc').textContent = u.desc;
+  document.getElementById('d-grid').innerHTML = [
+    ['Estado', `${u.active} / ${u.sub}`],
+    ['Carga',  u.load],
+    ['PID',    u.pid],
+    ['Memoria',u.mem],
+    ['Desde',  u.since],
+  ].map(([k,v])=>`<span class="dk">${k}</span><span class="dv">${v}</span>`).join('');
+  const cmds = [
+    [`systemctl status ${u.name}`,`¿Cómo ver el status detallado de ${u.name}?`],
+    [`journalctl -u ${u.name} -n 50`,`¿Cómo ver los últimos 50 logs de ${u.name}?`],
+    [`systemctl restart ${u.name}`,`¿Cuándo debo reiniciar un servicio con systemctl restart?`],
+    [`systemctl enable ${u.name}`,`¿Qué diferencia hay entre systemctl enable y start?`],
+  ];
+  document.getElementById('d-actions').innerHTML = cmds.map(([cmd,q])=>
+    `<button class="action-btn" onclick="sendPrompt('${q}')">${cmd} ↗</button>`).join('');
+  panel.classList.add('open');
+}
+
+document.getElementById('btn-all').classList.add('active-all');
+render();
+</script>
+
