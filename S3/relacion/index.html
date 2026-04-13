@@ -1,1 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Process Map — AR Interactive</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #000000;
+  --bg2:      #060810;
+  --bg3:      #0a0f1a;
+  --border:   rgba(55,138,221,0.2);
+  --blue:     #378ADD;
+  --blue-dim: #185FA5;
+  --blue-lt:  #85B7EB;
+  --teal:     #1D9E75;
+  --teal-lt:  #5DCAA5;
+  --purple:   #534AB7;
+  --purple-lt:#AFA9EC;
+  --amber:    #BA7517;
+  --amber-lt: #FAC775;
+  --red:      #A32D2D;
+  --red-lt:   #F7C1C1;
+  --green:    #3B6D11;
+  --green-lt: #C0DD97;
+  --text:     #c8d8f0;
+  --text-dim: #5a7090;
+  --text-muted: #2a3a50;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Orbitron', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── grid background ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(55,138,221,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(55,138,221,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+/* ── header ── */
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.header-left {}
+.sys-label {
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--blue);
+  opacity: .7;
+  margin-bottom: 6px;
+}
+h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+h1 span { color: var(--blue); }
+.subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.status-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+.dot-live {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: blink-live 1.5s ease-in-out infinite;
+}
+@keyframes blink-live { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+  flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+  bottom: -1px;
+}
+.tab:hover { color: var(--blue-lt); }
+.tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+/* ── anim toggle ── */
+.controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.ctrl-label { font-size: 10px; color: var(--text-dim); letter-spacing: .5px; }
+.toggle-wrap {
+  position: relative;
+  width: 36px; height: 20px;
+  background: var(--blue-dim);
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background .2s;
+}
+.toggle-wrap.off { background: var(--bg3); }
+.toggle-knob {
+  position: absolute;
+  top: 2px; left: 18px;
+  width: 14px; height: 14px;
+  background: var(--blue);
+  border-radius: 50%;
+  transition: left .2s;
+}
+.toggle-wrap.off .toggle-knob { left: 2px; background: var(--text-dim); }
+
+/* ── svg panel ── */
+.svg-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.svg-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(55,138,221,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── info panel ── */
+.info-panel {
+  margin-top: 12px;
+  padding: 14px 18px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-height: 96px;
+}
+.info-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.info-badge {
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+  border-radius: 2px;
+  background: rgba(55,138,221,0.15);
+  border: 1px solid rgba(55,138,221,0.3);
+  color: var(--blue-lt);
+}
+.info-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.info-cmd {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--teal-lt);
+  margin-bottom: 5px;
+  white-space: pre;
+}
+.info-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* ── footer ── */
+footer {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.leg-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.footer-credit {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* ── SVG process animations ── */
+@keyframes pulse-ring { 0%,100%{opacity:.15} 50%{opacity:.35} }
+@keyframes orbit { from{transform-origin:340px 300px;transform:rotate(0deg)} to{transform-origin:340px 300px;transform:rotate(360deg)} }
+@keyframes orbit-rev { from{transform-origin:340px 300px;transform:rotate(0deg)} to{transform-origin:340px 300px;transform:rotate(-360deg)} }
+@keyframes blink-pid { 0%,100%{opacity:1} 50%{opacity:.55} }
+@keyframes signal-flash { 0%{opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{opacity:0} }
+@keyframes dash-flow { to{stroke-dashoffset:-24} }
+
+.ring-app { animation: pulse-ring 3.5s ease-in-out infinite; }
+.ring-svc { animation: pulse-ring 3.5s ease-in-out infinite .8s; }
+.ring-pid { animation: blink-pid 2.5s ease-in-out infinite; }
+.orb-grp-1 { animation: orbit 22s linear infinite; }
+.orb-grp-2 { animation: orbit-rev 30s linear infinite; }
+
+.proc-node { cursor: pointer; }
+.proc-node circle { transition: r .15s, filter .15s; }
+.proc-node:hover circle { filter: brightness(1.4); }
+.layer-ring { cursor: pointer; transition: opacity .2s; }
+.layer-ring:hover { opacity: .6; }
+
+/* views */
+.view { display: none; }
+.view.active { display: block; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="header-left">
+      <div class="sys-label">KERNEL PROCESS VISUALIZER v2.6</div>
+      <h1>Linux <span>Process</span> Map</h1>
+      <div class="subtitle">Relación entre procesos — vista de realidad aumentada interactiva</div>
+    </div>
+    <div class="status-bar">
+      <div class="status-pill"><span class="dot-live"></span> LIVE</div>
+      <div class="status-pill" style="font-size:9px">PID 1 → SERVICES → APPS</div>
+    </div>
+  </header>
+
+  <div class="controls-bar">
+    <span class="ctrl-label">ANIMACIÓN</span>
+    <div class="toggle-wrap" id="anim-wrap" onclick="toggleAnim()">
+      <div class="toggle-knob"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="setView('map')">01 · Mapa orbital</button>
+    <button class="tab" onclick="setView('tree')">02 · Árbol de procesos</button>
+    <button class="tab" onclick="setView('signal')">03 · Señales POSIX</button>
+    <button class="tab" onclick="setView('fork')">04 · fork() / exec()</button>
+  </div>
+
+  <div class="svg-wrap">
+
+    <!-- VIEW MAP -->
+    <div class="view active" id="view-map">
+    <svg width="100%" viewBox="0 0 680 600" role="img">
+      <title>Mapa orbital de procesos Linux</title>
+      <desc>Diagrama concéntrico interactivo: PID 1 en el centro, servicios en órbita media, aplicaciones en órbita exterior.</desc>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <circle class="ring-app layer-ring" cx="340" cy="300" r="215"
+        fill="#185FA5" fill-opacity=".08" stroke="#185FA5" stroke-width=".8" stroke-opacity=".4"
+        onclick="showLayer('app')"/>
+      <circle class="ring-svc layer-ring" cx="340" cy="300" r="140"
+        fill="#0F6E56" fill-opacity=".12" stroke="#1D9E75" stroke-width=".8" stroke-opacity=".45"
+        onclick="showLayer('svc')"/>
+      <circle class="ring-pid" cx="340" cy="300" r="62"
+        fill="#042C53" fill-opacity=".9" stroke="#378ADD" stroke-width="1.5"/>
+
+      <text font-family="'Orbitron',monospace" font-size="14" font-weight="700" text-anchor="middle" x="340" y="296" fill="#85B7EB">PID 1</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="10" text-anchor="middle" x="340" y="313" fill="#378ADD">systemd</text>
+
+      <g class="orb-grp-1">
+        <g class="proc-node" onclick="selectNode('sshd')">
+          <circle cx="340" cy="160" r="19" fill="#062f20" stroke="#1D9E75" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="340" y="164" fill="#5DCAA5">sshd</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('cron')">
+          <circle cx="480" cy="300" r="18" fill="#062f20" stroke="#1D9E75" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="480" y="304" fill="#5DCAA5">cron</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('dbus')">
+          <circle cx="340" cy="440" r="18" fill="#062f20" stroke="#1D9E75" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="340" y="444" fill="#5DCAA5">dbus</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('networkd')">
+          <circle cx="200" cy="300" r="20" fill="#062f20" stroke="#1D9E75" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="200" y="297" fill="#5DCAA5">net</text>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="200" y="308" fill="#5DCAA5">workd</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('journald')">
+          <circle cx="440" cy="188" r="20" fill="#062f20" stroke="#1D9E75" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="440" y="185" fill="#5DCAA5">journal</text>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="440" y="196" fill="#5DCAA5">d</text>
+        </g>
+      </g>
+
+      <g class="orb-grp-2">
+        <g class="proc-node" onclick="selectNode('bash')">
+          <circle cx="340" cy="85" r="17" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="340" y="89" fill="#AFA9EC">bash</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('nginx')">
+          <circle cx="542" cy="207" r="17" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="542" y="211" fill="#AFA9EC">nginx</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('python')">
+          <circle cx="516" cy="415" r="17" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="516" y="419" fill="#AFA9EC">python</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('vim')">
+          <circle cx="222" cy="443" r="16" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="222" y="447" fill="#AFA9EC">vim</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('gcc')">
+          <circle cx="148" cy="200" r="16" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="148" y="204" fill="#AFA9EC">gcc</text>
+        </g>
+        <g class="proc-node" onclick="selectNode('firefox')">
+          <circle cx="148" cy="400" r="17" fill="#1a1030" stroke="#7F77DD" stroke-width="1.2"/>
+          <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="500" text-anchor="middle" x="148" y="404" fill="#AFA9EC">firefox</text>
+        </g>
+      </g>
+
+      <text font-family="'JetBrains Mono',monospace" font-size="10" text-anchor="middle" x="340" y="506" fill="#1D9E75" opacity=".7">── servicios (daemons) — hijos de PID 1 ──</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="10" text-anchor="middle" x="340" y="524" fill="#534AB7" opacity=".7">── aplicaciones de usuario — espacio de usuario ──</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="548" fill="#2a3a50">[ haz clic en cualquier proceso o capa para explorar ]</text>
+    </svg>
+    </div>
+
+    <!-- VIEW TREE -->
+    <div class="view" id="view-tree">
+    <svg width="100%" viewBox="0 0 680 480" role="img">
+      <title>Árbol de procesos Linux</title>
+      <desc>Jerarquía real de herencia desde el kernel hasta procesos de usuario.</desc>
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <rect x="270" y="20" width="140" height="40" rx="3" fill="#03080f" stroke="#185FA5" stroke-width="1"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="700" text-anchor="middle" x="340" y="37" fill="#378ADD">kernel (PID 0)</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="52" fill="#185FA5">swapper / idle</text>
+
+      <line x1="340" y1="60" x2="340" y2="80" stroke="#185FA5" stroke-width="1" marker-end="url(#arr2)"/>
+
+      <rect x="268" y="80" width="144" height="44" rx="3" fill="#020c1a" stroke="#378ADD" stroke-width="1.5" style="cursor:pointer" onclick="selectNode('pid1')"/>
+      <text font-family="'Orbitron',monospace" font-size="11" font-weight="700" text-anchor="middle" x="340" y="99" fill="#85B7EB">PID 1 — systemd</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="115" fill="#378ADD">proceso raíz · UID 0</text>
+
+      <path d="M310 124 L180 160" fill="none" stroke="#1D9E75" stroke-width="1" marker-end="url(#arr2)"/>
+      <path d="M330 124 L280 160" fill="none" stroke="#1D9E75" stroke-width="1" marker-end="url(#arr2)"/>
+      <path d="M350 124 L390 160" fill="none" stroke="#1D9E75" stroke-width="1" marker-end="url(#arr2)"/>
+      <path d="M368 124 L500 160" fill="none" stroke="#1D9E75" stroke-width="1" marker-end="url(#arr2)"/>
+
+      <rect x="118" y="160" width="124" height="40" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1" style="cursor:pointer" onclick="selectNode('sshd')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="180" y="177" fill="#5DCAA5">sshd :22</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="180" y="192" fill="#1D9E75">PID 850</text>
+
+      <rect x="248" y="160" width="114" height="40" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1" style="cursor:pointer" onclick="selectNode('journald')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="305" y="177" fill="#5DCAA5">journald</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="305" y="192" fill="#1D9E75">PID 312</text>
+
+      <rect x="368" y="160" width="114" height="40" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1" style="cursor:pointer" onclick="selectNode('cron')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="425" y="177" fill="#5DCAA5">crond</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="425" y="192" fill="#1D9E75">PID 423</text>
+
+      <rect x="488" y="160" width="124" height="40" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1" style="cursor:pointer" onclick="selectNode('networkd')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="550" y="177" fill="#5DCAA5">networkd</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="550" y="192" fill="#1D9E75">PID 290</text>
+
+      <path d="M152 200 L90 240"  fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arr2)"/>
+      <path d="M180 200 L180 240" fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arr2)"/>
+      <path d="M208 200 L270 240" fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arr2)"/>
+
+      <rect x="38"  y="240" width="104" height="40" rx="3" fill="#0c0a22" stroke="#534AB7" stroke-width="1" style="cursor:pointer" onclick="selectNode('bash')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="90" y="257" fill="#AFA9EC">bash</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="90" y="272" fill="#534AB7">PID 3210</text>
+
+      <rect x="148" y="240" width="106" height="40" rx="3" fill="#0c0a22" stroke="#534AB7" stroke-width="1" style="cursor:pointer" onclick="selectNode('sshd')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="201" y="257" fill="#AFA9EC">sshd worker</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="201" y="272" fill="#534AB7">PID 3208</text>
+
+      <rect x="260" y="240" width="104" height="40" rx="3" fill="#0c0a22" stroke="#534AB7" stroke-width="1" style="cursor:pointer" onclick="selectNode('vim')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="312" y="257" fill="#AFA9EC">vim</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="312" y="272" fill="#534AB7">PID 3350</text>
+
+      <path d="M90 280 L90 320"  fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr2)"/>
+      <path d="M201 280 L201 320" fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr2)"/>
+
+      <rect x="38"  y="320" width="104" height="40" rx="3" fill="#0c0a22" stroke="#3C3489" stroke-width=".8" style="cursor:pointer" onclick="selectNode('gcc')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="90" y="337" fill="#CECBF6">gcc</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="90" y="352" fill="#534AB7">PID 3580</text>
+
+      <rect x="148" y="320" width="116" height="40" rx="3" fill="#0c0a22" stroke="#3C3489" stroke-width=".8" style="cursor:pointer" onclick="selectNode('python')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" text-anchor="middle" x="206" y="337" fill="#CECBF6">python3</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="206" y="352" fill="#534AB7">PID 3601</text>
+
+      <rect x="430" y="250" width="200" height="76" rx="3" fill="#0c0a22" stroke="#534AB7" stroke-width=".8"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="700" x="448" y="272" fill="#AFA9EC">nginx master</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="448" y="287" fill="#534AB7">PID 1200 (root)</text>
+      <rect x="450" y="298" width="78" height="18" rx="2" fill="#1a1030" stroke="#534AB7" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="489" y="311" fill="#7F77DD">worker 1201</text>
+      <rect x="538" y="298" width="78" height="18" rx="2" fill="#1a1030" stroke="#534AB7" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="577" y="311" fill="#7F77DD">worker 1202</text>
+
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="38" y="418" fill="#2a3a50">leyenda:</text>
+      <rect x="84"  y="407" width="10" height="10" rx="1" fill="#031a10" stroke="#1D9E75" stroke-width="1"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="100" y="416" fill="#2a3a50">servicios</text>
+      <rect x="160" y="407" width="10" height="10" rx="1" fill="#0c0a22" stroke="#534AB7" stroke-width="1"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="176" y="416" fill="#2a3a50">aplicaciones</text>
+      <line x1="258" y1="412" x2="288" y2="412" stroke="#534AB7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr2)"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="294" y="416" fill="#2a3a50">fork() hijo</text>
+    </svg>
+    </div>
+
+    <!-- VIEW SIGNAL -->
+    <div class="view" id="view-signal">
+    <svg width="100%" viewBox="0 0 680 460" role="img">
+      <title>Señales POSIX en Linux</title>
+      <desc>Diagrama interactivo de señales entre procesos Linux.</desc>
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <rect x="60"  y="60"  width="134" height="56" rx="3" fill="#020c1a" stroke="#185FA5" stroke-width="1.2"/>
+      <text font-family="'Orbitron',monospace" font-size="11" font-weight="700" text-anchor="middle" x="127" y="82" fill="#85B7EB">kernel</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="127" y="99" fill="#378ADD">signal dispatcher</text>
+
+      <rect x="270" y="30"  width="140" height="56" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1.2" style="cursor:pointer" onclick="selectNode('sshd')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" text-anchor="middle" x="340" y="52" fill="#5DCAA5">proceso A</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="68" fill="#1D9E75">sshd (PID 850)</text>
+
+      <rect x="490" y="60"  width="130" height="56" rx="3" fill="#0c0a22" stroke="#7F77DD" stroke-width="1.2" style="cursor:pointer" onclick="selectNode('bash')"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" text-anchor="middle" x="555" y="82" fill="#CECBF6">proceso B</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="555" y="99" fill="#7F77DD">bash (PID 3210)</text>
+
+      <rect x="270" y="340" width="140" height="56" rx="3" fill="#1a1030" stroke="#534AB7" stroke-width="1"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" text-anchor="middle" x="340" y="362" fill="#CECBF6">proceso hijo</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="378" fill="#7F77DD">gcc (PID 3580)</text>
+
+      <g style="cursor:pointer" onclick="animSig('SIGTERM')">
+        <path d="M410 58 C460 30 490 50 490 68" fill="none" stroke="#A32D2D" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <rect x="425" y="22" width="72" height="20" rx="2" fill="#1a0404" stroke="#A32D2D" stroke-width=".8"/>
+        <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="461" y="36" fill="#F7C1C1">SIGTERM 15</text>
+      </g>
+      <g style="cursor:pointer" onclick="animSig('SIGKILL')">
+        <path d="M194 80 C240 60 268 50 270 48" fill="none" stroke="#791F1F" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <rect x="172" y="50" width="72" height="20" rx="2" fill="#1a0404" stroke="#791F1F" stroke-width=".8"/>
+        <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="208" y="64" fill="#F7C1C1">SIGKILL 9</text>
+      </g>
+      <g style="cursor:pointer" onclick="animSig('SIGHUP')">
+        <path d="M340 86 L340 155 L340 183" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr3)"/>
+        <rect x="348" y="115" width="66" height="20" rx="2" fill="#120900" stroke="#BA7517" stroke-width=".8"/>
+        <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="381" y="129" fill="#FAC775">SIGHUP 1</text>
+      </g>
+      <g style="cursor:pointer" onclick="animSig('SIGCHLD')">
+        <path d="M340 340 L340 300 L340 88" fill="none" stroke="#3B6D11" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr3)"/>
+        <rect x="348" y="262" width="72" height="20" rx="2" fill="#081000" stroke="#3B6D11" stroke-width=".8"/>
+        <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="384" y="276" fill="#C0DD97">SIGCHLD 17</text>
+      </g>
+      <g style="cursor:pointer" onclick="animSig('SIGUSR')">
+        <path d="M490 88 C440 120 415 150 412 172" fill="none" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <rect x="440" y="106" width="72" height="20" rx="2" fill="#0a0820" stroke="#534AB7" stroke-width=".8"/>
+        <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="500" text-anchor="middle" x="476" y="120" fill="#CECBF6">SIGUSR1 10</text>
+      </g>
+
+      <rect x="240" y="182" width="200" height="132" rx="3" fill="#03060a" stroke="#185FA5" stroke-width=".8"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="10" font-weight="700" x="258" y="202" fill="#378ADD">tabla de señales pendientes</text>
+      <rect x="252" y="210" width="176" height="18" rx="2" fill="#020c1a"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="262" y="223" fill="#1D9E75">sig_pending[ ] — cola FIFO</text>
+      <rect x="252" y="232" width="176" height="18" rx="2" fill="#020c1a"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="262" y="245" fill="#7F77DD">sa_handler — acción registrada</text>
+      <rect x="252" y="254" width="176" height="18" rx="2" fill="#020c1a"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="262" y="267" fill="#BA7517">sa_mask — señales bloqueadas</text>
+      <rect x="252" y="276" width="176" height="18" rx="2" fill="#020c1a"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" x="262" y="289" fill="#3B6D11">si_code — origen de señal</text>
+
+      <line x1="127" y1="116" x2="127" y2="190" stroke="#185FA5" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr3)"/>
+      <line x1="127" y1="190" x2="240" y2="230" stroke="#185FA5" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr3)"/>
+
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="430" fill="#2a3a50">[ haz clic en una señal para ver su comportamiento ]</text>
+
+      <g id="sig-flash" opacity="0">
+        <rect x="200" y="148" width="280" height="24" rx="3" fill="#120900" stroke="#BA7517" stroke-width="1"/>
+        <text id="sig-flash-txt" font-family="'JetBrains Mono',monospace" font-size="11" font-weight="700" text-anchor="middle" x="340" y="164" fill="#FAC775">--</text>
+      </g>
+    </svg>
+    </div>
+
+    <!-- VIEW FORK -->
+    <div class="view" id="view-fork">
+    <svg width="100%" viewBox="0 0 680 500" role="img">
+      <title>Ciclo fork() y exec() en Linux</title>
+      <desc>Diagrama del ciclo fork-exec-wait-exit con estados de proceso.</desc>
+      <defs>
+        <marker id="arr4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <rect x="268" y="20" width="144" height="50" rx="3" fill="#020c1a" stroke="#378ADD" stroke-width="1.5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" text-anchor="middle" x="340" y="42" fill="#85B7EB">proceso padre</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="58" fill="#378ADD">RUNNING — PID 1000</text>
+
+      <line x1="340" y1="70" x2="340" y2="100" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <rect x="298" y="74" width="52" height="20" rx="3" fill="#020c1a" stroke="#378ADD" stroke-width=".8"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="324" y="88" fill="#85B7EB">fork()</text>
+
+      <rect x="268" y="100" width="144" height="50" rx="3" fill="#031a10" stroke="#1D9E75" stroke-width="1.2"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" text-anchor="middle" x="340" y="122" fill="#5DCAA5">proceso hijo</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="138" fill="#1D9E75">RUNNABLE — PID 1001</text>
+
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="175" y="108" fill="#2a3a50">copia exacta del padre</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="175" y="122" fill="#2a3a50">Copy-on-Write (COW)</text>
+      <line x1="268" y1="115" x2="230" y2="115" stroke="#2a3a50" stroke-width=".8" stroke-dasharray="3 2"/>
+
+      <path d="M340 150 L240 200" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <path d="M340 150 L440 200" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+      <rect x="152" y="200" width="174" height="50" rx="3" fill="#0c0a22" stroke="#534AB7" stroke-width="1.2" style="cursor:pointer" onclick="selectNode('bash')"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="239" y="218" fill="#AFA9EC">exec()</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="239" y="234" fill="#7F77DD">carga nuevo ELF binario</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="8" text-anchor="middle" x="239" y="246" fill="#534AB7">reemplaza imagen de memoria</text>
+
+      <rect x="354" y="200" width="174" height="50" rx="3" fill="#120900" stroke="#BA7517" stroke-width="1.2"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" text-anchor="middle" x="441" y="218" fill="#FAC775">sin exec() — hijo</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="441" y="234" fill="#BA7517">hereda todo del padre</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="8" text-anchor="middle" x="441" y="246" fill="#854F0B">fds, env, heap, stack</text>
+
+      <line x1="239" y1="250" x2="239" y2="300" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <line x1="441" y1="250" x2="441" y2="300" stroke="#BA7517" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+      <rect x="152" y="300" width="174" height="50" rx="3" fill="#081000" stroke="#3B6D11" stroke-width="1.2"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="239" y="320" fill="#C0DD97">RUNNING</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="239" y="338" fill="#639922">ejecuta nuevo programa</text>
+
+      <rect x="354" y="300" width="174" height="50" rx="3" fill="#1a0404" stroke="#E24B4A" stroke-width="1.2"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="441" y="320" fill="#F7C1C1">ZOMBIE posible</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="441" y="338" fill="#A32D2D">padre no llamó wait()</text>
+
+      <line x1="239" y1="350" x2="239" y2="390" stroke="#3B6D11" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <line x1="441" y1="350" x2="441" y2="390" stroke="#E24B4A" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+      <rect x="152" y="390" width="174" height="44" rx="3" fill="#020c1a" stroke="#185FA5" stroke-width="1"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="239" y="409" fill="#85B7EB">exit() → SIGCHLD</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="239" y="425" fill="#378ADD">padre llama wait()</text>
+
+      <rect x="354" y="390" width="174" height="44" rx="3" fill="#0a0a0a" stroke="#444441" stroke-width="1"/>
+      <text font-family="'Orbitron',monospace" font-size="9" font-weight="700" text-anchor="middle" x="441" y="409" fill="#B4B2A9">proceso huérfano</text>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="441" y="425" fill="#5F5E5A">adoptado por PID 1</text>
+
+      <rect x="556" y="100" width="104" height="284" rx="3" fill="#03060a" stroke="#185FA5" stroke-width=".8"/>
+      <text font-family="'Orbitron',monospace" font-size="8" font-weight="700" text-anchor="middle" x="608" y="120" fill="#378ADD">ESTADOS</text>
+      <rect x="566" y="130" width="84" height="18" rx="2" fill="#031a10" stroke="#1D9E75" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="143" fill="#5DCAA5">RUNNABLE</text>
+      <rect x="566" y="154" width="84" height="18" rx="2" fill="#081000" stroke="#3B6D11" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="167" fill="#C0DD97">RUNNING</text>
+      <rect x="566" y="178" width="84" height="18" rx="2" fill="#120900" stroke="#BA7517" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="191" fill="#FAC775">SLEEPING</text>
+      <rect x="566" y="202" width="84" height="18" rx="2" fill="#1a0404" stroke="#E24B4A" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="215" fill="#F7C1C1">ZOMBIE</text>
+      <rect x="566" y="226" width="84" height="18" rx="2" fill="#0a0a0a" stroke="#444441" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="239" fill="#888780">DEAD</text>
+      <rect x="566" y="250" width="84" height="18" rx="2" fill="#0c0a22" stroke="#534AB7" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="263" fill="#AFA9EC">STOPPED</text>
+      <rect x="566" y="274" width="84" height="18" rx="2" fill="#0c0a22" stroke="#3C3489" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="287" fill="#7F77DD">TRACING</text>
+      <rect x="566" y="298" width="84" height="18" rx="2" fill="#031a10" stroke="#085041" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="311" fill="#9FE1CB">IDLE</text>
+      <rect x="566" y="322" width="84" height="18" rx="2" fill="#020c1a" stroke="#0C447C" stroke-width=".5"/>
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="608" y="335" fill="#85B7EB">WAKING</text>
+
+      <text font-family="'JetBrains Mono',monospace" font-size="9" text-anchor="middle" x="340" y="467" fill="#2a3a50">fork() duplica · exec() reemplaza imagen · wait() recoge estado de salida</text>
+    </svg>
+    </div>
+
+  </div><!-- /svg-wrap -->
+
+  <!-- INFO PANEL -->
+  <div class="info-panel">
+    <div class="info-top">
+      <span class="info-badge" id="info-badge">mapa orbital</span>
+      <span class="info-title" id="info-title">Haz clic en cualquier proceso o capa para explorar</span>
+    </div>
+    <code class="info-cmd" id="info-cmd"></code>
+    <p class="info-desc" id="info-desc"></p>
+  </div>
+
+  <footer>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#042C53;border:1px solid #378ADD"></div> PID 1 / init</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#031a10;border:1px solid #1D9E75"></div> Servicios</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#0c0a22;border:1px solid #534AB7"></div> Aplicaciones</div>
+    </div>
+    <div class="footer-credit">LINUX PROCESS MAP · INTERACTIVE AR · 2026</div>
+  </footer>
+
+</div>
+
+<script>
+const data = {
+  pid1:     { badge:'PID 1', title:'systemd — proceso raíz del sistema', cmd:'systemctl status\nps -p 1 -o pid,ppid,comm,stat', desc:'El primer proceso lanzado por el kernel. PPID=0. Adopta procesos huérfanos. En Linux moderno es systemd; en contenedores puede ser el propio proceso de la app.' },
+  sshd:     { badge:'Servicio', title:'sshd — Secure Shell Daemon', cmd:'ps aux | grep sshd\nsystemctl status ssh\nss -tlnp | grep 22', desc:'Escucha en el puerto 22. Al aceptar conexión hace fork(): el worker hijo maneja la sesión con su propio PID mientras el master sigue aceptando conexiones.' },
+  cron:     { badge:'Servicio', title:'crond — planificador de tareas', cmd:'crontab -l\njournalctl -u cron --since today\ncat /etc/crontab', desc:'Se despierta cada minuto, compara timestamps de /etc/crontab y cron.d/, y lanza subprocesos hijos para ejecutar las tareas programadas.' },
+  dbus:     { badge:'Servicio', title:'dbus-daemon — bus de mensajes IPC', cmd:'busctl list\ndbus-monitor --system\nbusctl monitor org.freedesktop.NetworkManager', desc:'Middleware de comunicación inter-procesos. Permite que servicios publiquen interfaces D-Bus que otras aplicaciones pueden invocar sin sockets directos.' },
+  networkd: { badge:'Servicio', title:'systemd-networkd — gestor de red', cmd:'networkctl status\nnetworkctl list\nip addr show', desc:'Configura interfaces de red según archivos .network en /etc/systemd/network/. Alternativa ligera a NetworkManager, ideal para servidores.' },
+  journald: { badge:'Servicio', title:'systemd-journald — logger binario', cmd:'journalctl -f\njournalctl -p err -n 50\njournalctl -u nginx --since "1 hour ago"', desc:'Recolecta logs de kernel (via kmsg), servicios systemd y aplicaciones. Almacena en formato binario en /run/log/journal/ con indexado por campo.' },
+  bash:     { badge:'Aplicación', title:'bash — Bourne Again Shell', cmd:'echo $$\npstree -p $$\ncat /proc/$$/status | head -20', desc:'Shell interactivo con su propio PID (visible con $$). Cada comando externo crea un proceso hijo via fork()+exec(). Variables de entorno se heredan por copia.' },
+  nginx:    { badge:'Aplicación', title:'nginx — servidor HTTP multi-proceso', cmd:'ps aux | grep nginx\nnginx -t\ncat /proc/$(pgrep -o nginx)/status', desc:'Arquitectura master-worker: el master (root) enlaza puertos privilegiados (<1024); cada worker process (nobody/www-data) maneja conexiones de forma aislada.' },
+  python:   { badge:'Aplicación', title:'python3 — intérprete CPython', cmd:'python3 -c "import os; print(os.getpid())"\nstrace -e trace=fork,execve python3 script.py', desc:'Proceso único con GIL. Los threads comparten PID. Para paralelismo real usa multiprocessing.Process() que llama fork() internamente.' },
+  vim:      { badge:'Aplicación', title:'vim — editor de texto interactivo', cmd:'lsof -p $(pgrep vim)\nls -la /proc/$(pgrep vim)/fd/', desc:'Proceso interactivo con TTY. Tiene file descriptors abiertos al archivo en edición. Al guardar, usa rename() atómico para evitar corrupción.' },
+  gcc:      { badge:'Aplicación', title:'gcc — compilador GNU C', cmd:'strace -e fork,execve gcc hello.c 2>&1 | head -20\ntime gcc -O2 -march=native hello.c', desc:'Invoca preprocesador (cpp), compilador (cc1), ensamblador (as) y linker (ld) como procesos hijos secuenciales. Muere al terminar la compilación.' },
+  firefox:  { badge:'Aplicación', title:'firefox — navegador multi-proceso', cmd:'pgrep -a firefox\nls /proc/$(pgrep -o firefox)/task/ | wc -l', desc:'Proceso principal + procesos de contenido aislados por origen (sandbox). Usa namespaces y seccomp para aislar cada pestaña.' },
+  app:      { badge:'Capa', title:'Aplicaciones — espacio de usuario', cmd:'ps aux --sort=-%cpu | head -10\nls /proc/ | grep -E "^[0-9]+" | wc -l', desc:'Procesos en user space: interactúan con el kernel SOLO via syscalls. No pueden acceder directamente a hardware. El scheduler del kernel decide cuándo corren.' },
+  svc:      { badge:'Capa', title:'Servicios — daemons del sistema', cmd:'systemctl list-units --type=service --state=running\nsystemd-cgls', desc:'Procesos hijos de PID 1 sin terminal (no-TTY). Gestionados por systemd con archivos .service. Pueden reiniciarse automáticamente (Restart=always).' },
+};
+
+const signals = {
+  SIGTERM: { title:'SIGTERM (15) — terminación elegante', cmd:'kill -15 <PID>  /  kill -TERM <PID>', desc:'Señal por defecto de kill. El proceso puede capturarla (signal handler) para limpiar antes de salir. Permite cerrar conexiones, flush de buffers y liberar recursos.' },
+  SIGKILL: { title:'SIGKILL (9) — terminación forzosa', cmd:'kill -9 <PID>  /  kill -KILL <PID>', desc:'No puede ser capturada ni ignorada. El kernel termina el proceso inmediatamente sin darle tiempo de limpiar. Usar solo cuando SIGTERM no funciona.' },
+  SIGHUP:  { title:'SIGHUP (1) — colgar / recargar config', cmd:'kill -HUP <PID>  /  systemctl reload nginx', desc:'Originalmente indicaba desconexión del terminal. Hoy la mayoría de daemons la usan para recargar configuración sin reiniciarse. nginx, sshd y Apache la implementan así.' },
+  SIGCHLD: { title:'SIGCHLD (17) — hijo terminó', cmd:'wait $!  /  waitpid(pid, &status, 0)', desc:'El kernel envía esta señal al padre cuando un proceso hijo cambia de estado. Si el padre no llama wait(), el hijo queda en estado ZOMBIE consumiendo una entrada en la tabla de procesos.' },
+  SIGUSR:  { title:'SIGUSR1/2 (10/12) — señales de usuario', cmd:'kill -USR1 <PID>  /  kill -USR2 <PID>', desc:'Señales definidas por la aplicación. nginx usa SIGUSR1 para reabrir logs (log rotation) y SIGUSR2 para upgrade en caliente del binario.' },
+};
+
+function setInfo(item) {
+  document.getElementById('info-badge').textContent = item.badge || '—';
+  document.getElementById('info-title').textContent = item.title || '';
+  document.getElementById('info-cmd').textContent = item.cmd ? '$ ' + item.cmd.split('\n')[0] : '';
+  document.getElementById('info-desc').textContent = item.desc || '';
+}
+
+function selectNode(key) { if (data[key]) setInfo(data[key]); }
+function showLayer(key)   { if (data[key]) setInfo(data[key]); }
+
+function animSig(sig) {
+  if (signals[sig]) setInfo({badge:'Señal POSIX', ...signals[sig]});
+  const fl  = document.getElementById('sig-flash');
+  const ft  = document.getElementById('sig-flash-txt');
+  if (ft) ft.textContent = sig + ' → ' + (signals[sig]?.title?.split('—')[1]?.trim() || sig);
+  if (fl) {
+    fl.style.animation = 'none';
+    fl.offsetHeight;
+    fl.style.animation = 'signal-flash 2s ease-out forwards';
+  }
+}
+
+const views = ['map','tree','signal','fork'];
+const tabs  = document.querySelectorAll('.tab');
+function setView(v) {
+  views.forEach((n,i) => {
+    const el  = document.getElementById('view-'+n);
+    if (el) el.classList.toggle('active', n===v);
+    if (tabs[i]) tabs[i].classList.toggle('active', n===v);
+  });
+  setInfo({ badge: v==='map'?'mapa orbital':v==='tree'?'árbol':v==='signal'?'señales POSIX':'fork/exec',
+            title:'Haz clic en cualquier elemento para explorar', cmd:'', desc:'' });
+}
+
+let animOn = true;
+function toggleAnim() {
+  animOn = !animOn;
+  const wrap = document.getElementById('anim-wrap');
+  wrap.classList.toggle('off', !animOn);
+  document.querySelectorAll('.orb-grp-1,.orb-grp-2,.ring-app,.ring-svc,.ring-pid').forEach(el => {
+    el.style.animationPlayState = animOn ? 'running' : 'paused';
+  });
+}
+</script>
+</body>
+</html>
 
