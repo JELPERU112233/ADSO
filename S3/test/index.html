@@ -1,1 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autoevaluación — Administración Local ADSO Semana 4</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;color:#c8d8f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(55,138,221,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(55,138,221,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:24px 18px 48px}
+
+@keyframes timer-shrink{from{width:100%}to{width:0%}}
+@keyframes pop-in{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes confetti-fall{from{transform:translateY(-20px) rotate(0deg);opacity:1}to{transform:translateY(90px) rotate(360deg);opacity:0}}
+@keyframes score-bump{0%{transform:scale(1)}50%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes pulse-glow{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes blink-dot{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.k-btn{width:100%;padding:18px 16px;border-radius:8px;border:none;cursor:pointer;font-size:15px;font-weight:500;text-align:left;transition:transform .12s,filter .12s;color:#fff;display:flex;align-items:center;gap:10px}
+.k-btn:hover:not(:disabled){transform:scale(1.025);filter:brightness(1.12)}
+.k-btn:active:not(:disabled){transform:scale(.97)}
+.k-btn:disabled{cursor:default}
+.btn-A{background:#c0112a}
+.btn-B{background:#0d5fb8}
+.btn-C{background:#b88000}
+.btn-D{background:#1e7008}
+.correct-glow{outline:3px solid #26ff6a;filter:brightness(1.25)!important}
+.wrong-dim{opacity:.3}
+.wrong-shake{animation:shake .4s ease}
+
+.timer-bar{height:8px;background:#378ADD;border-radius:4px;transition:background .5s}
+.timer-bar.warning{background:#E24B4A}
+
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;letter-spacing:.3px}
+.badge-topic{background:rgba(55,138,221,.18);color:#85B7EB;border:1px solid rgba(55,138,221,.3)}
+.badge-q{background:rgba(255,255,255,.08);color:#8a9ab0;border:1px solid rgba(255,255,255,.1)}
+
+.ar-chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid rgba(55,138,221,.3);color:#85B7EB;background:rgba(55,138,221,.1);margin-top:8px}
+.ar-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:blink-dot 1.3s infinite}
+
+.feedback-box{border-radius:8px;padding:14px 16px;margin-top:12px;animation:pop-in .25s ease}
+.feedback-ok{background:rgba(29,158,117,.15);border:1px solid rgba(29,158,117,.4)}
+.feedback-wrong{background:rgba(226,75,74,.12);border:1px solid rgba(226,75,74,.35)}
+
+.stat-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px 20px;text-align:center}
+.review-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px 14px;animation:fade-in .3s ease}
+.resource-row{font-size:12px;display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.resource-row:first-child{border-top:none}
+
+.btn-primary{padding:13px 40px;font-size:15px;font-weight:500;background:#185FA5;color:#fff;border:none;border-radius:8px;cursor:pointer;transition:filter .15s}
+.btn-primary:hover{filter:brightness(1.15)}
+.btn-secondary{padding:12px 32px;font-size:14px;font-weight:500;background:rgba(255,255,255,.07);color:#c8d8f0;border:1px solid rgba(255,255,255,.15);border-radius:8px;cursor:pointer;transition:filter .15s}
+.btn-secondary:hover{filter:brightness(1.2)}
+
+.next-btn{padding:10px 36px;font-size:14px;font-weight:500;background:#185FA5;color:#fff;border:none;border-radius:8px;cursor:pointer;transition:filter .15s;margin-top:14px}
+.next-btn:hover{filter:brightness(1.15)}
+
+.confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;animation:confetti-fall .9s ease-out forwards;pointer-events:none}
+
+.corner-bracket{position:absolute;width:20px;height:20px;border-color:#378ADD;border-style:solid;opacity:.4}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- INTRO -->
+<div id="screen-intro" style="text-align:center;padding:32px 16px;animation:fade-in .4s ease">
+  <div style="position:relative;display:inline-block;margin-bottom:20px">
+    <svg width="80" height="80" viewBox="0 0 80 80">
+      <rect width="80" height="80" rx="18" fill="#0C447C"/>
+      <rect x="12" y="22" width="56" height="9" rx="4.5" fill="#B5D4F4"/>
+      <rect x="12" y="36" width="38" height="9" rx="4.5" fill="#85B7EB"/>
+      <rect x="12" y="50" width="46" height="9" rx="4.5" fill="#B5D4F4"/>
+      <circle cx="62" cy="54" r="12" fill="#1D9E75"/>
+      <path d="M56 54l4 4 7-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="ar-dot" style="position:absolute;top:4px;right:4px"></div>
+  </div>
+
+  <p style="font-size:11px;font-weight:500;letter-spacing:2.5px;color:#5a7090;margin-bottom:8px">1INF35-ADSO · SEMANA 4</p>
+  <h1 style="font-size:26px;font-weight:500;margin:0 0 10px;color:#fff">Autoevaluación: Administración Local</h1>
+  <p style="font-size:14px;color:#5a7090;margin:0 0 28px">Procesos · Servicios · Registro · Usuarios · FileSystem</p>
+
+  <div style="display:flex;gap:14px;justify-content:center;margin-bottom:28px;flex-wrap:wrap">
+    <div class="stat-card"><div style="font-size:24px;font-weight:500;color:#fff">5</div><div style="font-size:12px;color:#5a7090;margin-top:2px">preguntas</div></div>
+    <div class="stat-card"><div style="font-size:24px;font-weight:500;color:#fff">20s</div><div style="font-size:12px;color:#5a7090;margin-top:2px">por pregunta</div></div>
+    <div class="stat-card"><div style="font-size:24px;font-weight:500;color:#fff">20</div><div style="font-size:12px;color:#5a7090;margin-top:2px">pts máx</div></div>
+  </div>
+
+  <div class="ar-chip" style="margin:0 auto 32px;display:inline-flex">
+    <span class="ar-dot"></span>
+    Experiencia AR integrada — visualiza conceptos en 3D
+  </div>
+  <br>
+  <button class="btn-primary" onclick="startGame()">Iniciar actividad</button>
+</div>
+
+<!-- QUESTION -->
+<div id="screen-question" style="display:none;padding:4px 0">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <span class="badge badge-q" id="q-counter">Pregunta 1/5</span>
+    <span class="badge badge-topic" id="q-topic">Tema</span>
+    <span style="margin-left:auto;font-size:14px;font-weight:500;color:#5a7090" id="timer-num">20</span>
+  </div>
+  <div style="background:rgba(255,255,255,.07);border-radius:6px;height:8px;margin-bottom:18px;overflow:hidden">
+    <div class="timer-bar" id="timer-bar" style="width:100%"></div>
+  </div>
+
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:22px;margin-bottom:18px;min-height:96px;position:relative">
+    <div class="corner-bracket" style="top:10px;left:10px;border-width:2px 0 0 2px;border-radius:2px 0 0 0"></div>
+    <div class="corner-bracket" style="top:10px;right:10px;border-width:2px 2px 0 0;border-radius:0 2px 0 0"></div>
+    <div class="corner-bracket" style="bottom:10px;left:10px;border-width:0 0 2px 2px;border-radius:0 0 0 2px"></div>
+    <div class="corner-bracket" style="bottom:10px;right:10px;border-width:0 2px 2px 0;border-radius:0 0 2px 0"></div>
+    <p id="q-text" style="font-size:17px;font-weight:500;margin:0;line-height:1.55;color:#fff"></p>
+    <div id="ar-hint" style="display:none;margin-top:12px">
+      <div class="ar-chip"><span class="ar-dot"></span><span id="ar-hint-text"></span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="options-grid">
+    <button class="k-btn btn-A" id="btn-0" onclick="answer(0)">
+      <svg width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0"><rect x="1" y="1" width="20" height="20" rx="4" fill="rgba(255,255,255,0.25)"/></svg>
+      <span id="opt-0"></span>
+    </button>
+    <button class="k-btn btn-B" id="btn-1" onclick="answer(1)">
+      <svg width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0"><circle cx="11" cy="11" r="10" fill="rgba(255,255,255,0.25)"/></svg>
+      <span id="opt-1"></span>
+    </button>
+    <button class="k-btn btn-C" id="btn-2" onclick="answer(2)">
+      <svg width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0"><polygon points="11,1 21,21 1,21" fill="rgba(255,255,255,0.25)"/></svg>
+      <span id="opt-2"></span>
+    </button>
+    <button class="k-btn btn-D" id="btn-3" onclick="answer(3)">
+      <svg width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0"><polygon points="11,1 21,11 11,21 1,11" fill="rgba(255,255,255,0.25)"/></svg>
+      <span id="opt-3"></span>
+    </button>
+  </div>
+
+  <div id="feedback-area" style="display:none"></div>
+  <div style="text-align:center">
+    <button class="next-btn" id="next-btn" style="display:none" onclick="nextQuestion()">Siguiente →</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" style="display:none;padding:4px 0;animation:fade-in .4s ease">
+  <div style="text-align:center;padding:20px 0 24px;position:relative;overflow:hidden">
+    <div id="confetti-container" style="position:absolute;inset:0;pointer-events:none"></div>
+    <svg width="150" height="150" viewBox="0 0 150 150">
+      <circle cx="75" cy="75" r="62" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
+      <circle id="score-arc" cx="75" cy="75" r="62" fill="none" stroke="#1D9E75" stroke-width="10"
+        stroke-linecap="round" stroke-dasharray="390" stroke-dashoffset="390"
+        transform="rotate(-90 75 75)" style="transition:stroke-dashoffset 1.3s ease"/>
+      <text id="score-big" x="75" y="70" text-anchor="middle" font-size="30" font-weight="500" fill="#fff">0</text>
+      <text x="75" y="90" text-anchor="middle" font-size="12" fill="#5a7090">de 100 pts</text>
+    </svg>
+    <h2 id="result-title" style="font-size:22px;font-weight:500;margin:8px 0 6px;color:#fff"></h2>
+    <p id="result-sub" style="font-size:14px;color:#5a7090;margin:0 0 8px;line-height:1.5"></p>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    <div class="stat-card" style="flex:1"><div id="res-correct" style="font-size:22px;font-weight:500;color:#1D9E75">0</div><div style="font-size:12px;color:#5a7090;margin-top:2px">correctas</div></div>
+    <div class="stat-card" style="flex:1"><div id="res-wrong" style="font-size:22px;font-weight:500;color:#E24B4A">0</div><div style="font-size:12px;color:#5a7090;margin-top:2px">incorrectas</div></div>
+    <div class="stat-card" style="flex:1"><div id="res-score" style="font-size:22px;font-weight:500;color:#fff">0</div><div style="font-size:12px;color:#5a7090;margin-top:2px">puntos</div></div>
+  </div>
+
+  <p style="font-size:13px;font-weight:500;color:#8a9ab0;margin-bottom:10px;letter-spacing:.5px">REVISIÓN PREGUNTA A PREGUNTA</p>
+  <div id="review-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px"></div>
+
+  <div style="background:rgba(55,138,221,.07);border:1px solid rgba(55,138,221,.2);border-radius:8px;padding:16px;margin-bottom:20px">
+    <p style="font-size:13px;font-weight:500;margin:0 0 12px;color:#85B7EB">Recursos de repaso recomendados</p>
+    <div id="resources-list"></div>
+  </div>
+
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="btn-secondary" onclick="restartGame()">Reintentar</button>
+    <button class="btn-primary" onclick="sendPromptFallback()">Pedir explicación ↗</button>
+  </div>
+</div>
+
+</div>
+<script>
+const Qs=[
+  {
+    topic:"Procesos Linux",
+    text:"¿Cuál es el PID del proceso raíz del sistema en Linux (systemd/init)?",
+    opts:["PID 0","PID 1","PID 100","PID 999"],
+    correct:1,
+    ar:"Visualiza el árbol de procesos en: jelperu112233.github.io/ADSO/S3/relacion/",
+    feedback:{
+      ok:"¡Correcto! systemd (o init en sistemas clásicos) siempre tiene PID 1. Es el primer proceso lanzado por el kernel y padre de todos los demás procesos del sistema.",
+      wrong:"El proceso raíz siempre tiene PID 1. PID 0 es el proceso swapper/idle del kernel, que no es visible como proceso de usuario."
+    }
+  },
+  {
+    topic:"init vs systemd",
+    text:"Una ventaja clave de systemd sobre SysVinit es que inicia los servicios de forma…",
+    opts:["Secuencial, igual que init","Aleatoria según carga","Paralela, reduciendo el tiempo de arranque","Manual, uno a uno"],
+    correct:2,
+    ar:"Comando: systemd-analyze blame — analiza tiempos de arranque",
+    feedback:{
+      ok:"¡Exacto! systemd arranca servicios en paralelo cuando sus dependencias lo permiten, reduciendo significativamente el tiempo de inicio frente al arranque secuencial de SysVinit.",
+      wrong:"systemd usa arranque paralelo de servicios. SysVinit ejecuta scripts en orden secuencial, lo que hace que systemd sea más rápido al arrancar el sistema."
+    }
+  },
+  {
+    topic:"Control de servicios",
+    text:"¿Qué comando de systemctl se usa para que un servicio se inicie automáticamente en cada arranque del sistema?",
+    opts:["systemctl start sshd","systemctl enable sshd","systemctl status sshd","systemctl restart sshd"],
+    correct:1,
+    ar:"Prueba: systemctl list-unit-files --type=service",
+    feedback:{
+      ok:"¡Perfecto! 'enable' crea los enlaces simbólicos necesarios para que systemd inicie el servicio en el target adecuado al arrancar. 'start' solo lo inicia en la sesión actual.",
+      wrong:"'enable' es el comando correcto. 'start' arranca el servicio ahora pero no persiste al reiniciar. 'enable' sí lo hace permanente en el arranque."
+    }
+  },
+  {
+    topic:"Registro de Windows vs Linux",
+    text:"En Linux, la configuración del sistema se almacena principalmente en…",
+    opts:["Una base de datos binaria como el Registro de Windows","Archivos de texto plano en /etc y $HOME","Solo variables de entorno en memoria","La MFT del sistema de archivos"],
+    correct:1,
+    ar:"Explora: /etc/passwd, /etc/fstab, /etc/systemd/",
+    feedback:{
+      ok:"¡Correcto! Linux sigue la filosofía 'everything is a file': la configuración se distribuye en archivos de texto (.conf, .cfg, .ini, sin extensión) dentro de /etc para el sistema y $HOME para el usuario.",
+      wrong:"A diferencia de Windows (que usa el Registro, una base de datos binaria centralizada), Linux usa archivos de texto distribuidos en /etc y el directorio home del usuario."
+    }
+  },
+  {
+    topic:"Sistema de archivos",
+    text:"En sistemas Linux/Unix, ¿qué estructura almacena los METADATOS de un archivo (permisos, tamaño, fechas, punteros a bloques)?",
+    opts:["El bloque de datos (data block)","El inodo (inode)","La tabla FAT","El directorio raíz /"],
+    correct:1,
+    ar:"Comando: stat archivo.txt — muestra el inodo completo",
+    feedback:{
+      ok:"¡Excelente! El inodo almacena todos los metadatos del archivo: permisos (rwxrwxrwx), UID/GID, timestamps, tamaño y punteros a los bloques de datos. El nombre del archivo vive en el directorio.",
+      wrong:"El inodo es la estructura clave de metadatos en ext2/ext3/ext4. Equivale a la MFT en NTFS de Windows. Los bloques de datos solo contienen el contenido del archivo."
+    }
+  }
+];
+
+const resources=[
+  {topic:"Procesos Linux",cmd:"ps -eF | head -20\npstree -acng",link:"https://jelperu112233.github.io/ADSO/S3/procesos/"},
+  {topic:"systemd",cmd:"systemd-analyze\nsystemd-analyze blame",link:"https://jelperu112233.github.io/ADSO/S3/relacion/"},
+  {topic:"Servicios",cmd:"systemctl list-units --type=service",link:null},
+  {topic:"Usuarios/etc",cmd:"cat /etc/passwd\ncat /etc/shadow",link:null},
+  {topic:"FileSystem/inodos",cmd:"stat archivo.txt\nls -li /etc/passwd",link:null}
+];
+
+let current=0,score=0,timeLeft=20,timerInt=null,answered=false;
+const userAnswers=[];
+
+function startGame(){
+  document.getElementById('screen-intro').style.display='none';
+  document.getElementById('screen-question').style.display='block';
+  loadQuestion();
+}
+
+function loadQuestion(){
+  answered=false;
+  const q=Qs[current];
+  document.getElementById('q-counter').textContent='Pregunta '+(current+1)+'/5';
+  document.getElementById('q-topic').textContent=q.topic;
+  document.getElementById('q-text').textContent=q.text;
+  q.opts.forEach((o,i)=>{document.getElementById('opt-'+i).textContent=o;});
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('btn-'+i);
+    b.disabled=false;
+    b.classList.remove('correct-glow','wrong-dim','wrong-shake');
+    b.style.opacity='';
+  }
+  document.getElementById('feedback-area').style.display='none';
+  document.getElementById('next-btn').style.display='none';
+  const arDiv=document.getElementById('ar-hint');
+  if(q.ar){arDiv.style.display='block';document.getElementById('ar-hint-text').textContent=q.ar;}
+  else{arDiv.style.display='none';}
+  startTimer();
+}
+
+function startTimer(){
+  timeLeft=20;
+  const bar=document.getElementById('timer-bar');
+  const num=document.getElementById('timer-num');
+  bar.style.transition='none';bar.style.width='100%';bar.className='timer-bar';
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    timeLeft--;
+    num.textContent=timeLeft;
+    bar.style.transition='width .9s linear';
+    bar.style.width=Math.round(timeLeft/20*100)+'%';
+    if(timeLeft<=6)bar.className='timer-bar warning';
+    if(timeLeft<=0){clearInterval(timerInt);timeOut();}
+  },1000);
+}
+
+function timeOut(){
+  if(answered)return;
+  answered=true;
+  userAnswers.push({q:current,chosen:-1,correct:Qs[current].correct,pts:0,isCorrect:false,timedOut:true});
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('btn-'+i);
+    b.disabled=true;
+    if(i===Qs[current].correct)b.classList.add('correct-glow');
+    else b.style.opacity='.28';
+  }
+  showFeedback(false,true,0);
+}
+
+function answer(idx){
+  if(answered)return;
+  answered=true;
+  clearInterval(timerInt);
+  const q=Qs[current];
+  const isCorrect=(idx===q.correct);
+  const pts=isCorrect?Math.max(5,Math.round(timeLeft/20*20)):0;
+  score+=pts;
+  userAnswers.push({q:current,chosen:idx,correct:q.correct,pts,isCorrect});
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('btn-'+i);
+    b.disabled=true;
+    if(i===q.correct)b.classList.add('correct-glow');
+    else if(i===idx&&!isCorrect)b.classList.add('wrong-dim','wrong-shake');
+    else b.classList.add('wrong-dim');
+  }
+  showFeedback(isCorrect,false,pts);
+}
+
+function showFeedback(ok,timedOut,pts){
+  const q=Qs[current];
+  const area=document.getElementById('feedback-area');
+  area.style.display='block';
+  const cls=ok?'feedback-box feedback-ok':'feedback-box feedback-wrong';
+  const color=ok?'#5DCAA5':'#F09595';
+  let html='';
+  if(timedOut){
+    html='<p style="font-size:13px;font-weight:500;margin:0 0 5px;color:#F09595">Tiempo agotado</p>';
+    html+='<p style="font-size:13px;margin:0;color:#F09595;line-height:1.5">'+q.feedback.wrong+'</p>';
+  }else if(ok){
+    html='<p style="font-size:13px;font-weight:500;margin:0 0 4px;color:#5DCAA5">+'+pts+' puntos</p>';
+    html+='<p style="font-size:13px;margin:0;color:#5DCAA5;line-height:1.5">'+q.feedback.ok+'</p>';
+  }else{
+    html='<p style="font-size:13px;font-weight:500;margin:0 0 4px;color:#F09595">Incorrecto</p>';
+    html+='<p style="font-size:13px;margin:0;color:#F09595;line-height:1.5">'+q.feedback.wrong+'</p>';
+  }
+  area.innerHTML='<div class="'+cls+'">'+html+'</div>';
+  document.getElementById('next-btn').style.display='inline-block';
+}
+
+function nextQuestion(){
+  current++;
+  if(current>=Qs.length)showResults();
+  else loadQuestion();
+}
+
+function showResults(){
+  document.getElementById('screen-question').style.display='none';
+  document.getElementById('screen-results').style.display='block';
+  const pct=Math.round(score);
+  const arc=document.getElementById('score-arc');
+  const circ=390;
+  setTimeout(()=>{
+    arc.style.strokeDashoffset=circ-(circ*pct/100);
+    arc.style.stroke=pct>=80?'#1D9E75':pct>=50?'#BA7517':'#E24B4A';
+    const sb=document.getElementById('score-big');
+    sb.style.animation='score-bump .5s ease';
+    sb.textContent=pct;
+  },350);
+
+  const correct=userAnswers.filter(a=>a.isCorrect).length;
+  document.getElementById('res-correct').textContent=correct;
+  document.getElementById('res-wrong').textContent=5-correct;
+  document.getElementById('res-score').textContent=pct;
+
+  let title,sub;
+  if(pct>=80){title='¡Excelente dominio!';sub='Tienes sólida comprensión de la Administración Local en Linux y Windows.';}
+  else if(pct>=60){title='¡Buen trabajo!';sub='Hay algunos conceptos para reforzar. Revisa el material de la sesión.';}
+  else if(pct>=40){title='En proceso de aprendizaje';sub='Repasa los temas señalados. ¡Con práctica en terminal mejorarás rápido!';}
+  else{title='Necesitas repasar';sub='Revisa las diapositivas y practica los comandos en una VM Linux.';}
+  document.getElementById('result-title').textContent=title;
+  document.getElementById('result-sub').textContent=sub;
+
+  if(correct>=4)launchConfetti();
+
+  const rev=document.getElementById('review-list');
+  rev.innerHTML='';
+  userAnswers.forEach((a,i)=>{
+    const q=Qs[a.q];
+    const ok=a.isCorrect;
+    const iconOk='<path d="M3 6l4 4 6-6" fill="none" stroke="#5DCAA5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    const iconWrong='<path d="M3 3l6 6M9 3l-6 6" fill="none" stroke="#F09595" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    const div=document.createElement('div');
+    div.className='review-card';
+    div.innerHTML='<div style="display:flex;align-items:flex-start;gap:10px">'
+      +'<div style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:'+(ok?'rgba(29,158,117,.2)':'rgba(226,75,74,.15)')+'"><svg width="12" height="12" viewBox="0 0 12 12">'+(ok?iconOk:iconWrong)+'</svg></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<p style="font-size:11px;font-weight:500;margin:0 0 3px;color:#8a9ab0">'+q.topic+' — P'+(i+1)+'</p>'
+      +'<p style="font-size:13px;color:#c8d8f0;margin:0 0 6px;line-height:1.4">'+q.text+'</p>'
+      +(!ok?'<p style="font-size:12px;color:#5DCAA5;margin:0 0 4px">Correcta: '+q.opts[q.correct]+'</p>':'')
+      +'<p style="font-size:12px;color:'+(ok?'#5DCAA5':'#F09595')+';margin:0;line-height:1.5">'+(ok?q.feedback.ok:q.feedback.wrong)+'</p>'
+      +'</div>'
+      +'<span style="font-size:12px;font-weight:500;color:'+(ok?'#5DCAA5':'#5a7090')+';flex-shrink:0">'+(a.pts||0)+'pts</span>'
+      +'</div>';
+    rev.appendChild(div);
+  });
+
+  const resList=document.getElementById('resources-list');
+  resList.innerHTML='';
+  resources.forEach(r=>{
+    const div=document.createElement('div');
+    div.className='resource-row';
+    div.innerHTML='<span style="font-weight:500;color:#85B7EB;min-width:110px;flex-shrink:0">'+r.topic+'</span>'
+      +'<code style="font-family:monospace;color:#5DCAA5;font-size:11px;flex:1;word-break:break-all">'+r.cmd.split('\n')[0]+'</code>'
+      +(r.link?'<a href="'+r.link+'" style="font-size:11px;color:#85B7EB;text-decoration:none;white-space:nowrap;flex-shrink:0">Ver RA →</a>':'');
+    resList.appendChild(div);
+  });
+}
+
+function launchConfetti(){
+  const zone=document.getElementById('confetti-container');
+  const colors=['#185FA5','#1D9E75','#BA7517','#E24B4A','#534AB7','#5DCAA5'];
+  for(let i=0;i<22;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText='left:'+Math.round(8+Math.random()*84)+'%;top:'+Math.round(Math.random()*15)+'%;background:'+colors[i%6]+';animation-delay:'+Math.round(Math.random()*60)/100+'s;border-radius:'+(Math.random()>.5?'50%':'2px');
+    zone.appendChild(el);
+    setTimeout(()=>el.remove(),1600);
+  }
+}
+
+function restartGame(){
+  current=0;score=0;answered=false;userAnswers.length=0;
+  document.getElementById('screen-results').style.display='none';
+  document.getElementById('screen-question').style.display='none';
+  document.getElementById('screen-intro').style.display='block';
+}
+
+function sendPromptFallback(){
+  const msg='Explícame más sobre los temas que fallé en el Autoevaluación de Administración de Sistemas Operativos Semana 4';
+  if(typeof sendPrompt==='function'){sendPrompt(msg);}
+  else{alert('Abre esta actividad en Claude.ai para obtener explicación automática.\n\nTema: '+msg);}
+}
+</script>
+</body>
+</html>
 
