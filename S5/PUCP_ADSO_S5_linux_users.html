@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUCP - ADSO S5 — Administración de Usuarios Linux</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:#000;
+  color:#c8d8f0;
+  font-family:Arial,sans-serif;
+  font-size:10px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(55,138,221,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(55,138,221,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.05) 3px,rgba(0,0,0,0.05) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+
+.wrapper{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:14px 16px 32px}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;
+  background:#060c14;
+  border:1px solid rgba(55,138,221,0.25);
+  border-radius:4px;
+  margin-bottom:12px;
+}
+.header-left{display:flex;align-items:center;gap:12px}
+.pucp-badge{
+  font-family:Arial,sans-serif;font-size:10px;font-weight:700;
+  color:#fff;letter-spacing:1.5px;
+  padding:4px 10px;
+  background:#185FA5;
+  border-radius:3px;
+}
+h1{
+  font-family:Arial,sans-serif;font-size:10px;font-weight:700;
+  color:#85B7EB;letter-spacing:2px;
+}
+.header-sub{font-size:10px;color:#5a7090}
+.status-bar{display:flex;align-items:center;gap:8px;font-size:10px;color:#5a7090}
+.dot-live{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:blink 1.5s ease-in-out infinite}
+.corner{position:absolute;width:16px;height:16px;border-color:rgba(55,138,221,0.4);border-style:solid}
+
+/* ── LAYOUT ── */
+.main-grid{display:grid;grid-template-columns:200px 1fr;gap:10px}
+
+/* ── SIDEBAR COMANDOS ── */
+.sidebar{display:flex;flex-direction:column;gap:4px}
+.sec-label{font-size:10px;font-weight:700;color:#5a7090;letter-spacing:1px;margin:6px 0 3px;padding-left:2px}
+.cb{
+  display:flex;align-items:center;gap:6px;padding:6px 8px;
+  background:#060c14;
+  border:.5px solid rgba(255,255,255,0.1);
+  border-radius:3px;
+  cursor:pointer;transition:all .15s;width:100%;text-align:left;
+}
+.cb:hover{background:rgba(55,138,221,0.12);border-color:rgba(55,138,221,0.4)}
+.cb.active{background:rgba(55,138,221,0.18);border-color:#185FA5;border-width:1px}
+.badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;flex-shrink:0;font-family:Arial,sans-serif}
+.bid{background:#1D9E75;color:#E1F5EE}
+.bsu{background:#BA7517;color:#FAEEDA}
+.bad{background:#185FA5;color:#E6F1FB}
+.bmo{background:#534AB7;color:#EEEDFE}
+.bde{background:#A32D2D;color:#FCEBEB}
+.bve{background:#3a3a3a;color:#c8c8c8}
+.cmd-label{font-size:10px;font-weight:700;font-family:'Courier New',monospace;color:#c8d8f0;display:block}
+.cmd-sub{font-size:9px;color:#5a7090;display:block;margin-top:1px}
+
+/* ── PANEL DERECHO ── */
+.right-col{display:flex;flex-direction:column;gap:8px}
+
+/* ── TERMINAL ── */
+.terminal-wrap{background:#000;border:1px solid #30363d;border-radius:4px;overflow:hidden}
+.term-bar{background:#0d1117;padding:6px 12px;display:flex;align-items:center;gap:6px;border-bottom:.5px solid #30363d}
+.term-dot{width:8px;height:8px;border-radius:50%}
+.term-title{font-size:10px;color:#8b949e;margin-left:4px;font-family:'Courier New',monospace}
+#terminal{padding:10px 14px;min-height:150px;font-family:'Courier New',monospace;font-size:10px;line-height:1.75}
+.term-line{white-space:pre-wrap;word-break:break-all;animation:slide-in .25s ease}
+.prompt{color:#22c55e}
+.cmd-out{color:#a8b8c8}
+.hi-g{color:#4ade80}.hi-y{color:#facc15}.hi-c{color:#67e8f9}.hi-m{color:#e879f9}.hi-r{color:#f87171}
+.cursor{display:inline-block;width:7px;height:12px;background:#22c55e;margin-left:2px;animation:blink 1s step-end infinite;vertical-align:middle}
+
+/* ── INFO PANEL ── */
+.info-panel{background:#060c14;border:.5px solid rgba(255,255,255,0.08);border-radius:3px;padding:8px 12px}
+#info-title{font-size:10px;font-weight:700;color:#85B7EB;margin-bottom:3px;display:block}
+#info-desc{font-size:10px;color:#7a8a9a;line-height:1.55;display:block}
+
+/* ── ÁRBOL ── */
+.tree-wrap{background:#060c14;border:.5px solid rgba(255,255,255,0.1);border-radius:4px;padding:10px 12px}
+.tree-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ar-chip{display:inline-flex;align-items:center;gap:5px;font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(55,138,221,0.12);color:#85B7EB;border:.5px solid rgba(55,138,221,0.3)}
+.ar-dot{width:5px;height:5px;border-radius:50%;background:#22c55e;animation:blink 1.4s step-end infinite;display:inline-block}
+#tree-label{font-size:9px;color:#5a7090;margin-left:auto}
+
+/* ── LEYENDA ── */
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 10px;background:#060c14;border:.5px solid rgba(255,255,255,0.08);border-radius:3px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:#7a8a9a}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── FOOTER ── */
+footer{margin-top:10px;display:flex;justify-content:space-between;align-items:center;border-top:.5px solid rgba(255,255,255,0.07);padding-top:8px;flex-wrap:wrap;gap:6px}
+.footer-left{font-size:9px;color:#3a4a5a;letter-spacing:.5px}
+.footer-right{font-size:9px;color:#3a4a5a}
+
+/* ── ANIMATIONS ── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes slide-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-node{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes dash-flow{to{stroke-dashoffset:-16}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<header style="position:relative">
+  <div class="corner" style="top:6px;left:6px;border-width:1.5px 0 0 1.5px;border-radius:2px 0 0 0"></div>
+  <div class="corner" style="top:6px;right:6px;border-width:1.5px 1.5px 0 0;border-radius:0 2px 0 0"></div>
+  <div class="corner" style="bottom:6px;left:6px;border-width:0 0 1.5px 1.5px;border-radius:0 0 0 2px"></div>
+  <div class="corner" style="bottom:6px;right:6px;border-width:0 1.5px 1.5px 0;border-radius:0 0 2px 0"></div>
+  <div class="header-left">
+    <span class="pucp-badge">PUCP</span>
+    <div>
+      <h1>ADSO S5 — Administración de Usuarios Linux</h1>
+      <div class="header-sub">Creación · Modificación · Eliminación · Elevación de privilegios</div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span class="dot-live"></span>
+    <span>Simulador AR activo</span>
+  </div>
+</header>
+
+<div class="main-grid">
+
+  <aside class="sidebar">
+    <div class="sec-label">IDENTIDAD</div>
+    <button class="cb" id="btn-whoami" onclick="run('whoami')">
+      <span class="badge bid">id</span>
+      <div><span class="cmd-label">whoami</span><span class="cmd-sub">Usuario efectivo</span></div>
+    </button>
+    <button class="cb" id="btn-id" onclick="run('id')">
+      <span class="badge bid">id</span>
+      <div><span class="cmd-label">id</span><span class="cmd-sub">UID · GID · grupos</span></div>
+    </button>
+    <button class="cb" id="btn-sid" onclick="run('sid')">
+      <span class="badge bsu">sudo</span>
+      <div><span class="cmd-label">sudo whoami/id</span><span class="cmd-sub">Eleva a UID 0</span></div>
+    </button>
+
+    <div class="sec-label">CREAR USUARIO</div>
+    <button class="cb" id="btn-adduser" onclick="run('adduser')">
+      <span class="badge bad">add</span>
+      <div><span class="cmd-label">sudo adduser</span><span class="cmd-sub">Interactivo completo</span></div>
+    </button>
+    <button class="cb" id="btn-useradd" onclick="run('useradd')">
+      <span class="badge bad">add</span>
+      <div><span class="cmd-label">sudo useradd -m</span><span class="cmd-sub">Versión minimalista</span></div>
+    </button>
+
+    <div class="sec-label">MODIFICAR · GRUPOS</div>
+    <button class="cb" id="btn-usermod" onclick="run('usermod')">
+      <span class="badge bmo">mod</span>
+      <div><span class="cmd-label">usermod -aG sudo</span><span class="cmd-sub">Añade al grupo sudo</span></div>
+    </button>
+    <button class="cb" id="btn-groups" onclick="run('groups')">
+      <span class="badge bve">ver</span>
+      <div><span class="cmd-label">groups usuario</span><span class="cmd-sub">Grupos del usuario</span></div>
+    </button>
+    <button class="cb" id="btn-getent" onclick="run('getent')">
+      <span class="badge bve">ver</span>
+      <div><span class="cmd-label">getent group sudo</span><span class="cmd-sub">Miembros del sudo</span></div>
+    </button>
+    <button class="cb" id="btn-userdel" onclick="run('userdel')">
+      <span class="badge bde">del</span>
+      <div><span class="cmd-label">userdel -r alumno</span><span class="cmd-sub">Elimina usuario+home</span></div>
+    </button>
+
+    <div class="sec-label">ARCHIVOS /ETC</div>
+    <button class="cb" id="btn-passwd" onclick="run('passwd')">
+      <span class="badge bve">etc</span>
+      <div><span class="cmd-label">cat /etc/passwd</span><span class="cmd-sub">Estructura usuarios</span></div>
+    </button>
+    <button class="cb" id="btn-shadow" onclick="run('shadow')">
+      <span class="badge bsu">etc</span>
+      <div><span class="cmd-label">sudo cat /etc/shadow</span><span class="cmd-sub">Contraseñas cifradas</span></div>
+    </button>
+    <button class="cb" id="btn-skel" onclick="run('skel')">
+      <span class="badge bve">etc</span>
+      <div><span class="cmd-label">ls /etc/skel</span><span class="cmd-sub">Plantilla de home</span></div>
+    </button>
+  </aside>
+
+  <div class="right-col">
+
+    <div class="terminal-wrap">
+      <div class="term-bar">
+        <div class="term-dot" style="background:#ff5f57"></div>
+        <div class="term-dot" style="background:#febc2e"></div>
+        <div class="term-dot" style="background:#28c840"></div>
+        <span class="term-title">bash — ubuntu@server:~$</span>
+      </div>
+      <div id="terminal">
+        <div class="term-line cmd-out">Sistema listo. Selecciona un comando del panel izquierdo.</div>
+        <div class="term-line"><span class="prompt">ubuntu@server:~$ </span><span class="cursor"></span></div>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <span id="info-title">Selecciona un comando</span>
+      <span id="info-desc">Cada ejecución resalta en el árbol de directorios los subdirectorios de root que utiliza el comando.</span>
+    </div>
+
+    <div class="tree-wrap">
+      <div class="tree-header">
+        <div class="ar-chip"><span class="ar-dot"></span>Árbol de directorios AR — filesystem Linux</div>
+        <span id="tree-label">Ejecuta un comando para ver rutas activas</span>
+      </div>
+      <svg id="fs-tree" width="100%" viewBox="0 0 700 230" role="img" style="display:block">
+        <title>Árbol del sistema de archivos Linux</title>
+        <desc>Árbol de directorios Linux desde / (root) resaltando rutas activas según el comando ejecutado</desc>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#185FA5"></div>comandos de identidad / /etc</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>/home y perfiles de usuario</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#534AB7"></div>binarios /bin /usr</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#A32D2D"></div>/etc/shadow (solo root)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#BA7517"></div>sudo / sudoers</div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="footer-left">PUCP · Facultad de Ciencias e Ingeniería · Administración de Sistemas Operativos — Semana 5</div>
+  <div class="footer-right">Simulador AR — Administración local Linux</div>
+</footer>
+
+</div>
+<script>
+const TREE={
+  nodes:[
+    {id:'root',   label:'/',           x:322, y:14,  w:40,  color:'#1a2233', active:'#185FA5'},
+    {id:'etc',    label:'/etc',        x:40,  y:68,  w:58,  color:'#1a2233', active:'#185FA5'},
+    {id:'home',   label:'/home',       x:120, y:68,  w:62,  color:'#1a2233', active:'#1D9E75'},
+    {id:'usr',    label:'/usr',        x:208, y:68,  w:54,  color:'#1a2233', active:'#534AB7'},
+    {id:'var',    label:'/var',        x:294, y:68,  w:50,  color:'#1a2233', active:'#BA7517'},
+    {id:'bin',    label:'/bin',        x:376, y:68,  w:50,  color:'#1a2233', active:'#534AB7'},
+    {id:'run',    label:'/run',        x:458, y:68,  w:50,  color:'#1a2233', active:'#3a3a3a'},
+    {id:'proc',   label:'/proc',       x:540, y:68,  w:54,  color:'#1a2233', active:'#3a3a3a'},
+    {id:'passwd', label:'passwd',      x:10,  y:136, w:64,  color:'#0d1117', active:'#185FA5'},
+    {id:'shadow', label:'shadow',      x:84,  y:136, w:64,  color:'#0d1117', active:'#A32D2D'},
+    {id:'group',  label:'group',       x:158, y:136, w:56,  color:'#0d1117', active:'#185FA5'},
+    {id:'skel',   label:'skel/',       x:224, y:136, w:50,  color:'#0d1117', active:'#1D9E75'},
+    {id:'sudoers',label:'sudoers',     x:284, y:136, w:68,  color:'#0d1117', active:'#BA7517'},
+    {id:'ubuntu', label:'ubuntu/',     x:362, y:136, w:64,  color:'#0d1117', active:'#1D9E75'},
+    {id:'jespinoza',label:'jespinoza/',x:444, y:136, w:84,  color:'#0d1117', active:'#1D9E75'},
+    {id:'log',    label:'log/',        x:540, y:136, w:48,  color:'#0d1117', active:'#BA7517'},
+    {id:'sudo_b', label:'sudo',        x:600, y:136, w:46,  color:'#0d1117', active:'#534AB7'},
+    {id:'bashrc', label:'.bashrc',     x:190, y:196, w:62,  color:'#0d1117', active:'#1D9E75'},
+    {id:'profile',label:'.profile',    x:262, y:196, w:64,  color:'#0d1117', active:'#1D9E75'},
+    {id:'bash_log',label:'.bash_logout',x:336,y:196, w:88,  color:'#0d1117', active:'#1D9E75'},
+  ],
+  edges:[
+    ['root','etc'],['root','home'],['root','usr'],['root','var'],['root','bin'],['root','run'],['root','proc'],
+    ['etc','passwd'],['etc','shadow'],['etc','group'],['etc','skel'],['etc','sudoers'],
+    ['home','ubuntu'],['home','jespinoza'],
+    ['var','log'],
+    ['bin','sudo_b'],
+    ['skel','bashrc'],['skel','profile'],['skel','bash_log'],
+  ]
+};
+
+const CMD_PATHS={
+  whoami:  {nodes:['root','bin','sudo_b'],           label:'whoami → /bin/whoami — lee proceso efectivo'},
+  id:      {nodes:['root','etc','passwd','group'],    label:'id → consulta /etc/passwd y /etc/group para UID/GID/grupos'},
+  sid:     {nodes:['root','etc','sudoers','bin','sudo_b'], label:'sudo → verifica /etc/sudoers → eleva a UID 0'},
+  adduser: {nodes:['root','etc','passwd','shadow','group','skel','bashrc','profile','bash_log','home','jespinoza'], label:'adduser → escribe /etc/passwd, /etc/shadow, copia /etc/skel → crea /home/jespinoza'},
+  useradd: {nodes:['root','etc','passwd','shadow','group','home','jespinoza'], label:'useradd -m → escribe /etc/passwd, /etc/shadow → crea /home/jespinoza'},
+  usermod: {nodes:['root','etc','passwd','group','sudoers'], label:'usermod -aG → actualiza /etc/group y /etc/passwd'},
+  groups:  {nodes:['root','etc','group'],             label:'groups → lee /etc/group para listar grupos del usuario'},
+  getent:  {nodes:['root','etc','group','sudoers'],   label:'getent group sudo → consulta /etc/group entrada GID 27'},
+  userdel: {nodes:['root','etc','passwd','shadow','group','home','jespinoza'], label:'userdel -r → elimina de /etc/passwd, /etc/shadow, /etc/group y /home/usuario'},
+  passwd:  {nodes:['root','etc','passwd'],            label:'cat /etc/passwd → lectura directa del archivo de usuarios'},
+  shadow:  {nodes:['root','etc','shadow'],            label:'sudo cat /etc/shadow → solo root puede leer contraseñas cifradas'},
+  skel:    {nodes:['root','etc','skel','bashrc','profile','bash_log'], label:'ls /etc/skel → plantilla copiada a cada /home al crear usuario'},
+};
+
+const OUTPUTS={
+  whoami: [{c:'cmd-out',s:'ubuntu'}],
+  id:     [{c:'cmd-out',s:'uid=\u003cspan class="hi-y"\u003e1000\u003c/span\u003e(ubuntu) gid=\u003cspan class="hi-c"\u003e1000\u003c/span\u003e(ubuntu) groups=\u003cspan class="hi-g"\u003e1000\u003c/span\u003e(ubuntu),27(sudo),29(audio)'}],
+  sid:    [{c:'hi-g',s:'root'},{c:'cmd-out',s:'uid=\u003cspan class="hi-r"\u003e0\u003c/span\u003e(root) gid=\u003cspan class="hi-r"\u003e0\u003c/span\u003e(root) groups=\u003cspan class="hi-r"\u003e0\u003c/span\u003e(root)'}],
+  adduser:[{c:'hi-g',s:'info: Adding user `jespinoza` ...'},{c:'cmd-out',s:'info: Selecting UID/GID from range 1000 to 59999 ...'},{c:'cmd-out',s:'info: Adding new group `jespinoza` (1001) ...'},{c:'cmd-out',s:'info: Creating home directory `/home/jespinoza` ...'},{c:'cmd-out',s:'info: Copying files from `/etc/skel` ...'},{c:'hi-y',s:'New password: \u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'},{c:'hi-g',s:'passwd: password updated successfully'},{c:'cmd-out',s:'Full Name []: Jose Espinoza Landa'},{c:'cmd-out',s:'Room Number []: 201'},{c:'hi-g',s:'info: Adding `jespinoza` to group `users` ...'}],
+  useradd:[{c:'cmd-out',s:'[sin output = exito silencioso]'},{c:'hi-y',s:'# Verificar: id alumno'},{c:'cmd-out',s:'uid=\u003cspan class="hi-y"\u003e1002\u003c/span\u003e(alumno) gid=\u003cspan class="hi-c"\u003e1002\u003c/span\u003e(alumno) groups=\u003cspan class="hi-g"\u003e1002\u003c/span\u003e(alumno)'}],
+  usermod:[{c:'cmd-out',s:'[sin output = exito silencioso]'},{c:'hi-c',s:'# -a = append (conserva grupos actuales)'},{c:'hi-c',s:'# -G sudo      (agrega al grupo sudo)'},{c:'hi-y',s:'# Requiere cerrar sesion para aplicar'}],
+  groups: [{c:'cmd-out',s:'jespinoza : \u003cspan class="hi-g"\u003ejespinoza\u003c/span\u003e \u003cspan class="hi-y"\u003esudo\u003c/span\u003e users audio'}],
+  getent: [{c:'cmd-out',s:'sudo:x:\u003cspan class="hi-y"\u003e27\u003c/span\u003e:\u003cspan class="hi-g"\u003eubuntu,jespinoza\u003c/span\u003e'}],
+  userdel:[{c:'hi-r',s:'# -r elimina /home/alumno y spool de correo'},{c:'cmd-out',s:'[sin output = eliminacion exitosa]'},{c:'hi-y',s:'# Verificar: id alumno'},{c:'hi-r',s:'id: `alumno`: no such user'}],
+  passwd: [{c:'cmd-out',s:'\u003cspan class="hi-c"\u003ejespinoza\u003c/span\u003e:\u003cspan class="hi-y"\u003ex\u003c/span\u003e:\u003cspan class="hi-g"\u003e1001\u003c/span\u003e:\u003cspan class="hi-m"\u003e1001\u003c/span\u003e:Jose Espinoza,201,123456789:/home/jespinoza:\u003cspan class="hi-g"\u003e/bin/bash\u003c/span\u003e'}],
+  shadow: [{c:'cmd-out',s:'\u003cspan class="hi-c"\u003ejespinoza\u003c/span\u003e:\u003cspan class="hi-r"\u003e$6$salt$hashedpassword...\u003c/span\u003e:19800:0:99999:7:::'}],
+  skel:   [{c:'cmd-out',s:'total 20'},{c:'hi-g',s:'.bashrc      .profile      .bash_logout'},{c:'cmd-out',s:'# Copiados a /home/<usuario> al ejecutar adduser'}],
+};
+
+const INFOS={
+  whoami: 'Muestra el nombre del usuario efectivo de la sesion. En Windows equivale a echo %USERNAME%. Util para confirmar identidad antes de ejecutar comandos sensibles.',
+  id:     'Muestra uid (User ID), gid (Group ID principal) y groups (todos los grupos). El grupo "sudo" (GID 27) indica permisos de administracion. Lee /etc/passwd y /etc/group.',
+  sid:    'sudo ejecuta UN comando como root (UID 0). Verifica /etc/sudoers antes de elevar. Principio de minimo privilegio: eleva solo para la operacion necesaria.',
+  adduser:'Script interactivo de alto nivel. Verifica nombre unico, asigna UID >= 1000, crea grupo propio, crea /home, copia /etc/skel y solicita contrasena. Guarda en /etc/passwd y /etc/shadow.',
+  useradd:'Comando de bajo nivel. -m crea el directorio home. No solicita contrasena automaticamente. Requiere "sudo passwd alumno" despues. Adecuado para scripts automatizados.',
+  usermod:'Modifica usuario existente. -aG es critico: -a (append) preserva grupos actuales, -G especifica el nuevo grupo. Sin -a se REEMPLAZAN todos los grupos — error frecuente y peligroso.',
+  groups: 'Lista todos los grupos del usuario. El grupo principal aparece primero. "sudo" en la lista confirma permisos de administracion. Lee directamente /etc/group.',
+  getent: 'Consulta bases de datos del sistema (NSS). Mas robusto que grep sobre /etc/group porque funciona tambien con LDAP/NIS en entornos de red corporativos.',
+  userdel:'Elimina usuario. Sin -r: borra solo la cuenta, deja /home. Con -r: elimina /home/usuario y spool de correo. Operacion irreversible — hacer backup antes.',
+  passwd: 'Formato: usuario:x:UID:GID:GECOS:/home:/shell. La "x" indica que la contrasena real esta en /etc/shadow (cifrada). GECOS contiene nombre, oficina y telefono.',
+  shadow: 'Contrasenas cifradas con SHA-512 ($6$). Solo accesible por root. Separado de passwd por seguridad. Campos: usuario:hash:ultimo_cambio:min:max:aviso:inactivo:expira.',
+  skel:   '/etc/skel es la plantilla de perfil de usuario. Al crear usuario, adduser copia su contenido a /home/nuevo_usuario. Contiene: .bashrc, .profile, .bash_logout.',
+};
+
+const CMD_LABELS={
+  whoami:'whoami',id:'id',sid:'sudo whoami && sudo id',
+  adduser:'sudo adduser jespinoza',useradd:'sudo useradd -m alumno',
+  usermod:'sudo usermod -aG sudo jespinoza',groups:'groups jespinoza',
+  getent:'getent group sudo',userdel:'sudo userdel -r alumno',
+  passwd:'cat /etc/passwd | grep jespinoza',
+  shadow:'sudo cat /etc/shadow | grep jespinoza',
+  skel:'ls -la /etc/skel',
+};
+
+function buildTree(activeIds){
+  const nodeMap={};
+  TREE.nodes.forEach(n=>nodeMap[n.id]=n);
+  const activeSet=new Set(activeIds||[]);
+  let svg='';
+
+  TREE.edges.forEach(([a,b])=>{
+    const na=nodeMap[a],nb=nodeMap[b];
+    if(!na||!nb)return;
+    const x1=na.x+na.w/2,y1=na.y+20,x2=nb.x+nb.w/2,y2=nb.y;
+    const isActive=activeSet.has(a)&&activeSet.has(b);
+    const col=isActive?(nodeMap[b].active||'#378ADD'):'#2a3a4a';
+    const sw=isActive?1.5:0.5;
+    const da=isActive?'stroke-dasharray="5 3" style="animation:dash-flow .7s linear infinite"':'';
+    svg+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${sw}" ${da}/>`;
+  });
+
+  TREE.nodes.forEach(n=>{
+    const isActive=activeSet.has(n.id);
+    const bg=isActive?n.active:n.color;
+    const stroke=isActive?n.active:'#2a3a4a';
+    const sw=isActive?1.5:0.5;
+    const tx=n.x+n.w/2;
+    const ty=n.y+12;
+    const pulse=isActive?'style="animation:pulse-node .9s ease-in-out infinite"':'';
+    svg+=`<g ${pulse}>`;
+    svg+=`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="22" rx="4" fill="${bg}" stroke="${stroke}" stroke-width="${sw}" fill-opacity="${isActive?1:.6}"/>`;
+    svg+=`<text font-family="Arial,sans-serif" font-size="${n.id==='root'?11:9}" font-weight="${isActive?'700':'400'}" text-anchor="middle" x="${tx}" y="${ty+3}" fill="${isActive?'#ffffff':'#4a6a8a'}">${n.label}</text>`;
+    svg+=`</g>`;
+  });
+
+  return svg;
+}
+
+let activeBtn=null;
+
+function run(key){
+  if(activeBtn)document.getElementById('btn-'+activeBtn)?.classList.remove('active');
+  activeBtn=key;
+  document.getElementById('btn-'+key)?.classList.add('active');
+
+  const outs=OUTPUTS[key]||[];
+  const term=document.getElementById('terminal');
+  let html=`<div class="term-line" style="animation:slide-in .2s ease"><span class="prompt">ubuntu@server:~$ </span><span style="color:#f0f0f0;font-family:'Courier New',monospace;font-size:10px">${CMD_LABELS[key]||key}</span></div>`;
+  outs.forEach((l,i)=>{
+    html+=`<div class="term-line ${l.c}" style="animation:slide-in ${0.15+i*0.07}s ease">${l.s}</div>`;
+  });
+  html+=`<div class="term-line" style="margin-top:2px"><span class="prompt">ubuntu@server:~$ </span><span class="cursor"></span></div>`;
+  term.innerHTML=html;
+
+  const cp=CMD_PATHS[key];
+  document.getElementById('info-title').textContent=cp?cp.label:key;
+  document.getElementById('info-desc').textContent=INFOS[key]||'';
+  document.getElementById('tree-label').textContent=cp?'Rutas activas marcadas en el árbol':'';
+  document.getElementById('fs-tree').innerHTML=buildTree(cp?.nodes||[]);
+}
+
+document.getElementById('fs-tree').innerHTML=buildTree([]);
+</script>
+</body>
+</html>
