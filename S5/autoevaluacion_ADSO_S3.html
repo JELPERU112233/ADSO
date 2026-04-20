@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autoevaluación ADSO - Administración Local</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fira+Code:wght@400;600;700&display=swap');
+
+:root {
+  --bg: #0b0e18;
+  --surface: #141829;
+  --card: #1a1f35;
+  --border: #2a3050;
+  --red: #e21b3c;
+  --blue: #1368ce;
+  --gold: #d89e00;
+  --green: #26890c;
+  --purple: #8e24aa;
+  --text: #f2f2f2;
+  --dim: #8892a8;
+  --correct-bg: #0d3b15;
+  --wrong-bg: #3b0d15;
+  --timer-warn: #ff6b35;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app {
+  width: 100%;
+  max-width: 820px;
+  padding: 16px;
+}
+
+/* ===== SCREENS ===== */
+.screen { display: none; animation: fadeUp 0.4s ease; }
+.screen.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* ===== START SCREEN ===== */
+.start-screen {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.start-logo {
+  font-size: 3.5rem;
+  margin-bottom: 12px;
+}
+
+.start-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #00c9ff, #92fe9d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.start-subtitle {
+  font-size: 0.95rem;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+
+.start-course {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 28px;
+}
+
+.start-rules {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+  margin-bottom: 28px;
+  max-width: 450px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+  color: var(--dim);
+}
+
+.rule:last-child { margin-bottom: 0; }
+.rule-icon { font-size: 1.1rem; }
+
+.btn-start {
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  border: none;
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 16px 48px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-start:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(19,104,206,0.4);
+}
+
+/* ===== QUIZ SCREEN ===== */
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.quiz-progress {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: var(--dim);
+}
+
+.quiz-score {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: var(--gold);
+}
+
+/* Timer */
+.timer-bar-container {
+  width: 100%;
+  height: 8px;
+  background: var(--card);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.timer-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.25s linear, background 0.3s;
+  background: var(--green);
+}
+
+.timer-bar.warning { background: var(--timer-warn); }
+.timer-bar.danger { background: var(--red); animation: pulse 0.5s ease infinite; }
+
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50% { opacity:0.5; }
+}
+
+.timer-text {
+  text-align: center;
+  font-family: 'Fira Code', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  transition: color 0.3s;
+}
+
+.timer-text.warning { color: var(--timer-warn); }
+.timer-text.danger { color: var(--red); }
+
+/* Question */
+.question-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.question-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* Options */
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.option-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 16px 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  min-height: 60px;
+}
+
+.option-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  filter: brightness(1.15);
+}
+
+.option-btn:disabled { cursor: default; }
+
+.option-btn.opt-0 { background: var(--red); }
+.option-btn.opt-1 { background: var(--blue); }
+.option-btn.opt-2 { background: var(--gold); }
+.option-btn.opt-3 { background: var(--green); }
+
+.option-btn.correct-answer {
+  outline: 4px solid #4ade80;
+  outline-offset: -2px;
+  animation: correctPop 0.3s ease;
+}
+
+.option-btn.wrong-answer {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+.option-btn.user-wrong {
+  outline: 4px solid #f87171;
+  outline-offset: -2px;
+}
+
+@keyframes correctPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.opt-shape {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* Feedback panel */
+.feedback {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  display: none;
+  animation: fadeUp 0.3s ease;
+}
+
+.feedback.show { display: block; }
+.feedback.correct { background: var(--correct-bg); border: 1px solid #22c55e; }
+.feedback.wrong { background: var(--wrong-bg); border: 1px solid #ef4444; }
+.feedback.timeout { background: #1a1a30; border: 1px solid var(--timer-warn); }
+
+.feedback-header {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedback-text {
+  font-size: 0.85rem;
+  color: var(--dim);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.feedback-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: #60a5fa;
+  text-decoration: none;
+  padding: 6px 10px;
+  background: rgba(96,165,250,0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(96,165,250,0.2);
+}
+
+.feedback-link:hover {
+  background: rgba(96,165,250,0.2);
+}
+
+.btn-next {
+  display: block;
+  margin: 16px auto 0;
+  background: var(--purple);
+  border: none;
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 12px 36px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-next:hover { transform: scale(1.05); }
+
+/* ===== RESULTS SCREEN ===== */
+.results {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.results-emoji { font-size: 4rem; margin-bottom: 12px; }
+
+.results-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.results-subtitle {
+  font-size: 0.9rem;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+
+.score-display {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.score-big {
+  font-family: 'Fira Code', monospace;
+  font-size: 4rem;
+  font-weight: 700;
+}
+
+.score-total {
+  font-family: 'Fira Code', monospace;
+  font-size: 1.5rem;
+  color: var(--dim);
+}
+
+.score-label {
+  font-size: 0.85rem;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.stat-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card.correct-stat .stat-value { color: #4ade80; }
+.stat-card.wrong-stat .stat-value { color: #f87171; }
+.stat-card.time-stat .stat-value { color: var(--gold); }
+
+.review-list {
+  text-align: left;
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+
+.review-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.review-icon { font-size: 1rem; flex-shrink: 0; margin-top: 2px; }
+.review-q { color: var(--dim); }
+
+.btn-retry {
+  background: linear-gradient(135deg, var(--green), #059669);
+  border: none;
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 14px 40px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-retry:hover { transform: scale(1.05); }
+
+@media (max-width: 600px) {
+  .options-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .question-text { font-size: 1rem; }
+  .score-big { font-size: 3rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- START SCREEN -->
+  <div class="screen active" id="startScreen">
+    <div class="start-screen">
+      <div class="start-logo">🎓</div>
+      <div class="start-title">Autoevaluación</div>
+      <div class="start-subtitle">Administración Local — Semana 3</div>
+      <div class="start-course">1INF35 · ADSO · PUCP</div>
+      <div class="start-rules">
+        <div class="rule"><span class="rule-icon">📝</span> 10 preguntas de selección múltiple</div>
+        <div class="rule"><span class="rule-icon">⏱️</span> 15 segundos por pregunta</div>
+        <div class="rule"><span class="rule-icon">🏆</span> Calificación sobre 20 puntos</div>
+        <div class="rule"><span class="rule-icon">💡</span> Retroalimentación inmediata con enlaces</div>
+        <div class="rule"><span class="rule-icon">🔄</span> Puedes repetir cuantas veces quieras</div>
+      </div>
+      <button class="btn-start" onclick="startQuiz()">Comenzar</button>
+    </div>
+  </div>
+
+  <!-- QUIZ SCREEN -->
+  <div class="screen" id="quizScreen">
+    <div class="quiz-header">
+      <span class="quiz-progress" id="qProgress">Pregunta 1 / 10</span>
+      <span class="quiz-score" id="qScore">Nota: 0 / 20</span>
+    </div>
+    <div class="timer-bar-container">
+      <div class="timer-bar" id="timerBar" style="width:100%"></div>
+    </div>
+    <div class="timer-text" id="timerText">15</div>
+    <div class="question-card">
+      <div class="question-text" id="questionText"></div>
+    </div>
+    <div class="options-grid" id="optionsGrid"></div>
+    <div class="feedback" id="feedback">
+      <div class="feedback-header" id="feedbackHeader"></div>
+      <div class="feedback-text" id="feedbackText"></div>
+      <a class="feedback-link" id="feedbackLink" href="#" target="_blank">📖 Ver más información</a>
+    </div>
+    <button class="btn-next" id="btnNext" style="display:none" onclick="nextQuestion()">Siguiente →</button>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div class="screen" id="resultsScreen">
+    <div class="results">
+      <div class="results-emoji" id="resultsEmoji">🎉</div>
+      <div class="results-title" id="resultsTitle">¡Excelente trabajo!</div>
+      <div class="results-subtitle" id="resultsSub">Administración Local — ADSO PUCP</div>
+      <div class="score-display">
+        <span class="score-big" id="finalScore">20</span>
+        <span class="score-total">/ 20</span>
+      </div>
+      <div class="score-label" id="scoreLabel">Calificación final</div>
+      <div class="stats-grid">
+        <div class="stat-card correct-stat">
+          <div class="stat-value" id="statCorrect">10</div>
+          <div class="stat-label">Correctas</div>
+        </div>
+        <div class="stat-card wrong-stat">
+          <div class="stat-value" id="statWrong">0</div>
+          <div class="stat-label">Incorrectas</div>
+        </div>
+        <div class="stat-card time-stat">
+          <div class="stat-value" id="statAvgTime">5s</div>
+          <div class="stat-label">Tiempo promedio</div>
+        </div>
+      </div>
+      <div class="review-list" id="reviewList"></div>
+      <button class="btn-retry" onclick="retryQuiz()">🔄 Intentar de nuevo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "¿Qué comando en Linux muestra el UID, GID y todos los grupos a los que pertenece el usuario actual?",
+    opts: ["whoami", "id", "groups", "cat /etc/passwd"],
+    correct: 1,
+    feedback: "El comando 'id' muestra uid, gid y la lista completa de grupos. 'whoami' solo muestra el nombre de usuario efectivo.",
+    link: "https://man7.org/linux/man-pages/man1/id.1.html",
+    linkText: "Man page de id"
+  },
+  {
+    q: "En la salida de ls -l, ¿qué indica la letra 'd' al inicio de la línea de permisos?",
+    opts: ["Dispositivo de bloque", "Archivo de datos", "Directorio", "Enlace duro"],
+    correct: 2,
+    feedback: "La 'd' identifica un directorio. Los archivos regulares usan '-', los enlaces simbólicos 'l', dispositivos de carácter 'c' y de bloque 'b'.",
+    link: "https://linuxize.com/post/how-to-list-files-in-linux-using-the-ls-command/",
+    linkText: "Guía de ls -l en Linux"
+  },
+  {
+    q: "¿Cuál es el valor octal que representa permisos rwx (lectura + escritura + ejecución)?",
+    opts: ["5 (4+0+1)", "6 (4+2+0)", "7 (4+2+1)", "3 (0+2+1)"],
+    correct: 2,
+    feedback: "r=4, w=2, x=1. Sumados: 4+2+1 = 7. Por ejemplo, chmod 755 da rwx al propietario y r-x al grupo y otros.",
+    link: "https://chmod-calculator.com/",
+    linkText: "Calculadora de chmod interactiva"
+  },
+  {
+    q: "¿Qué principio de seguridad establece que solo se debe elevar privilegios cuando sea estrictamente necesario?",
+    opts: ["Defensa en profundidad", "Mínimo privilegio", "Separación de funciones", "Acceso discrecional"],
+    correct: 1,
+    feedback: "El principio de mínimo privilegio indica que un usuario debe operar con los permisos más bajos posibles y solo elevar (sudo) cuando sea necesario para la tarea específica.",
+    link: "https://csrc.nist.gov/glossary/term/least_privilege",
+    linkText: "NIST: Definición de Least Privilege"
+  },
+  {
+    q: "¿Qué ventaja principal ofrece un sistema de archivos con journaling tras un corte de energía?",
+    opts: ["Previene que se apague el servidor", "Permite recuperación rápida sin fsck completo", "Comprime automáticamente los datos", "Aumenta la velocidad de lectura"],
+    correct: 1,
+    feedback: "El journal registra las operaciones pendientes antes de ejecutarlas. Tras un crash, el sistema solo necesita hacer replay del journal (segundos) en vez de un fsck completo (horas en discos grandes).",
+    link: "https://www.kernel.org/doc/html/latest/filesystems/ext4/journal.html",
+    linkText: "Documentación del Journal en EXT4"
+  },
+  {
+    q: "En el permiso 'x' aplicado a un directorio, ¿qué permite hacer al usuario?",
+    opts: ["Ejecutar el directorio como programa", "Buscar y acceder al directorio (cd)", "Eliminar el directorio", "Leer el listado de archivos"],
+    correct: 1,
+    feedback: "En directorios, 'x' permite acceder con cd y buscar dentro del directorio. Sin 'x', no puedes entrar al directorio aunque tengas 'r' para listar su contenido.",
+    link: "https://www.gnu.org/software/coreutils/manual/html_node/Directory-Setuid-and-Setgid.html",
+    linkText: "GNU: Permisos en directorios"
+  },
+  {
+    q: "¿Cuál es la diferencia clave entre un enlace duro (hard link) y un enlace simbólico (symlink)?",
+    opts: [
+      "El hard link puede cruzar particiones, el symlink no",
+      "El symlink tiene su propio inodo, el hard link comparte el mismo inodo que el original",
+      "El hard link es más rápido que el symlink",
+      "No hay diferencia, son lo mismo"
+    ],
+    correct: 1,
+    feedback: "El hard link apunta al mismo inodo que el archivo original (misma partición). El symlink tiene su propio inodo y apunta a la ruta del archivo, por lo que puede cruzar particiones.",
+    link: "https://linuxize.com/post/how-to-create-symbolic-links-in-linux-using-the-ln-command/",
+    linkText: "Guía de ln: enlaces duros y simbólicos"
+  },
+  {
+    q: "¿Qué comando agrega un usuario existente al grupo sudo en Linux?",
+    opts: [
+      "adduser sudo nombre_usuario",
+      "sudo usermod -aG sudo nombre_usuario",
+      "chmod +sudo nombre_usuario",
+      "sudo groupadd nombre_usuario"
+    ],
+    correct: 1,
+    feedback: "El comando 'sudo usermod -aG sudo nombre_usuario' añade (-a = append) al usuario al grupo (-G) sudo sin removerlo de otros grupos. Se verifica con 'groups nombre_usuario'.",
+    link: "https://linuxize.com/post/how-to-add-user-to-sudoers-in-ubuntu/",
+    linkText: "Cómo agregar usuario a sudoers"
+  },
+  {
+    q: "¿Por qué NO se recomienda desfragmentar un disco SSD?",
+    opts: [
+      "Porque los SSD no tienen fragmentación",
+      "Porque el exceso de escrituras reduce la vida útil del SSD",
+      "Porque los SSD son más lentos que los HDD",
+      "Porque Linux no soporta SSD"
+    ],
+    correct: 1,
+    feedback: "Los SSD tienen un número limitado de ciclos de escritura. Desfragmentar genera escrituras innecesarias sin mejorar rendimiento. En vez de desfragmentar, los SSD usan TRIM para mantener rendimiento y vida útil.",
+    link: "https://wiki.archlinux.org/title/Solid_state_drive",
+    linkText: "Arch Wiki: SSD y TRIM"
+  },
+  {
+    q: "¿Qué comando en Linux se usa para ver el estado de un servicio gestionado por systemd?",
+    opts: [
+      "service --check nombre",
+      "systemctl status nombre",
+      "ps aux | grep nombre",
+      "netstat -tlnp nombre"
+    ],
+    correct: 1,
+    feedback: "systemctl status [servicio] muestra si el servicio está activo, inactivo, sus logs recientes y configuración de inicio. El equivalente en Windows es Get-Service [nombre].",
+    link: "https://www.freedesktop.org/software/systemd/man/systemctl.html",
+    linkText: "Man page de systemctl"
+  }
+];
+
+// State
+let currentQ = 0;
+let score = 0;
+let correctCount = 0;
+let totalTime = 0;
+let timerInterval = null;
+let timeLeft = 15;
+let answered = false;
+let results = [];
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startQuiz() {
+  currentQ = 0;
+  score = 0;
+  correctCount = 0;
+  totalTime = 0;
+  results = [];
+  showScreen('quizScreen');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  answered = false;
+  timeLeft = 15;
+  const q = questions[currentQ];
+
+  document.getElementById('qProgress').textContent = `Pregunta ${currentQ + 1} / ${questions.length}`;
+  document.getElementById('qScore').textContent = `Nota: ${score} / 20`;
+  document.getElementById('questionText').textContent = q.q;
+
+  const grid = document.getElementById('optionsGrid');
+  const shapes = ['◆', '●', '▲', '■'];
+  grid.innerHTML = q.opts.map((opt, i) =>
+    `<button class="option-btn opt-${i}" onclick="selectAnswer(${i})">
+      <span class="opt-shape">${shapes[i]}</span>
+      <span>${opt}</span>
+    </button>`
+  ).join('');
+
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('feedback').style.display = 'none';
+  document.getElementById('btnNext').style.display = 'none';
+
+  // Timer
+  updateTimerDisplay();
+  const barEl = document.getElementById('timerBar');
+  barEl.style.width = '100%';
+  barEl.className = 'timer-bar';
+
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft -= 0.25;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      clearInterval(timerInterval);
+      if (!answered) timeUp();
+    }
+    updateTimerDisplay();
+  }, 250);
+}
+
+function updateTimerDisplay() {
+  const pct = (timeLeft / 15) * 100;
+  const bar = document.getElementById('timerBar');
+  const txt = document.getElementById('timerText');
+
+  bar.style.width = pct + '%';
+  txt.textContent = Math.ceil(timeLeft);
+
+  bar.className = 'timer-bar' + (timeLeft <= 5 ? ' danger' : timeLeft <= 8 ? ' warning' : '');
+  txt.className = 'timer-text' + (timeLeft <= 5 ? ' danger' : timeLeft <= 8 ? ' warning' : '');
+}
+
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+
+  const q = questions[currentQ];
+  const isCorrect = idx === q.correct;
+  const elapsed = 15 - timeLeft;
+  totalTime += elapsed;
+
+  // Disable all buttons
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+
+  // Mark correct
+  document.querySelectorAll('.option-btn')[q.correct].classList.add('correct-answer');
+
+  if (isCorrect) {
+    score += 2;
+    correctCount++;
+    results.push({ correct: true, q: q.q });
+  } else {
+    document.querySelectorAll('.option-btn')[idx].classList.add('user-wrong');
+    document.querySelectorAll('.option-btn').forEach((b, i) => {
+      if (i !== q.correct && i !== idx) b.classList.add('wrong-answer');
+    });
+    results.push({ correct: false, q: q.q });
+  }
+
+  // Show feedback
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show ' + (isCorrect ? 'correct' : 'wrong');
+  document.getElementById('feedbackHeader').innerHTML = isCorrect
+    ? '✅ ¡Correcto! +2 puntos'
+    : `❌ Incorrecto — La respuesta era: "${q.opts[q.correct]}"`;
+  document.getElementById('feedbackText').textContent = q.feedback;
+  const link = document.getElementById('feedbackLink');
+  link.href = q.link;
+  link.textContent = '📖 ' + q.linkText;
+
+  document.getElementById('qScore').textContent = `Nota: ${score} / 20`;
+  document.getElementById('btnNext').style.display = 'block';
+  document.getElementById('btnNext').textContent = currentQ < questions.length - 1 ? 'Siguiente →' : 'Ver resultados →';
+}
+
+function timeUp() {
+  answered = true;
+  totalTime += 15;
+  const q = questions[currentQ];
+  results.push({ correct: false, q: q.q });
+
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+  document.querySelectorAll('.option-btn')[q.correct].classList.add('correct-answer');
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show timeout';
+  document.getElementById('feedbackHeader').innerHTML = `⏱️ ¡Tiempo agotado! — La respuesta era: "${q.opts[q.correct]}"`;
+  document.getElementById('feedbackText').textContent = q.feedback;
+  const link = document.getElementById('feedbackLink');
+  link.href = q.link;
+  link.textContent = '📖 ' + q.linkText;
+
+  document.getElementById('btnNext').style.display = 'block';
+  document.getElementById('btnNext').textContent = currentQ < questions.length - 1 ? 'Siguiente →' : 'Ver resultados →';
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ < questions.length) {
+    loadQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  clearInterval(timerInterval);
+  showScreen('resultsScreen');
+
+  const wrongCount = questions.length - correctCount;
+  const avgTime = (totalTime / questions.length).toFixed(1);
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('statCorrect').textContent = correctCount;
+  document.getElementById('statWrong').textContent = wrongCount;
+  document.getElementById('statAvgTime').textContent = avgTime + 's';
+
+  let emoji, title, label;
+  if (score >= 18) { emoji = '🏆'; title = '¡Excelente!'; label = 'Dominas la administración local'; }
+  else if (score >= 14) { emoji = '🎉'; title = '¡Muy bien!'; label = 'Buen dominio, revisa los errores'; }
+  else if (score >= 10) { emoji = '📚'; title = 'Aprobado'; label = 'Necesitas reforzar algunos temas'; }
+  else { emoji = '💪'; title = 'Sigue practicando'; label = 'Revisa el material y vuelve a intentar'; }
+
+  document.getElementById('resultsEmoji').textContent = emoji;
+  document.getElementById('resultsTitle').textContent = title;
+  document.getElementById('scoreLabel').textContent = label;
+
+  // Color score
+  const scoreEl = document.getElementById('finalScore');
+  scoreEl.style.color = score >= 14 ? '#4ade80' : score >= 10 ? 'var(--gold)' : '#f87171';
+
+  // Review list
+  const rl = document.getElementById('reviewList');
+  rl.innerHTML = '<div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Resumen de respuestas</div>' +
+    results.map((r, i) =>
+      `<div class="review-item">
+        <span class="review-icon">${r.correct ? '✅' : '❌'}</span>
+        <span class="review-q"><strong>P${i+1}:</strong> ${r.q.substring(0, 80)}${r.q.length > 80 ? '...' : ''}</span>
+      </div>`
+    ).join('');
+}
+
+function retryQuiz() {
+  showScreen('startScreen');
+}
+</script>
+</body>
+</html>
