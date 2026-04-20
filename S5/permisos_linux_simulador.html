@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Permisos Linux - ADSO</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0a0e17;
+  --surface: #111827;
+  --surface2: #1a2332;
+  --border: #1e3a5f;
+  --glow-green: #00ff88;
+  --glow-blue: #00aaff;
+  --glow-red: #ff4466;
+  --glow-amber: #ffaa00;
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+  --r-color: #ff6b6b;
+  --w-color: #ffd93d;
+  --x-color: #6bff6b;
+  --owner-color: #00ff88;
+  --group-color: #00aaff;
+  --other-color: #ff8844;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scan lines overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,255,136,0.015) 2px,
+    rgba(0,255,136,0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--glow-green), var(--glow-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}
+
+.header .subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+/* File type selector */
+.file-type-selector {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.file-type-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-type-btn:hover {
+  border-color: var(--glow-blue);
+  color: var(--text);
+}
+
+.file-type-btn.active {
+  background: rgba(0,170,255,0.12);
+  border-color: var(--glow-blue);
+  color: var(--glow-blue);
+  box-shadow: 0 0 20px rgba(0,170,255,0.15);
+}
+
+.file-type-btn .icon { font-size: 1.2rem; }
+
+/* Main grid */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+/* Permission matrix */
+.perm-matrix {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.perm-matrix::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--owner-color), var(--group-color), var(--other-color));
+}
+
+.matrix-header {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr 1fr;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.matrix-header span {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 8px;
+}
+
+.matrix-header .label-owner { color: var(--owner-color); }
+.matrix-header .label-group { color: var(--group-color); }
+.matrix-header .label-other { color: var(--other-color); }
+
+.matrix-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr 1fr;
+  gap: 0;
+  align-items: center;
+}
+
+.perm-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perm-label.r-label { color: var(--r-color); }
+.perm-label.w-label { color: var(--w-color); }
+.perm-label.x-label { color: var(--x-color); }
+
+.perm-label .bit-val {
+  font-size: 0.65rem;
+  opacity: 0.5;
+}
+
+/* Toggle switch */
+.toggle-cell {
+  display: flex;
+  justify-content: center;
+  padding: 6px;
+}
+
+.toggle {
+  width: 70px;
+  height: 38px;
+  border-radius: 19px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid var(--border);
+  background: var(--surface2);
+}
+
+.toggle.on {
+  border-color: var(--active-color);
+  background: rgba(var(--active-rgb), 0.15);
+  box-shadow: 0 0 15px rgba(var(--active-rgb), 0.25), inset 0 0 10px rgba(var(--active-rgb), 0.1);
+}
+
+.toggle .knob {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--border);
+}
+
+.toggle.on .knob {
+  left: 35px;
+  background: var(--active-color);
+  box-shadow: 0 0 10px var(--active-color);
+}
+
+.toggle .toggle-label {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: all 0.3s;
+}
+
+.toggle .toggle-off { right: 8px; color: var(--text-dim); }
+.toggle .toggle-on { left: 8px; color: var(--active-color); opacity: 0; }
+.toggle.on .toggle-off { opacity: 0; }
+.toggle.on .toggle-on { opacity: 1; }
+
+/* Results panel */
+.results {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.result-card .card-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+/* Symbolic display */
+.symbolic-display {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.symbolic-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.ls-output {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+  line-height: 2;
+  background: #0d1117;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #21262d;
+}
+
+.ls-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  font-weight: 700;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.ls-char.type-char { color: var(--glow-blue); }
+.ls-char.r-char { color: var(--r-color); }
+.ls-char.w-char { color: var(--w-color); }
+.ls-char.x-char { color: var(--x-color); }
+.ls-char.dash { color: #333; }
+.ls-char.active { text-shadow: 0 0 8px currentColor; }
+
+.ls-separator {
+  width: 4px;
+  height: 32px;
+  display: inline-flex;
+}
+
+.ls-rest {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-left: 12px;
+}
+
+/* Octal display */
+.octal-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.octal-digit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 700;
+  width: 56px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.4s;
+  position: relative;
+}
+
+.octal-digit::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: -18px;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.octal-digit.owner {
+  background: rgba(0,255,136,0.1);
+  border: 1px solid rgba(0,255,136,0.3);
+  color: var(--owner-color);
+  text-shadow: 0 0 12px var(--owner-color);
+}
+.octal-digit.owner::after { color: var(--owner-color); }
+
+.octal-digit.group {
+  background: rgba(0,170,255,0.1);
+  border: 1px solid rgba(0,170,255,0.3);
+  color: var(--group-color);
+  text-shadow: 0 0 12px var(--group-color);
+}
+.octal-digit.group::after { color: var(--group-color); }
+
+.octal-digit.other {
+  background: rgba(255,136,68,0.1);
+  border: 1px solid rgba(255,136,68,0.3);
+  color: var(--other-color);
+  text-shadow: 0 0 12px var(--other-color);
+}
+.octal-digit.other::after { color: var(--other-color); }
+
+/* Meaning panel */
+.meaning-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.meaning-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.meaning-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.meaning-col {
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(0,0,0,0.3);
+}
+
+.meaning-col-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.meaning-col.owner-col .meaning-col-title { color: var(--owner-color); }
+.meaning-col.group-col .meaning-col-title { color: var(--group-color); }
+.meaning-col.other-col .meaning-col-title { color: var(--other-color); }
+
+.meaning-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.meaning-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.meaning-item.inactive {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+/* Command hint */
+.command-hint {
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-top: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.command-hint .prompt { color: var(--glow-green); }
+.command-hint .cmd { color: var(--glow-blue); }
+.command-hint .args { color: var(--glow-amber); }
+.command-hint .file { color: var(--text); }
+
+/* Presets */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.preset-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  border-color: var(--glow-green);
+  color: var(--glow-green);
+  background: rgba(0,255,136,0.05);
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .header h1 { font-size: 1.2rem; }
+  .results { grid-template-columns: 1fr; }
+  .meaning-grid { grid-template-columns: 1fr; }
+  .matrix-header, .matrix-row { grid-template-columns: 80px 1fr 1fr 1fr; }
+  .toggle { width: 58px; height: 32px; }
+  .toggle .knob { width: 22px; height: 22px; }
+  .toggle.on .knob { left: 30px; }
+  .octal-digit { font-size: 1.6rem; width: 44px; height: 52px; }
+  .ls-char { width: 18px; }
+  .file-type-selector { flex-wrap: wrap; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: slideIn 0.3s ease-out;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>⚙ Simulador de Permisos Linux</h1>
+    <div class="subtitle">Administración de Sistemas Operativos — Interactúa con los permisos rwx</div>
+  </div>
+
+  <!-- File type selector -->
+  <div class="file-type-selector" id="fileTypeSelector">
+    <button class="file-type-btn active" data-type="-" onclick="setFileType('-')">
+      <span class="icon">📄</span> Archivo regular
+    </button>
+    <button class="file-type-btn" data-type="d" onclick="setFileType('d')">
+      <span class="icon">📁</span> Directorio
+    </button>
+    <button class="file-type-btn" data-type="l" onclick="setFileType('l')">
+      <span class="icon">🔗</span> Enlace simbólico
+    </button>
+  </div>
+
+  <!-- Permission Matrix -->
+  <div class="perm-matrix">
+    <div class="matrix-header">
+      <span></span>
+      <span class="label-owner">👤 Propietario</span>
+      <span class="label-group">👥 Grupo</span>
+      <span class="label-other">🌐 Otros</span>
+    </div>
+
+    <!-- Read row -->
+    <div class="matrix-row">
+      <div class="perm-label r-label">r <span class="bit-val">(4)</span></div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-r-owner" onclick="togglePerm('r','owner')"
+             style="--active-color:var(--r-color);--active-rgb:255,107,107;">
+          <span class="toggle-label toggle-on">r</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-r-group" onclick="togglePerm('r','group')"
+             style="--active-color:var(--r-color);--active-rgb:255,107,107;">
+          <span class="toggle-label toggle-on">r</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-r-other" onclick="togglePerm('r','other')"
+             style="--active-color:var(--r-color);--active-rgb:255,107,107;">
+          <span class="toggle-label toggle-on">r</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Write row -->
+    <div class="matrix-row">
+      <div class="perm-label w-label">w <span class="bit-val">(2)</span></div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-w-owner" onclick="togglePerm('w','owner')"
+             style="--active-color:var(--w-color);--active-rgb:255,217,61;">
+          <span class="toggle-label toggle-on">w</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-w-group" onclick="togglePerm('w','group')"
+             style="--active-color:var(--w-color);--active-rgb:255,217,61;">
+          <span class="toggle-label toggle-on">w</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-w-other" onclick="togglePerm('w','other')"
+             style="--active-color:var(--w-color);--active-rgb:255,217,61;">
+          <span class="toggle-label toggle-on">w</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execute row -->
+    <div class="matrix-row">
+      <div class="perm-label x-label">x <span class="bit-val">(1)</span></div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-x-owner" onclick="togglePerm('x','owner')"
+             style="--active-color:var(--x-color);--active-rgb:107,255,107;">
+          <span class="toggle-label toggle-on">x</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-x-group" onclick="togglePerm('x','group')"
+             style="--active-color:var(--x-color);--active-rgb:107,255,107;">
+          <span class="toggle-label toggle-on">x</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+      <div class="toggle-cell">
+        <div class="toggle" id="t-x-other" onclick="togglePerm('x','other')"
+             style="--active-color:var(--x-color);--active-rgb:107,255,107;">
+          <span class="toggle-label toggle-on">x</span>
+          <span class="toggle-label toggle-off">—</span>
+          <div class="knob"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Octal display -->
+  <div style="display:flex;justify-content:center;margin-top:24px;gap:4px;align-items:center;">
+    <span style="font-family:'JetBrains Mono';color:var(--text-dim);font-size:1rem;margin-right:8px;">chmod</span>
+    <div class="octal-digit owner" id="octal-owner" data-label="owner">7</div>
+    <div class="octal-digit group" id="octal-group" data-label="grupo">5</div>
+    <div class="octal-digit other" id="octal-other" data-label="otros">5</div>
+    <span id="fileNameDisplay" style="font-family:'JetBrains Mono';color:var(--text-dim);font-size:0.9rem;margin-left:12px;">archivo.txt</span>
+  </div>
+
+  <!-- Symbolic ls -l output -->
+  <div class="symbolic-display">
+    <div class="symbolic-title">Vista ls -l</div>
+    <div class="ls-output" id="lsOutput"></div>
+  </div>
+
+  <!-- Presets -->
+  <div class="presets">
+    <button class="preset-btn" onclick="applyPreset(7,5,5)">755 (ejecutable)</button>
+    <button class="preset-btn" onclick="applyPreset(6,4,4)">644 (documento)</button>
+    <button class="preset-btn" onclick="applyPreset(7,0,0)">700 (privado)</button>
+    <button class="preset-btn" onclick="applyPreset(6,6,0)">660 (compartido)</button>
+    <button class="preset-btn" onclick="applyPreset(4,4,4)">444 (solo lectura)</button>
+    <button class="preset-btn" onclick="applyPreset(0,0,0)">000 (sin permisos)</button>
+    <button class="preset-btn" onclick="applyPreset(7,7,7)">777 (total)</button>
+  </div>
+
+  <!-- Meaning panel -->
+  <div class="meaning-panel">
+    <div class="meaning-title" id="meaningTitle">Significado de los permisos para ARCHIVO</div>
+    <div class="meaning-grid" id="meaningGrid"></div>
+  </div>
+
+  <!-- Command hint -->
+  <div class="command-hint" id="commandHint">
+    <span class="prompt">$</span>
+    <span class="cmd">chmod</span>
+    <span class="args" id="chmodArgs">755</span>
+    <span class="file" id="chmodFile">archivo.txt</span>
+  </div>
+</div>
+
+<script>
+// State
+const perms = {
+  owner: { r: true, w: true, x: true },
+  group: { r: true, w: false, x: true },
+  other: { r: true, w: false, x: true }
+};
+
+let fileType = '-';
+
+const fileDescriptions = {
+  '-': { name: 'archivo.txt', label: 'ARCHIVO' },
+  'd': { name: 'mi_directorio/', label: 'DIRECTORIO' },
+  'l': { name: 'enlace -> original', label: 'ENLACE SIMBÓLICO' }
+};
+
+const permMeanings = {
+  '-': {
+    r: { on: '📖 Leer el contenido del archivo', off: '🚫 No se puede leer el archivo' },
+    w: { on: '✏️ Modificar el contenido del archivo', off: '🚫 No se puede modificar el archivo' },
+    x: { on: '▶️ Ejecutar el archivo como programa', off: '🚫 No se puede ejecutar el archivo' }
+  },
+  'd': {
+    r: { on: '📋 Listar el contenido del directorio (ls)', off: '🚫 No se puede listar el directorio' },
+    w: { on: '📝 Crear/eliminar archivos dentro del directorio', off: '🚫 No se pueden crear ni eliminar archivos' },
+    x: { on: '🚪 Acceder y recorrer el directorio (cd)', off: '🚫 No se puede acceder al directorio' }
+  },
+  'l': {
+    r: { on: '📖 Leer el archivo apuntado por el enlace', off: '🚫 No se puede leer el destino' },
+    w: { on: '✏️ Modificar el archivo apuntado', off: '🚫 No se puede modificar el destino' },
+    x: { on: '▶️ Ejecutar el archivo apuntado', off: '🚫 No se puede ejecutar el destino' }
+  }
+};
+
+function togglePerm(perm, entity) {
+  perms[entity][perm] = !perms[entity][perm];
+  render();
+}
+
+function setFileType(type) {
+  fileType = type;
+  document.querySelectorAll('.file-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  render();
+}
+
+function applyPreset(o, g, ot) {
+  ['owner','group','other'].forEach((entity, i) => {
+    const val = [o, g, ot][i];
+    perms[entity].r = !!(val & 4);
+    perms[entity].w = !!(val & 2);
+    perms[entity].x = !!(val & 1);
+  });
+  render();
+}
+
+function getOctal(entity) {
+  return (perms[entity].r ? 4 : 0) + (perms[entity].w ? 2 : 0) + (perms[entity].x ? 1 : 0);
+}
+
+function render() {
+  // Update toggles
+  ['owner','group','other'].forEach(entity => {
+    ['r','w','x'].forEach(perm => {
+      const el = document.getElementById(`t-${perm}-${entity}`);
+      el.classList.toggle('on', perms[entity][perm]);
+    });
+  });
+
+  // Update octal digits
+  ['owner','group','other'].forEach(entity => {
+    const el = document.getElementById(`octal-${entity}`);
+    const val = getOctal(entity);
+    if (el.textContent !== String(val)) {
+      el.textContent = val;
+      el.classList.add('animate-in');
+      setTimeout(() => el.classList.remove('animate-in'), 300);
+    }
+  });
+
+  // Update ls -l output
+  const lsOut = document.getElementById('lsOutput');
+  const typeChar = fileType;
+  const chars = [typeChar];
+  ['owner','group','other'].forEach(entity => {
+    chars.push(perms[entity].r ? 'r' : '-');
+    chars.push(perms[entity].w ? 'w' : '-');
+    chars.push(perms[entity].x ? 'x' : '-');
+  });
+
+  let html = '';
+  chars.forEach((ch, i) => {
+    let cls = '';
+    if (i === 0) cls = 'type-char active';
+    else {
+      const permType = ['r','w','x'][(i - 1) % 3];
+      const isActive = ch !== '-';
+      if (permType === 'r') cls = isActive ? 'r-char active' : 'dash';
+      else if (permType === 'w') cls = isActive ? 'w-char active' : 'dash';
+      else cls = isActive ? 'x-char active' : 'dash';
+    }
+    // Add separator after type char and after each triplet
+    if (i === 1 || i === 4 || i === 7) {
+      html += '<span class="ls-separator"></span>';
+    }
+    html += `<span class="ls-char ${cls}">${ch}</span>`;
+  });
+
+  const fd = fileDescriptions[fileType];
+  html += `<span class="ls-rest"> 1 user group ${fd.name}</span>`;
+  lsOut.innerHTML = html;
+
+  // Update file name display
+  document.getElementById('fileNameDisplay').textContent = fd.name;
+
+  // Update meaning panel
+  const meaningTitle = document.getElementById('meaningTitle');
+  meaningTitle.textContent = `Significado de los permisos para ${fd.label}`;
+
+  const grid = document.getElementById('meaningGrid');
+  const entities = [
+    { key: 'owner', label: '👤 Propietario', cls: 'owner-col' },
+    { key: 'group', label: '👥 Grupo', cls: 'group-col' },
+    { key: 'other', label: '🌐 Otros', cls: 'other-col' }
+  ];
+
+  let mHtml = '';
+  entities.forEach(e => {
+    mHtml += `<div class="meaning-col ${e.cls}">`;
+    mHtml += `<div class="meaning-col-title">${e.label}</div>`;
+    ['r','w','x'].forEach(p => {
+      const isOn = perms[e.key][p];
+      const meanings = permMeanings[fileType] || permMeanings['-'];
+      const text = isOn ? meanings[p].on : meanings[p].off;
+      mHtml += `<div class="meaning-item ${isOn ? '' : 'inactive'}">
+        <span class="meaning-icon">${isOn ? '✅' : '❌'}</span>
+        <span>${text}</span>
+      </div>`;
+    });
+    mHtml += `</div>`;
+  });
+  grid.innerHTML = mHtml;
+
+  // Update command hint
+  const octalStr = `${getOctal('owner')}${getOctal('group')}${getOctal('other')}`;
+  document.getElementById('chmodArgs').textContent = octalStr;
+  document.getElementById('chmodFile').textContent = fd.name;
+}
+
+// Initialize
+render();
+</script>
+</body>
+</html>
