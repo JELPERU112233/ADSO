@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Journaling - Sistemas de Archivos</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #06080d;
+  --surface: #0d1117;
+  --surface2: #161b22;
+  --surface3: #1c2333;
+  --border: #21262d;
+  --border-active: #388bfd;
+  --text: #e6edf3;
+  --text-dim: #7d8590;
+  --green: #3fb950;
+  --green-dim: rgba(63,185,80,0.15);
+  --red: #f85149;
+  --red-dim: rgba(248,81,73,0.15);
+  --blue: #58a6ff;
+  --blue-dim: rgba(88,166,255,0.12);
+  --amber: #d29922;
+  --amber-dim: rgba(210,153,34,0.15);
+  --purple: #bc8cff;
+  --ntfs: #0078d4;
+  --ext4: #e95420;
+  --zfs: #2196f3;
+  --journal-gold: #f0c040;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.app { max-width: 1140px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.hero {
+  text-align: center;
+  padding: 30px 0 24px;
+  position: relative;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--journal-gold), transparent);
+}
+
+.hero h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--journal-gold) 0%, #fff 50%, var(--blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero p {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 24px 0;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid var(--border);
+}
+
+.tab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.25s;
+  letter-spacing: 0.5px;
+}
+
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--surface3);
+  color: var(--journal-gold);
+  box-shadow: 0 0 12px rgba(240,192,64,0.1);
+}
+
+/* Panels */
+.panel { display: none; animation: fadeIn 0.35s ease; }
+.panel.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== PANEL 1: SIMULADOR ========== */
+.sim-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.sim-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sim-col .col-badge {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.sim-col.no-journal .col-badge { background: var(--red); }
+.sim-col.with-journal .col-badge { background: var(--green); }
+
+.col-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.col-title.danger { color: var(--red); }
+.col-title.success { color: var(--green); }
+
+/* Disk visualization */
+.disk-vis {
+  background: #0a0e14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 200px;
+  position: relative;
+}
+
+.disk-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.disk-blocks {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+
+.block {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  color: transparent;
+}
+
+.block.old-data {
+  background: rgba(88,166,255,0.2);
+  border-color: rgba(88,166,255,0.3);
+  color: rgba(88,166,255,0.6);
+}
+
+.block.writing {
+  background: var(--amber-dim);
+  border-color: var(--amber);
+  box-shadow: 0 0 8px rgba(210,153,34,0.3);
+  animation: blockPulse 0.6s ease infinite;
+  color: var(--amber);
+}
+
+.block.written {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.block.corrupted {
+  background: var(--red-dim);
+  border-color: var(--red);
+  animation: corruptFlash 0.3s ease 3;
+  color: var(--red);
+}
+
+.block.journal-entry {
+  background: rgba(240,192,64,0.15);
+  border-color: var(--journal-gold);
+  color: var(--journal-gold);
+}
+
+.block.recovered {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+@keyframes blockPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes corruptFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Journal area */
+.journal-area {
+  margin-top: 12px;
+  background: rgba(240,192,64,0.05);
+  border: 1px dashed rgba(240,192,64,0.3);
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 50px;
+}
+
+.journal-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--journal-gold);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.journal-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.journal-entry-line {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  padding: 3px 6px;
+  border-radius: 3px;
+  animation: fadeIn 0.3s ease;
+}
+
+.journal-entry-line.pending {
+  color: var(--amber);
+  background: rgba(210,153,34,0.1);
+}
+
+.journal-entry-line.committed {
+  color: var(--green);
+  background: rgba(63,185,80,0.1);
+}
+
+.journal-entry-line.replay {
+  color: var(--blue);
+  background: rgba(88,166,255,0.1);
+}
+
+/* Status bar */
+.status-bar {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+}
+
+.status-bar.idle { background: var(--surface2); color: var(--text-dim); }
+.status-bar.writing { background: var(--amber-dim); color: var(--amber); }
+.status-bar.success { background: var(--green-dim); color: var(--green); }
+.status-bar.error { background: var(--red-dim); color: var(--red); }
+.status-bar.recovering { background: var(--blue-dim); color: var(--blue); }
+
+/* Controls */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 10px 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-write {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-color: rgba(210,153,34,0.3);
+}
+.btn-write:hover { background: rgba(210,153,34,0.25); box-shadow: 0 0 15px rgba(210,153,34,0.2); }
+
+.btn-crash {
+  background: var(--red-dim);
+  color: var(--red);
+  border-color: rgba(248,81,73,0.3);
+}
+.btn-crash:hover { background: rgba(248,81,73,0.25); box-shadow: 0 0 15px rgba(248,81,73,0.2); }
+
+.btn-reset {
+  background: var(--surface2);
+  color: var(--text-dim);
+}
+.btn-reset:hover { color: var(--text); border-color: var(--text-dim); }
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Speed control */
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.speed-control label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.speed-control input[type="range"] {
+  width: 120px;
+  accent-color: var(--journal-gold);
+}
+
+/* ========== PANEL 2: COMPARATIVA ========== */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.compare-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.compare-card:hover {
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+.compare-card-header {
+  padding: 18px;
+  text-align: center;
+  position: relative;
+}
+
+.compare-card-header h3 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.compare-card-header .os-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.compare-card.ntfs-card .compare-card-header { background: linear-gradient(135deg, rgba(0,120,212,0.15), transparent); }
+.compare-card.ntfs-card .compare-card-header h3 { color: var(--ntfs); }
+
+.compare-card.ext4-card .compare-card-header { background: linear-gradient(135deg, rgba(233,84,32,0.15), transparent); }
+.compare-card.ext4-card .compare-card-header h3 { color: var(--ext4); }
+
+.compare-card.zfs-card .compare-card-header { background: linear-gradient(135deg, rgba(33,150,243,0.15), transparent); }
+.compare-card.zfs-card .compare-card-header h3 { color: var(--zfs); }
+
+.compare-body {
+  padding: 16px;
+}
+
+.compare-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.compare-row:last-child { border-bottom: none; }
+
+.compare-row .cr-label {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  width: 42%;
+}
+
+.compare-row .cr-value {
+  text-align: right;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* Flow diagrams */
+.flow-section {
+  margin-top: 24px;
+}
+
+.flow-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  min-width: 100px;
+}
+
+.flow-step-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 2px solid;
+}
+
+.flow-step-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text);
+  text-align: center;
+  max-width: 90px;
+  font-weight: 500;
+}
+
+.flow-step-sub {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.flow-arrow {
+  font-size: 1.2rem;
+  color: var(--text-dim);
+  margin: 0 2px;
+}
+
+/* ========== PANEL 3: MODOS EXT4 ========== */
+.modes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  transition: all 0.3s;
+}
+
+.mode-card.selected {
+  border-color: var(--ext4);
+}
+
+.mode-card.selected::before {
+  background: var(--ext4);
+}
+
+.mode-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ext4);
+  margin-bottom: 4px;
+}
+
+.mode-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.mode-desc {
+  font-size: 0.82rem;
+  color: var(--text);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+/* Meter bars */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.meter-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  width: 75px;
+  text-transform: uppercase;
+}
+
+.meter-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.meter-fill.security { background: linear-gradient(90deg, var(--green), #2dd4bf); }
+.meter-fill.performance { background: linear-gradient(90deg, var(--amber), #f59e0b); }
+
+.mode-usecase {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(233,84,32,0.06);
+  border: 1px solid rgba(233,84,32,0.15);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.mode-usecase strong {
+  color: var(--ext4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sim-container { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .modes-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 1.4rem; }
+  .tabs { flex-wrap: wrap; }
+  .flow-diagram { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+  .disk-blocks { grid-template-columns: repeat(6, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="hero">
+    <h1>📓 Simulador de Journaling</h1>
+    <p>Sistemas de Archivos — NTFS · EXT4 · ZFS</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showPanel('sim')">⚡ Simulador</button>
+    <button class="tab" onclick="showPanel('compare')">📊 Comparativa</button>
+    <button class="tab" onclick="showPanel('modes')">🔧 Modos EXT4</button>
+  </div>
+
+  <!-- ===== PANEL 1: SIMULATOR ===== -->
+  <div class="panel active" id="panel-sim">
+    <div class="speed-control">
+      <label>Velocidad:</label>
+      <input type="range" id="speedSlider" min="1" max="5" value="3">
+      <span id="speedLabel" style="font-family:'IBM Plex Mono';font-size:0.7rem;color:var(--text-dim);">Normal</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-write" id="btnWrite" onclick="startWrite()">✏️ Escribir archivo</button>
+      <button class="btn btn-crash" id="btnCrash" onclick="simulateCrash()" disabled>⚡ Simular corte de energía</button>
+      <button class="btn btn-reset" onclick="resetSim()">↺ Reiniciar</button>
+    </div>
+
+    <div class="sim-container">
+      <!-- WITHOUT JOURNAL -->
+      <div class="sim-col no-journal">
+        <div class="col-badge"></div>
+        <div class="col-title danger">❌ Sin Journaling (FAT32)</div>
+        <div class="disk-vis">
+          <div class="disk-label">Bloques del disco</div>
+          <div class="disk-blocks" id="disk-nojrnl"></div>
+        </div>
+        <div class="status-bar idle" id="status-nojrnl">
+          <span>💤</span> <span>Esperando operación...</span>
+        </div>
+      </div>
+
+      <!-- WITH JOURNAL -->
+      <div class="sim-col with-journal">
+        <div class="col-badge"></div>
+        <div class="col-title success">✅ Con Journaling (NTFS/EXT4)</div>
+        <div class="disk-vis">
+          <div class="disk-label">Bloques del disco</div>
+          <div class="disk-blocks" id="disk-jrnl"></div>
+        </div>
+        <div class="journal-area">
+          <div class="journal-label">📓 Journal (bitácora)</div>
+          <div class="journal-entries" id="journal-entries"></div>
+        </div>
+        <div class="status-bar idle" id="status-jrnl">
+          <span>💤</span> <span>Esperando operación...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL 2: COMPARATIVA ===== -->
+  <div class="panel" id="panel-compare">
+    <div class="compare-grid">
+      <!-- NTFS -->
+      <div class="compare-card ntfs-card">
+        <div class="compare-card-header">
+          <h3>NTFS</h3>
+          <div class="os-label">🪟 Windows</div>
+        </div>
+        <div class="compare-body">
+          <div class="compare-row"><span class="cr-label">Tipo</span><span class="cr-value">Journaling de metadatos</span></div>
+          <div class="compare-row"><span class="cr-label">Registro</span><span class="cr-value">$LogFile (metadatos)</span></div>
+          <div class="compare-row"><span class="cr-label">Protege</span><span class="cr-value">Estructura del FS, MFT, índices</span></div>
+          <div class="compare-row"><span class="cr-label">Datos</span><span class="cr-value">❌ No protege contenido</span></div>
+          <div class="compare-row"><span class="cr-label">Recuperación</span><span class="cr-value">~5 seg tras crash</span></div>
+          <div class="compare-row"><span class="cr-label">Modos</span><span class="cr-value">1 modo (solo metadatos)</span></div>
+          <div class="compare-row"><span class="cr-label">Impacto</span><span class="cr-value">Bajo (~2-5% overhead)</span></div>
+        </div>
+      </div>
+
+      <!-- EXT4 -->
+      <div class="compare-card ext4-card">
+        <div class="compare-card-header">
+          <h3>EXT4</h3>
+          <div class="os-label">🐧 Linux</div>
+        </div>
+        <div class="compare-body">
+          <div class="compare-row"><span class="cr-label">Tipo</span><span class="cr-value">Journaling configurable</span></div>
+          <div class="compare-row"><span class="cr-label">Registro</span><span class="cr-value">Área dedicada en partición</span></div>
+          <div class="compare-row"><span class="cr-label">Protege</span><span class="cr-value">Metadatos + opcionalmente datos</span></div>
+          <div class="compare-row"><span class="cr-label">Datos</span><span class="cr-value">✅ Modo data=journal</span></div>
+          <div class="compare-row"><span class="cr-label">Recuperación</span><span class="cr-value">~2-10 seg según modo</span></div>
+          <div class="compare-row"><span class="cr-label">Modos</span><span class="cr-value">3 modos configurables</span></div>
+          <div class="compare-row"><span class="cr-label">Impacto</span><span class="cr-value">Variable (2-30%)</span></div>
+        </div>
+      </div>
+
+      <!-- ZFS -->
+      <div class="compare-card zfs-card">
+        <div class="compare-card-header">
+          <h3>ZFS</h3>
+          <div class="os-label">🔷 FreeBSD / Linux</div>
+        </div>
+        <div class="compare-body">
+          <div class="compare-row"><span class="cr-label">Tipo</span><span class="cr-value">Copy-on-Write (no usa journal)</span></div>
+          <div class="compare-row"><span class="cr-label">Registro</span><span class="cr-value">ZIL (intent log para sync)</span></div>
+          <div class="compare-row"><span class="cr-label">Protege</span><span class="cr-value">TODO: datos + metadatos</span></div>
+          <div class="compare-row"><span class="cr-label">Datos</span><span class="cr-value">✅ Siempre protegidos (CoW)</span></div>
+          <div class="compare-row"><span class="cr-label">Recuperación</span><span class="cr-value">Instantánea (no necesita fsck)</span></div>
+          <div class="compare-row"><span class="cr-label">Modos</span><span class="cr-value">No aplica (CoW inherente)</span></div>
+          <div class="compare-row"><span class="cr-label">Impacto</span><span class="cr-value">Medio (~5-15% + RAM)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flow diagrams -->
+    <div class="flow-section">
+      <div class="flow-title">Proceso de escritura — Journaling vs Copy-on-Write</div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:16px;">
+        <!-- Journal flow -->
+        <div class="flow-diagram">
+          <div style="font-family:'IBM Plex Mono';font-size:0.65rem;color:var(--amber);letter-spacing:1px;margin-right:8px;writing-mode:vertical-rl;text-orientation:mixed;">JOURNAL</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">📝</div>
+            <div class="flow-step-label">Registrar en journal</div>
+            <div class="flow-step-sub">Anota la intención</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--blue);color:var(--blue);background:var(--blue-dim);">💾</div>
+            <div class="flow-step-label">Escribir datos en disco</div>
+            <div class="flow-step-sub">Ejecuta la operación</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--green);color:var(--green);background:var(--green-dim);">✓</div>
+            <div class="flow-step-label">Marcar completado</div>
+            <div class="flow-step-sub">Limpia el journal</div>
+          </div>
+          <div class="flow-arrow" style="color:var(--red);">⚡</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--purple);color:var(--purple);background:rgba(188,140,255,0.12);">🔄</div>
+            <div class="flow-step-label">Si fallo: replay journal</div>
+            <div class="flow-step-sub">Rehace pendientes</div>
+          </div>
+        </div>
+
+        <!-- CoW flow -->
+        <div class="flow-diagram">
+          <div style="font-family:'IBM Plex Mono';font-size:0.65rem;color:var(--zfs);letter-spacing:1px;margin-right:8px;writing-mode:vertical-rl;text-orientation:mixed;">CoW</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--zfs);color:var(--zfs);background:rgba(33,150,243,0.12);">📦</div>
+            <div class="flow-step-label">Escribir en bloques NUEVOS</div>
+            <div class="flow-step-sub">Nunca sobrescribe</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--green);color:var(--green);background:var(--green-dim);">🔗</div>
+            <div class="flow-step-label">Actualizar punteros</div>
+            <div class="flow-step-sub">Operación atómica</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--text-dim);color:var(--text-dim);background:var(--surface2);">🗑️</div>
+            <div class="flow-step-label">Liberar bloques viejos</div>
+            <div class="flow-step-sub">Datos anteriores intactos</div>
+          </div>
+          <div class="flow-arrow" style="color:var(--green);">⚡</div>
+          <div class="flow-step">
+            <div class="flow-step-icon" style="border-color:var(--green);color:var(--green);background:var(--green-dim);">✅</div>
+            <div class="flow-step-label">Si fallo: estado previo válido</div>
+            <div class="flow-step-sub">Sin replay necesario</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL 3: EXT4 MODES ===== -->
+  <div class="panel" id="panel-modes">
+    <div style="text-align:center;margin-bottom:20px;">
+      <p style="font-size:0.85rem;color:var(--text-dim);max-width:600px;margin:0 auto;">
+        EXT4 permite elegir entre 3 modos de journaling. Cada modo ofrece un balance diferente entre seguridad y rendimiento. Haz clic en cada tarjeta para explorar.
+      </p>
+    </div>
+
+    <div class="modes-grid">
+      <div class="mode-card selected" onclick="selectMode(0)">
+        <div class="mode-name">data=journal</div>
+        <div class="mode-subtitle">Máxima seguridad</div>
+        <div class="mode-desc">Registra metadatos Y datos completos en el journal antes de escribir. Máxima protección contra corrupción.</div>
+        <div class="meter">
+          <span class="meter-label">Seguridad</span>
+          <div class="meter-bar"><div class="meter-fill security" style="width:100%"></div></div>
+        </div>
+        <div class="meter">
+          <span class="meter-label">Rendimiento</span>
+          <div class="meter-bar"><div class="meter-fill performance" style="width:30%"></div></div>
+        </div>
+        <div class="mode-usecase"><strong>Caso de uso:</strong> Bases de datos financieras, registros médicos, sistemas donde la integridad es crítica.</div>
+      </div>
+
+      <div class="mode-card" onclick="selectMode(1)">
+        <div class="mode-name">data=ordered</div>
+        <div class="mode-subtitle">Equilibrado (default)</div>
+        <div class="mode-desc">Registra solo metadatos en el journal. Los datos se escriben ANTES que sus metadatos, garantizando consistencia.</div>
+        <div class="meter">
+          <span class="meter-label">Seguridad</span>
+          <div class="meter-bar"><div class="meter-fill security" style="width:66%"></div></div>
+        </div>
+        <div class="meter">
+          <span class="meter-label">Rendimiento</span>
+          <div class="meter-bar"><div class="meter-fill performance" style="width:66%"></div></div>
+        </div>
+        <div class="mode-usecase"><strong>Caso de uso:</strong> Servidores web, file servers, aplicaciones de uso general. Es el modo por defecto de la mayoría de distribuciones Linux.</div>
+      </div>
+
+      <div class="mode-card" onclick="selectMode(2)">
+        <div class="mode-name">data=writeback</div>
+        <div class="mode-subtitle">Máximo rendimiento</div>
+        <div class="mode-desc">Solo registra metadatos. Los datos pueden escribirse en cualquier orden respecto a los metadatos. Máxima velocidad.</div>
+        <div class="meter">
+          <span class="meter-label">Seguridad</span>
+          <div class="meter-bar"><div class="meter-fill security" style="width:33%"></div></div>
+        </div>
+        <div class="meter">
+          <span class="meter-label">Rendimiento</span>
+          <div class="meter-bar"><div class="meter-fill performance" style="width:100%"></div></div>
+        </div>
+        <div class="mode-usecase"><strong>Caso de uso:</strong> Logs temporales, cachés, datos regenerables. Máximo throughput de escritura donde la pérdida parcial de datos es aceptable.</div>
+      </div>
+    </div>
+
+    <!-- Command examples -->
+    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;">
+      <div style="font-family:'IBM Plex Mono';font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Comandos para configurar el modo</div>
+      <div style="font-family:'IBM Plex Mono';font-size:0.8rem;display:flex;flex-direction:column;gap:8px;">
+        <div><span style="color:var(--green)">$</span> <span style="color:var(--blue)">sudo mount</span> <span style="color:var(--amber)">-o data=journal</span> /dev/sda1 /mnt</div>
+        <div><span style="color:var(--green)">$</span> <span style="color:var(--blue)">cat</span> /proc/mounts | <span style="color:var(--blue)">grep</span> <span style="color:var(--amber)">sda1</span> <span style="color:var(--text-dim)"># Ver modo actual</span></div>
+        <div><span style="color:var(--green)">$</span> <span style="color:var(--blue)">sudo tune2fs</span> <span style="color:var(--amber)">-o journal_data</span> /dev/sda1 <span style="color:var(--text-dim)"># Cambiar default</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== TAB NAVIGATION =====
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ===== EXT4 MODE SELECTOR =====
+function selectMode(idx) {
+  document.querySelectorAll('.mode-card').forEach((c, i) => {
+    c.classList.toggle('selected', i === idx);
+  });
+}
+
+// ===== SIMULATION ENGINE =====
+const BLOCK_COUNT = 32;
+const WRITE_BLOCKS = [4,5,6,7,12,13,14,15]; // blocks to write
+const OLD_BLOCKS = [4,5,12,13]; // blocks with old data
+
+let simState = 'idle'; // idle, writing, crashed, recovered
+let writeStep = 0;
+let animTimer = null;
+
+function getSpeed() {
+  const v = parseInt(document.getElementById('speedSlider').value);
+  const labels = ['Muy lento','Lento','Normal','Rápido','Muy rápido'];
+  document.getElementById('speedLabel').textContent = labels[v-1];
+  return [800, 500, 300, 150, 80][v-1];
+}
+
+document.getElementById('speedSlider').addEventListener('input', getSpeed);
+
+function initDisks() {
+  ['disk-nojrnl','disk-jrnl'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    for (let i = 0; i < BLOCK_COUNT; i++) {
+      const b = document.createElement('div');
+      b.className = 'block' + (OLD_BLOCKS.includes(i) ? ' old-data' : '');
+      b.textContent = OLD_BLOCKS.includes(i) ? 'OLD' : '';
+      b.dataset.idx = i;
+      el.appendChild(b);
+    }
+  });
+  document.getElementById('journal-entries').innerHTML = '';
+  setStatus('nojrnl', 'idle', '💤', 'Esperando operación...');
+  setStatus('jrnl', 'idle', '💤', 'Esperando operación...');
+}
+
+function setStatus(side, type, icon, text) {
+  const el = document.getElementById('status-' + side);
+  el.className = 'status-bar ' + type;
+  el.innerHTML = `<span>${icon}</span> <span>${text}</span>`;
+}
+
+function addJournalEntry(text, cls) {
+  const el = document.getElementById('journal-entries');
+  const line = document.createElement('div');
+  line.className = 'journal-entry-line ' + cls;
+  line.textContent = text;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function getBlock(side, idx) {
+  const diskId = side === 'nojrnl' ? 'disk-nojrnl' : 'disk-jrnl';
+  return document.getElementById(diskId).children[idx];
+}
+
+function startWrite() {
+  if (simState !== 'idle') return;
+  simState = 'writing';
+  writeStep = 0;
+
+  document.getElementById('btnWrite').disabled = true;
+  document.getElementById('btnCrash').disabled = false;
+
+  setStatus('nojrnl', 'writing', '✏️', 'Escribiendo directamente al disco...');
+  setStatus('jrnl', 'writing', '📓', 'Paso 1: Registrando en journal...');
+
+  // Phase 1 for journal side: write journal entries first
+  const journalSteps = WRITE_BLOCKS.map((b, i) => () => {
+    addJournalEntry(`[${String(i+1).padStart(2,'0')}] WRITE bloque ${b} ← nuevos datos`, 'pending');
+    if (i === WRITE_BLOCKS.length - 1) {
+      addJournalEntry('--- JOURNAL COMMIT ---', 'committed');
+      setStatus('jrnl', 'writing', '💾', 'Paso 2: Escribiendo datos al disco...');
+    }
+  });
+
+  // Phase 2: write to disk blocks (both sides in parallel)
+  const writeSteps = WRITE_BLOCKS.map((b, i) => () => {
+    // No-journal side
+    const bn = getBlock('nojrnl', b);
+    bn.className = 'block writing';
+    bn.textContent = 'W' + (i+1);
+    
+    // Journal side
+    const bj = getBlock('jrnl', b);
+    bj.className = 'block writing';
+    bj.textContent = 'W' + (i+1);
+
+    // Mark previous block as written
+    if (i > 0) {
+      const prevB = WRITE_BLOCKS[i-1];
+      getBlock('nojrnl', prevB).className = 'block written';
+      getBlock('nojrnl', prevB).textContent = 'NEW';
+      getBlock('jrnl', prevB).className = 'block written';
+      getBlock('jrnl', prevB).textContent = 'NEW';
+    }
+  });
+
+  // Completion step
+  const completeStep = () => {
+    const lastB = WRITE_BLOCKS[WRITE_BLOCKS.length - 1];
+    getBlock('nojrnl', lastB).className = 'block written';
+    getBlock('nojrnl', lastB).textContent = 'NEW';
+    getBlock('jrnl', lastB).className = 'block written';
+    getBlock('jrnl', lastB).textContent = 'NEW';
+
+    addJournalEntry('--- JOURNAL CLEARED ---', 'committed');
+    setStatus('nojrnl', 'success', '✅', 'Escritura completa (sin protección)');
+    setStatus('jrnl', 'success', '✅', 'Escritura completa + journal limpio');
+    simState = 'idle';
+    document.getElementById('btnWrite').disabled = false;
+    document.getElementById('btnCrash').disabled = true;
+  };
+
+  const allSteps = [...journalSteps, ...writeSteps, completeStep];
+  let step = 0;
+
+  animTimer = setInterval(() => {
+    if (step < allSteps.length && simState === 'writing') {
+      allSteps[step]();
+      step++;
+      writeStep = step;
+    } else {
+      clearInterval(animTimer);
+    }
+  }, getSpeed());
+}
+
+function simulateCrash() {
+  if (simState !== 'writing') return;
+  simState = 'crashed';
+  clearInterval(animTimer);
+
+  document.getElementById('btnCrash').disabled = true;
+
+  // Flash effect
+  document.querySelectorAll('.sim-col').forEach(el => {
+    el.style.boxShadow = '0 0 30px rgba(248,81,73,0.4)';
+    setTimeout(() => el.style.boxShadow = '', 600);
+  });
+
+  // No-journal side: corruption
+  setStatus('nojrnl', 'error', '💥', '¡CORRUPCIÓN! Datos parcialmente escritos');
+  
+  // Mark in-progress blocks as corrupted on no-journal side
+  WRITE_BLOCKS.forEach((b, i) => {
+    const bn = getBlock('nojrnl', b);
+    if (bn.classList.contains('writing')) {
+      bn.className = 'block corrupted';
+      bn.textContent = '???';
+    }
+    // Some blocks that weren't reached stay as old data
+    if (!bn.classList.contains('written') && !bn.classList.contains('corrupted')) {
+      // Leave as is (old data or empty)
+    }
+  });
+
+  // Journal side: crash but recoverable
+  setStatus('jrnl', 'error', '⚡', 'Corte de energía detectado...');
+
+  WRITE_BLOCKS.forEach((b) => {
+    const bj = getBlock('jrnl', b);
+    if (bj.classList.contains('writing')) {
+      bj.className = 'block corrupted';
+      bj.textContent = '???';
+    }
+  });
+
+  // After 1.5s, start journal recovery
+  setTimeout(() => {
+    setStatus('jrnl', 'recovering', '🔄', 'Replay del journal en progreso...');
+    addJournalEntry('⚡ CRASH DETECTADO — Iniciando recovery', 'replay');
+
+    let recStep = 0;
+    const recTimer = setInterval(() => {
+      if (recStep < WRITE_BLOCKS.length) {
+        const b = WRITE_BLOCKS[recStep];
+        const bj = getBlock('jrnl', b);
+        bj.className = 'block recovered';
+        bj.textContent = 'REC';
+        addJournalEntry(`[REPLAY] Restaurando bloque ${b}`, 'replay');
+        recStep++;
+      } else {
+        clearInterval(recTimer);
+        addJournalEntry('✅ Recovery completo — datos íntegros', 'committed');
+        setStatus('jrnl', 'success', '✅', '¡Recuperado! Datos consistentes via journal');
+        simState = 'idle';
+        document.getElementById('btnWrite').disabled = false;
+      }
+    }, getSpeed());
+  }, 1500);
+}
+
+function resetSim() {
+  simState = 'idle';
+  clearInterval(animTimer);
+  document.getElementById('btnWrite').disabled = false;
+  document.getElementById('btnCrash').disabled = true;
+  initDisks();
+}
+
+// Init
+initDisks();
+getSpeed();
+</script>
+</body>
+</html>
