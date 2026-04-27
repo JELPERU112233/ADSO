@@ -1,0 +1,294 @@
+
+<h2 class="sr-only">Examen estilo Kahoot — Administración de Sistemas Operativos 1INF35 — 10 preguntas, 40 segundos cada una, escala 0-20</h2>
+<style>
+*{font-family:Arial,sans-serif;box-sizing:border-box;margin:0;padding:0}
+body{background:#000}
+.wrap{background:#000;min-height:600px;border-radius:14px;overflow:hidden;position:relative}
+
+/* PANTALLA INICIO */
+#screen-start{background:#000;padding:30px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px}
+.logo-badge{background:#1a0050;border:2px solid #7c3aed;border-radius:12px;padding:10px 24px;display:inline-block}
+.logo-badge span{color:#a78bfa;font-size:22px;font-weight:700;letter-spacing:2px}
+.course-title{color:#e8e8ff;font-size:14px;letter-spacing:1px}
+.start-title{color:#fff;font-size:20px;font-weight:700;line-height:1.4}
+.start-sub{color:#9ca3af;font-size:13px}
+.info-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.info-card{background:#111;border:1px solid #2a2a4a;border-radius:8px;padding:10px 18px;text-align:center}
+.info-card .num{color:#7c3aed;font-size:22px;font-weight:700}
+.info-card .lbl{color:#6b7280;font-size:11px;margin-top:2px}
+.btn-start{background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:14px 40px;font-size:16px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;transition:background .2s}
+.btn-start:hover{background:#6d28d9}
+
+/* PANTALLA PREGUNTA */
+#screen-q{display:none;background:#000;padding:0}
+.q-header{background:#0a0a1a;padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1a1a3a}
+.q-num-badge{background:#7c3aed;color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700}
+.q-progress{flex:1;height:5px;background:#1a1a2e;border-radius:3px;overflow:hidden}
+.q-progress-fill{height:100%;background:#7c3aed;transition:width .1s linear}
+.q-score-badge{background:#111;border:1px solid #2a2a4a;border-radius:6px;padding:3px 10px;font-size:12px;color:#a78bfa;font-weight:700}
+.timer-ring-wrap{display:flex;justify-content:center;padding:8px 0 4px}
+.timer-svg{width:64px;height:64px}
+.timer-text{font-size:16px;font-weight:700;fill:#fff;dominant-baseline:central;text-anchor:middle}
+.timer-ring-bg{fill:none;stroke:#1a1a3a;stroke-width:6}
+.timer-ring{fill:none;stroke:#7c3aed;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s}
+.q-text-wrap{padding:8px 14px 10px;text-align:center}
+.q-category{color:#7c3aed;font-size:10px;letter-spacing:1.5px;font-weight:700;margin-bottom:4px}
+.q-text{color:#fff;font-size:16px;font-weight:700;line-height:1.4}
+.answers-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 10px 10px}
+.ans-btn{border:none;border-radius:10px;padding:14px 10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:Arial,sans-serif;transition:transform .1s,filter .2s;text-align:left;display:flex;align-items:center;gap:8px;min-height:58px;line-height:1.3}
+.ans-btn:active{transform:scale(.97)}
+.ans-btn:disabled{cursor:default}
+.ans-icon{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:rgba(0,0,0,.3)}
+.ans-0{background:#e53e3e}
+.ans-1{background:#dd6b20}
+.ans-2{background:#3182ce}
+.ans-3{background:#38a169}
+.ans-btn.correct{filter:brightness(1.2);box-shadow:0 0 0 3px #00ff88}
+.ans-btn.wrong{filter:brightness(.45)}
+.ans-btn.reveal-correct{filter:brightness(1.2);box-shadow:0 0 0 3px #00ff88}
+
+/* FEEDBACK */
+#screen-fb{display:none;padding:16px 14px;background:#000;text-align:center}
+.fb-icon{font-size:52px;margin-bottom:6px}
+.fb-result{font-size:22px;font-weight:700;margin-bottom:4px}
+.fb-result.ok{color:#00ff88}
+.fb-result.bad{color:#ff4444}
+.fb-points{color:#a78bfa;font-size:14px;margin-bottom:10px}
+.fb-box{background:#0d0d1a;border:1px solid #1a1a3a;border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:left}
+.fb-box-title{color:#7c3aed;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.fb-box-text{color:#c4c4e0;font-size:13px;line-height:1.6}
+.fb-box-text b{color:#e8e8ff}
+.fb-correct-ans{background:#0a1e0f;border:1px solid #166534;border-radius:8px;padding:8px 12px;margin-bottom:10px;color:#00ff88;font-size:13px;font-weight:700}
+.btn-next{background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:12px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;width:100%;transition:background .2s}
+.btn-next:hover{background:#6d28d9}
+
+/* RESULTADO FINAL */
+#screen-end{display:none;background:#000;padding:20px 14px;text-align:center}
+.end-title{color:#fff;font-size:22px;font-weight:700;margin-bottom:4px}
+.end-sub{color:#6b7280;font-size:13px;margin-bottom:16px}
+.grade-circle{width:120px;height:120px;border-radius:50%;border:4px solid #7c3aed;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 14px;background:#0d0d1a}
+.grade-num{font-size:38px;font-weight:700;color:#a78bfa}
+.grade-lbl{font-size:11px;color:#6b7280}
+.grade-msg{font-size:15px;font-weight:700;margin-bottom:14px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:#111;border:1px solid #1a1a3a;border-radius:8px;padding:10px 6px}
+.stat-num{font-size:20px;font-weight:700}
+.stat-num.green{color:#00ff88}
+.stat-num.red{color:#ff4444}
+.stat-num.amber{color:#f59e0b}
+.stat-lbl{font-size:10px;color:#6b7280;margin-top:2px}
+.result-list{text-align:left;margin-bottom:14px}
+.rl-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;margin-bottom:4px;font-size:12px}
+.rl-item.ok{background:#0a1e0f;color:#00cc66}
+.rl-item.bad{background:#1a0a0a;color:#ff6666}
+.rl-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.rl-text{flex:1;line-height:1.4}
+.rl-pts{font-weight:700;margin-left:auto;flex-shrink:0}
+.btn-retry{background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:12px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;width:100%;transition:background .2s}
+.btn-retry:hover{background:#6d28d9}
+</style>
+
+<!-- PANTALLA INICIO -->
+<div class="wrap" id="app">
+<div id="screen-start">
+  <div class="logo-badge"><span>ADSO</span></div>
+  <div class="course-title">ADMINISTRACION DE SISTEMAS OPERATIVOS — 1INF35</div>
+  <div class="start-title">Examen de Conocimientos<br>Semana 6</div>
+  <div class="start-sub">Gestión de paquetes, instalación y monitoreo</div>
+  <div class="info-row">
+    <div class="info-card"><div class="num">10</div><div class="lbl">Preguntas</div></div>
+    <div class="info-card"><div class="num">40s</div><div class="lbl">Por pregunta</div></div>
+    <div class="info-card"><div class="num">0–20</div><div class="lbl">Escala</div></div>
+    <div class="info-card"><div class="num">2pts</div><div class="lbl">Por acierto</div></div>
+  </div>
+  <button class="btn-start" onclick="startExam()">Iniciar Examen</button>
+  <div style="color:#4b5563;font-size:11px">PUCP · Prof. José Espinoza Landa</div>
+</div>
+
+<!-- PANTALLA PREGUNTA -->
+<div id="screen-q">
+  <div class="q-header">
+    <div class="q-num-badge" id="q-num-lbl">P 1/10</div>
+    <div class="q-progress"><div class="q-progress-fill" id="q-prog" style="width:10%"></div></div>
+    <div class="q-score-badge" id="q-score-lbl">0 pts</div>
+  </div>
+  <div class="timer-ring-wrap">
+    <svg class="timer-svg" viewBox="0 0 64 64">
+      <circle class="timer-ring-bg" cx="32" cy="32" r="26"/>
+      <circle class="timer-ring" id="timer-ring" cx="32" cy="32" r="26"
+        stroke-dasharray="163.4" stroke-dashoffset="0"
+        transform="rotate(-90 32 32)"/>
+      <text class="timer-text" id="timer-text" x="32" y="32">40</text>
+    </svg>
+  </div>
+  <div class="q-text-wrap">
+    <div class="q-category" id="q-cat">CATEGORIA</div>
+    <div class="q-text" id="q-text">Texto de la pregunta</div>
+  </div>
+  <div class="answers-grid" id="answers-grid"></div>
+</div>
+
+<!-- PANTALLA FEEDBACK -->
+<div id="screen-fb">
+  <div class="fb-icon" id="fb-icon">✓</div>
+  <div class="fb-result" id="fb-result">¡Correcto!</div>
+  <div class="fb-points" id="fb-points">+2 puntos</div>
+  <div class="fb-correct-ans" id="fb-correct-ans"></div>
+  <div class="fb-box">
+    <div class="fb-box-title">RETROALIMENTACION</div>
+    <div class="fb-box-text" id="fb-explanation"></div>
+  </div>
+  <button class="btn-next" id="btn-next" onclick="nextQuestion()">Siguiente pregunta →</button>
+</div>
+
+<!-- PANTALLA RESULTADO FINAL -->
+<div id="screen-end">
+  <div class="end-title">Examen completado</div>
+  <div class="end-sub">Administracion de Sistemas Operativos — 1INF35</div>
+  <div class="grade-circle">
+    <div class="grade-num" id="end-grade">0</div>
+    <div class="grade-lbl">/ 20</div>
+  </div>
+  <div class="grade-msg" id="end-msg"></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num green" id="end-correct">0</div><div class="stat-lbl">Correctas</div></div>
+    <div class="stat-card"><div class="stat-num red" id="end-wrong">0</div><div class="stat-lbl">Incorrectas</div></div>
+    <div class="stat-card"><div class="stat-num amber" id="end-time">0</div><div class="stat-lbl">Seg promedio</div></div>
+  </div>
+  <div class="result-list" id="result-list"></div>
+  <button class="btn-retry" onclick="retryExam()">Reintentar examen</button>
+</div>
+</div>
+
+<script>
+const QUESTIONS=[
+{cat:"CICLO DE VIDA",q:"¿Cuántas fases tiene el System Development Lifecycle (SDLC) mostrado en clase?",opts:["7 fases","9 fases","6 fases","12 fases"],correct:1,
+exp:"El SDLC mostrado en clase tiene <b>9 fases</b>: Analysis, Planning, Design, Development, Testing, Deployment, Maintenance, Evaluation y Disposal. Cada fase es secuencial y cíclica."},
+
+{cat:"CICLO DE VIDA DEL SOFTWARE",q:"En el ciclo de vida completo del software, ¿cuál es el orden correcto de las 4 fases de gestión?",opts:["Install → Monitor → Inventory → Update","Monitor → Install → Update → Inventory","Install → Update → Inventory → Monitor","Update → Install → Monitor → Inventory"],correct:2,
+exp:"El orden correcto es <b>Install → Update → Inventory → Monitor</b>. Primero se instala, luego se actualiza, se hace inventario y finalmente se monitorea continuamente para asegurar un entorno TI robusto."},
+
+{cat:"WINDOWS INSTALLER",q:"¿Qué extensión de archivo en Windows Installer se usa para instalar PARCHES (no software completo)?",opts:[".msi",".msm",".msp",".mst"],correct:2,
+exp:"La extensión <b>.msp</b> (Windows Installer Patch) se usa para instalar parches o actualizaciones sobre un software ya instalado. El archivo .msi instala software completo. El .mst es para transformaciones y el .msm para módulos de combinación."},
+
+{cat:"WINDOWS INSTALLER — PROCESO",q:"¿En qué fase del proceso de instalación MSI se realiza la verificación de dependencias del sistema?",opts:["Commit (fase 3)","Rollback (fase 4)","Advertencia (fase 1)","Instalación (fase 2)"],correct:2,
+exp:"La fase <b>Advertencia (fase 1)</b> es donde Windows Installer verifica las dependencias del sistema antes de continuar. Si la verificación falla se aborta. La fase 2 copia archivos, la fase 3 confirma y la fase 4 revierte si hay error."},
+
+{cat:"GESTORES DE PAQUETES — LINUX",q:"En Rocky Linux (basada en Red Hat), ¿cuál es el gestor de paquetes moderno que reemplaza a YUM?",opts:["apt","zypper","DNF","RPM directo"],correct:2,
+exp:"<b>DNF</b> (Dandified YUM) es el gestor moderno que reemplaza a YUM en distribuciones basadas en Red Hat como Fedora, CentOS y Rocky Linux. Tiene mejor rendimiento, usa libsolv como SAT solver y resuelve dependencias más eficientemente."},
+
+{cat:"COMPARATIVO GESTORES",q:"¿Cuál es la principal LIMITACION de Windows Installer (.msi) frente a APT y YUM/DNF?",opts:["No soporta instalaciones silenciosas","No resuelve dependencias de forma eficiente","No puede integrarse con Active Directory","Solo funciona en Windows 7"],correct:1,
+exp:"La limitación principal de Windows Installer es que <b>no resuelve dependencias de forma eficiente</b> — cada instalador maneja sus propias dependencias. APT y YUM/DNF tienen resolución automática centralizada desde repositorios, lo que los hace más robustos para entornos empresariales."},
+
+{cat:"ACTUALIZACION DE PARCHES",q:"¿Cuál es el BENEFICIO principal de usar WSUS (Windows Server Update Services) frente a Windows Update directo?",opts:["Las actualizaciones son más rápidas desde internet","Las actualizaciones se almacenan en servidor local sin consumir ancho de banda de internet","Permite instalar cualquier software de terceros","Elimina la necesidad de reiniciar el sistema"],correct:1,
+exp:"El beneficio clave de WSUS es que <b>almacena las actualizaciones en un servidor local</b> y a través de políticas de grupo las distribuye a los clientes sin consumir ancho de banda de internet. Esto evita el broadcast masivo que degrada los servicios de red."},
+
+{cat:"MONITOREO LINUX",q:"¿Qué comando de Linux se instala desde el repositorio EPEL y proporciona una vista interactiva mejorada de procesos con barras de CPU y memoria?",opts:["top","atop","htop","ps aux"],correct:2,
+exp:"<b>htop</b> se instala desde EPEL (Extra Packages for Enterprise Linux) con 'sudo dnf install htop -y'. Proporciona una interfaz interactiva con barras de uso de CPU y memoria, árbol de procesos, filtros y es más visual que el comando 'top' estándar."},
+
+{cat:"ULIMIT — LINUX",q:"¿Qué archivo se debe editar para hacer PERSISTENTES los límites de recursos configurados con ulimit en Linux?",opts:["/etc/sysctl.conf","/etc/security/limits.conf","/etc/ulimit.conf","/etc/profile.d/limits.sh"],correct:1,
+exp:"El archivo <b>/etc/security/limits.conf</b> almacena los límites de recursos de forma persistente (sobreviven a reinicios). Con ulimit los cambios son temporales para la sesión actual. El archivo define límites soft (advertencia) y hard (máximo absoluto) por usuario o grupo."},
+
+{cat:"RED HAT — YUM FLOW",q:"En el flujo 'sudo yum update' de Red Hat, ¿en qué directorio se almacenan los metadatos e índices descargados localmente?",opts:["/etc/yum.repos.d/","/var/cache/yum/","/etc/pki/rpm-gpg/","/usr/bin/yum"],correct:1,
+exp:"El directorio <b>/var/cache/yum/</b> (o /var/cache/dnf/ en DNF) almacena los metadatos descargados como repomd.xml, primary.xml.gz y los paquetes .rpm antes de instalarlos. El comando 'yum clean all' limpia esta caché. El parámetro 'keepcache=1' en yum.conf permite conservarla."}
+];
+
+let curQ=0,score=0,timerInterval=null,timeLeft=40,answered=false;
+let results=[],totalTime=0,startTime=0;
+const CIRC=163.4,TOTAL_TIME=40;
+
+function show(id){['screen-start','screen-q','screen-fb','screen-end'].forEach(s=>document.getElementById(s).style.display='none');document.getElementById(id).style.display='block'}
+
+function startExam(){curQ=0;score=0;results=[];totalTime=0;show('screen-q');loadQuestion()}
+
+function loadQuestion(){
+  answered=false;timeLeft=TOTAL_TIME;startTime=Date.now();
+  const q=QUESTIONS[curQ];
+  document.getElementById('q-num-lbl').textContent='P '+(curQ+1)+'/'+QUESTIONS.length;
+  document.getElementById('q-prog').style.width=(((curQ+1)/QUESTIONS.length)*100)+'%';
+  document.getElementById('q-score-lbl').textContent=score+' pts';
+  document.getElementById('q-cat').textContent=q.cat;
+  document.getElementById('q-text').textContent=q.q;
+  const ring=document.getElementById('timer-ring');
+  const txt=document.getElementById('timer-text');
+  ring.style.stroke='#7c3aed';
+  ring.style.strokeDashoffset='0';
+  txt.textContent=TOTAL_TIME;
+  const grid=document.getElementById('answers-grid');
+  const icons=['▲','◆','●','■'];
+  const colors=['ans-0','ans-1','ans-2','ans-3'];
+  grid.innerHTML=q.opts.map((o,i)=>`<button class="ans-btn ${colors[i]}" onclick="selectAnswer(${i})"><span class="ans-icon">${icons[i]}</span>${o}</button>`).join('');
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    txt.textContent=timeLeft;
+    ring.style.strokeDashoffset=(CIRC*(1-timeLeft/TOTAL_TIME))+'';
+    if(timeLeft<=10)ring.style.stroke='#ef4444';
+    else if(timeLeft<=20)ring.style.stroke='#f59e0b';
+    if(timeLeft<=0){clearInterval(timerInterval);if(!answered)selectAnswer(-1)}
+  },1000)
+}
+
+function selectAnswer(idx){
+  if(answered)return;
+  answered=true;
+  clearInterval(timerInterval);
+  const elapsed=Math.round((Date.now()-startTime)/1000);
+  totalTime+=elapsed;
+  const q=QUESTIONS[curQ];
+  const isCorrect=(idx===q.correct);
+  if(isCorrect)score+=2;
+  results.push({q:q.q,correct:isCorrect,idx,rightIdx:q.correct,pts:isCorrect?2:0});
+  const btns=document.querySelectorAll('.ans-btn');
+  btns.forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.correct)b.classList.add('reveal-correct');
+    else if(i===idx&&!isCorrect)b.classList.add('wrong');
+    else if(i!==q.correct)b.classList.add('wrong');
+  });
+  setTimeout(()=>showFeedback(isCorrect,idx,q),900)
+}
+
+function showFeedback(isCorrect,idx,q){
+  show('screen-fb');
+  document.getElementById('fb-icon').textContent=isCorrect?'✓':'✗';
+  const res=document.getElementById('fb-result');
+  res.textContent=isCorrect?'¡Correcto!':idx===-1?'Tiempo agotado':'Incorrecto';
+  res.className='fb-result '+(isCorrect?'ok':'bad');
+  document.getElementById('fb-points').textContent=isCorrect?'+2 puntos — Total: '+score+' pts':'Sin puntos — Total: '+score+' pts';
+  document.getElementById('fb-correct-ans').textContent='Respuesta correcta: '+q.opts[q.correct];
+  document.getElementById('fb-explanation').innerHTML=q.exp;
+  const btnNext=document.getElementById('btn-next');
+  btnNext.textContent=(curQ<QUESTIONS.length-1)?'Siguiente pregunta →':'Ver resultados finales →';
+}
+
+function nextQuestion(){
+  curQ++;
+  if(curQ<QUESTIONS.length){show('screen-q');loadQuestion()}
+  else showFinalResults()
+}
+
+function showFinalResults(){
+  show('screen-end');
+  const grade=(score/20)*20;
+  const gradeDisp=Math.round(grade*10)/10;
+  document.getElementById('end-grade').textContent=gradeDisp;
+  const correct=results.filter(r=>r.correct).length;
+  const wrong=results.length-correct;
+  const avgTime=Math.round(totalTime/results.length);
+  document.getElementById('end-correct').textContent=correct;
+  document.getElementById('end-wrong').textContent=wrong;
+  document.getElementById('end-time').textContent=avgTime+'s';
+  let msg='',msgColor='';
+  if(gradeDisp>=18){msg='¡Excelente desempeño!';msgColor='#00ff88'}
+  else if(gradeDisp>=14){msg='Buen desempeño';msgColor='#a78bfa'}
+  else if(gradeDisp>=11){msg='Aprobado — sigue repasando';msgColor='#f59e0b'}
+  else{msg='Desaprobado — revisa el material';msgColor='#ff4444'}
+  const msgEl=document.getElementById('end-msg');
+  msgEl.textContent=msg;msgEl.style.color=msgColor;
+  const list=document.getElementById('result-list');
+  list.innerHTML=results.map((r,i)=>`<div class="rl-item ${r.correct?'ok':'bad'}"><span class="rl-icon">${r.correct?'✓':'✗'}</span><span class="rl-text">P${i+1}: ${QUESTIONS[i].q.substring(0,55)}...</span><span class="rl-pts">${r.pts}pts</span></div>`).join('');
+}
+
+function retryExam(){startExam()}
+</script>
