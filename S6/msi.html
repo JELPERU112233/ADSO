@@ -1,303 +1,264 @@
 
-<h2 class="sr-only">Arquitectura Windows Installer MSI con fondo negro y tema oscuro profesional</h2>
+<h2 class="sr-only">Arquitectura Windows Installer MSI con fondo negro y fuente Arial</h2>
 <style>
 @keyframes dash{to{stroke-dashoffset:-20}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .fl{stroke-dasharray:5 3;animation:dash 1.6s linear infinite}
 .fl2{stroke-dasharray:5 3;animation:dash 2.4s linear infinite}
 .flr{stroke-dasharray:5 3;animation:dash 1.8s linear reverse infinite}
 .blink{animation:blink 2s ease-in-out infinite}
-.wrap{background:#000;border-radius:16px;padding:16px;color:#e8f0fe}
-.leg-card{padding:8px 12px;background:#0d1117;border-radius:8px;border:0.5px solid #1e2a3a}
-.leg-title{font-size:11px;font-weight:500;color:#7ab3e0}
-.leg-body{font-size:12px;color:#4a6a8a;margin:2px 0 0;line-height:1.5}
-#tip-box{background:#0d1117;border:0.5px solid #1e3a5a;border-radius:12px;padding:12px 16px;margin-top:10px;display:none}
-#tip-title{font-size:13px;font-weight:500;color:#e8f0fe}
-#tip-body{font-size:13px;color:#7ab3e0;line-height:1.7;margin:6px 0 8px}
-.tag{background:#060e18;border:0.5px solid #1e3a5a;color:#4a8abf;font-size:11px;padding:2px 8px;border-radius:4px;font-family:monospace}
-button.dbtn{background:#060e18;border:0.5px solid #1e3a5a;color:#4db8ff;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit}
-button.dbtn:hover{background:#0d1e30;border-color:#2a6abf}
-button.close-btn{background:#1a1a1a;border:0.5px solid #333;color:#888;font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:inherit}
+.wrap{background:#000;border-radius:16px;padding:16px;font-family:Arial,sans-serif}
+#tip-box{background:#0d1117;border:0.5px solid #1e3a5a;border-radius:12px;padding:12px 16px;margin-top:10px;display:none;font-family:Arial,sans-serif}
+#tip-title{font-size:13px;font-weight:700;color:#e8f0fe}
+#tip-body{font-size:12px;color:#7ab3e0;line-height:1.7;margin:6px 0 8px}
+.tag{background:#060e18;border:0.5px solid #1e3a5a;color:#4a8abf;font-size:11px;padding:2px 8px;border-radius:4px;font-family:Arial,monospace}
+button.dbtn{background:#060e18;border:0.5px solid #1e3a5a;color:#4db8ff;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Arial,sans-serif}
+button.dbtn:hover{background:#0d1e30}
+button.cbtn{background:#1a1a1a;border:0.5px solid #333;color:#888;font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:Arial,sans-serif}
 </style>
 
 <div class="wrap">
-
-<svg width="100%" viewBox="0 0 680 720" role="img" style="display:block">
-<title>Windows Installer (.MSI) — arquitectura y flujo de datos, tema oscuro</title>
-<desc>Diagrama profesional tema oscuro: flujo MSI completo desde servidor hasta self-healing</desc>
+<svg width="100%" viewBox="0 0 680 560" role="img" style="display:block;font-family:Arial,sans-serif">
+<title>Windows Installer MSI — arquitectura fondo negro Arial</title>
+<desc>Diagrama completo del flujo MSI con tipografía Arial sobre fondo negro</desc>
 <defs>
   <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
     <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </marker>
 </defs>
 
-<!-- fondo negro total -->
-<rect x="0" y="0" width="680" height="720" fill="#000"/>
+<rect x="0" y="0" width="680" height="560" fill="#000"/>
 
 <!-- grid sutil -->
-<line x1="0" y1="260" x2="680" y2="260" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="0" y1="500" x2="680" y2="500" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="178" y1="60" x2="178" y2="720" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="354" y1="60" x2="354" y2="260" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="536" y1="60" x2="536" y2="260" stroke="#0d1a2a" stroke-width="0.5"/>
+<line x1="0" y1="210" x2="680" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
+<line x1="0" y1="390" x2="680" y2="390" stroke="#0d1a2a" stroke-width="0.5"/>
+<line x1="170" y1="0" x2="170" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
+<line x1="340" y1="0" x2="340" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
+<line x1="510" y1="0" x2="510" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
 
 <!-- TÍTULO -->
-<text x="340" y="28" text-anchor="middle" dominant-baseline="central" fill="#e8f0fe" font-size="14" font-weight="500" font-family="inherit">Windows Installer (.MSI) — arquitectura y flujo</text>
-<text x="340" y="48" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="inherit">Sistema de instalación transaccional de Microsoft</text>
+<text x="340" y="22" text-anchor="middle" dominant-baseline="central" fill="#e8f0fe" font-size="14" font-weight="700" font-family="Arial,sans-serif">Windows Installer (.MSI) — Arquitectura y Flujo</text>
+<text x="340" y="40" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Sistema de instalación transaccional de Microsoft</text>
 
-<!-- ══════════════════════════════════
-     SERVER
-══════════════════════════════════ -->
-<g class="node" onclick="tip('server')" style="cursor:pointer">
-  <rect x="28" y="76" width="110" height="114" rx="12" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <!-- rack layers -->
-  <rect x="50" y="92" width="66" height="11" rx="3" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="50" y="107" width="66" height="11" rx="3" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="50" y="122" width="66" height="11" rx="3" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
-  <circle cx="109" cy="97" r="2.5" fill="#378ADD" class="blink"/>
-  <circle cx="109" cy="112" r="2.5" fill="#1a4a7a"/>
-  <circle cx="109" cy="127" r="2.5" fill="#378ADD"/>
-  <text x="83" y="152" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="500" font-family="inherit">Server</text>
-  <text x="83" y="168" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="inherit">Repositorio</text>
+<!-- ══ FILA SUPERIOR ══ -->
+
+<!-- SERVER -->
+<g onclick="tip('server')" style="cursor:pointer">
+  <rect x="20" y="58" width="108" height="130" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
+  <rect x="38" y="74" width="72" height="11" rx="2" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
+  <rect x="38" y="89" width="72" height="11" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
+  <rect x="38" y="104" width="72" height="11" rx="2" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
+  <circle cx="104" cy="79" r="2.5" fill="#378ADD" class="blink"/>
+  <circle cx="104" cy="94" r="2.5" fill="#1a4a7a"/>
+  <circle cx="104" cy="109" r="2.5" fill="#378ADD"/>
+  <text x="74" y="130" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="700" font-family="Arial,sans-serif">Server</text>
+  <text x="74" y="148" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Repositorio</text>
+  <text x="74" y="164" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">BD relacional</text>
 </g>
 
 <!-- flecha 1 -->
-<line x1="138" y1="133" x2="176" y2="133" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="147" y="118" width="16" height="14" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="155" y="125" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-family="inherit">1</text>
+<line x1="128" y1="123" x2="166" y2="123" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
+<rect x="136" y="109" width="14" height="13" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
+<text x="143" y="115" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-weight="700" font-family="Arial,sans-serif">1</text>
 
-<!-- ══════════════════════════════════
-     MSI PACKAGE
-══════════════════════════════════ -->
-<g class="node" onclick="tip('msi')" style="cursor:pointer">
-  <rect x="178" y="64" width="132" height="138" rx="12" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <!-- cylinder -->
-  <ellipse cx="244" cy="90" rx="26" ry="8" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
-  <rect x="218" y="90" width="52" height="24" fill="#0d2040" stroke="none"/>
-  <ellipse cx="244" cy="114" rx="26" ry="8" fill="#0a1a30" stroke="#1a6abf" stroke-width="0.5"/>
-  <!-- table list -->
-  <text x="244" y="134" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="monospace">Directory · Component</text>
-  <text x="244" y="148" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="monospace">File · Registry</text>
-  <text x="244" y="162" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="monospace">InstallExecSequence</text>
-  <text x="244" y="182" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="500" font-family="inherit">Paquete .msi</text>
-  <text x="244" y="196" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="inherit">OLE-DB Storage</text>
+<!-- MSI PACKAGE -->
+<g onclick="tip('msi')" style="cursor:pointer">
+  <rect x="168" y="52" width="132" height="136" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
+  <ellipse cx="234" cy="78" rx="26" ry="8" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
+  <rect x="208" y="78" width="52" height="22" fill="#0d2040" stroke="none"/>
+  <ellipse cx="234" cy="100" rx="26" ry="8" fill="#0a1a30" stroke="#1a6abf" stroke-width="0.5"/>
+  <text x="234" y="120" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">Directory · Component</text>
+  <text x="234" y="134" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">File · Registry</text>
+  <text x="234" y="148" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">InstallExecSequence</text>
+  <text x="234" y="168" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="700" font-family="Arial,sans-serif">Paquete .msi</text>
+  <text x="234" y="182" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">OLE-DB Storage</text>
 </g>
 
 <!-- flecha 2 -->
-<line x1="310" y1="133" x2="352" y2="133" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="319" y="118" width="16" height="14" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="327" y="125" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-family="inherit">2</text>
+<line x1="300" y1="120" x2="338" y2="120" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
+<rect x="308" y="106" width="14" height="13" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
+<text x="315" y="112" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-weight="700" font-family="Arial,sans-serif">2</text>
 
-<!-- ══════════════════════════════════
-     UAC
-══════════════════════════════════ -->
-<g class="node" onclick="tip('uac')" style="cursor:pointer">
-  <rect x="354" y="14" width="142" height="44" rx="10" fill="#120a00" stroke="#7a4a00" stroke-width="1"/>
-  <!-- shield -->
-  <path d="M374 20 L374 36 Q374 42 381 44 Q388 42 388 36 L388 20 Z" fill="#2a1800" stroke="#c87800" stroke-width="0.5"/>
-  <path d="M378 28 L380 34 L385 27" fill="none" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/>
-  <text x="420" y="30" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="13" font-weight="500" font-family="inherit">UAC</text>
-  <text x="420" y="46" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="11" font-family="inherit">Elevacion privilegios</text>
+<!-- UAC -->
+<g onclick="tip('uac')" style="cursor:pointer">
+  <rect x="340" y="14" width="130" height="38" rx="8" fill="#120a00" stroke="#7a4a00" stroke-width="1"/>
+  <path d="M358 19 L358 34 Q358 39 364 41 Q370 39 370 34 L370 19 Z" fill="#2a1800" stroke="#c87800" stroke-width="0.5"/>
+  <path d="M362 27 L364 33 L368 25" fill="none" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/>
+  <text x="410" y="28" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="12" font-weight="700" font-family="Arial,sans-serif">UAC — Elevacion privilegios</text>
+  <text x="410" y="43" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10" font-family="Arial,sans-serif">Token elevado · SYSTEM</text>
 </g>
 
-<!-- ══════════════════════════════════
-     MODO USUARIO
-══════════════════════════════════ -->
-<g class="node" onclick="tip('usermode')" style="cursor:pointer">
-  <rect x="354" y="64" width="142" height="138" rx="12" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
-  <!-- person icon -->
-  <circle cx="425" cy="88" r="13" fill="#041a10" stroke="#0a5a40" stroke-width="0.5"/>
-  <circle cx="425" cy="84" r="5.5" fill="#1D9E75"/>
-  <path d="M413 100 Q425 94 437 100" fill="#1D9E75" stroke="none"/>
-  <text x="425" y="118" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="500" font-family="inherit">Modo usuario</text>
-  <text x="425" y="134" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="monospace">msiexec.exe</text>
-  <line x1="366" y1="146" x2="484" y2="146" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="425" y="160" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">Lectura BD (SQL COM)</text>
-  <text x="425" y="176" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">UI Sequence</text>
-  <text x="425" y="192" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">Recopila preferencias</text>
+<!-- MODO USUARIO -->
+<g onclick="tip('usermode')" style="cursor:pointer">
+  <rect x="340" y="54" width="130" height="134" rx="10" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
+  <circle cx="405" cy="78" rx="13" r="13" fill="#041a10" stroke="#0a5a40" stroke-width="0.5"/>
+  <circle cx="405" cy="74" r="5.5" fill="#1D9E75"/>
+  <path d="M394 88 Q405 83 416 88" fill="#1D9E75" stroke="none"/>
+  <text x="405" y="106" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Modo usuario</text>
+  <text x="405" y="121" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">msiexec.exe</text>
+  <line x1="352" y1="133" x2="458" y2="133" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
+  <text x="405" y="147" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Lectura BD (SQL COM)</text>
+  <text x="405" y="163" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">UI Sequence</text>
+  <text x="405" y="179" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Recopila preferencias</text>
+</g>
+<!-- usuario → UAC -->
+<path d="M405 54 L405 52" fill="none" stroke="#c87800" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
+<rect x="393" y="44" width="14" height="13" rx="3" fill="#120a00" stroke="#7a4a00" stroke-width="0.5"/>
+<text x="400" y="50" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="10" font-weight="700" font-family="Arial,sans-serif">3</text>
+
+<!-- flecha 4 -->
+<line x1="470" y1="121" x2="508" y2="121" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
+<rect x="478" y="107" width="14" height="13" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
+<text x="485" y="113" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-weight="700" font-family="Arial,sans-serif">4</text>
+
+<!-- MODO SISTEMA -->
+<g onclick="tip('sysmode')" style="cursor:pointer">
+  <rect x="510" y="54" width="150" height="134" rx="10" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
+  <circle cx="585" cy="78" r="9" fill="#041a10" stroke="#1D9E75" stroke-width="0.5"/>
+  <circle cx="585" cy="78" r="4" fill="#1D9E75"/>
+  <rect x="582" y="67" width="6" height="5" rx="1" fill="#1D9E75"/>
+  <rect x="582" y="84" width="6" height="5" rx="1" fill="#1D9E75"/>
+  <rect x="573" y="75" width="5" height="6" rx="1" fill="#1D9E75"/>
+  <rect x="594" y="75" width="5" height="6" rx="1" fill="#1D9E75"/>
+  <text x="585" y="104" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Modo sistema</text>
+  <text x="585" y="119" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">TrustedInstaller</text>
+  <line x1="522" y1="131" x2="648" y2="131" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
+  <text x="585" y="145" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Servicio Windows</text>
+  <text x="585" y="161" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Privilegio SYSTEM</text>
+  <text x="585" y="177" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Script ejecucion</text>
 </g>
 
-<!-- flecha usuario → UAC -->
-<path d="M425 64 L425 58" fill="none" stroke="#c87800" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-<rect x="412" y="52" width="16" height="14" rx="3" fill="#120a00" stroke="#7a4a00" stroke-width="0.5"/>
-<text x="420" y="59" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="10" font-family="inherit">3</text>
+<!-- flecha 5 -->
+<line x1="585" y1="188" x2="585" y2="228" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
+<rect x="573" y="202" width="14" height="13" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
+<text x="580" y="208" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-weight="700" font-family="Arial,sans-serif">5</text>
 
-<!-- flecha 4: usuario → sistema -->
-<line x1="496" y1="133" x2="534" y2="133" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="503" y="118" width="16" height="14" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
-<text x="511" y="125" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-family="inherit">4</text>
+<!-- ══ FILA MEDIA ══ -->
 
-<!-- ══════════════════════════════════
-     MODO SISTEMA
-══════════════════════════════════ -->
-<g class="node" onclick="tip('sysmode')" style="cursor:pointer">
-  <rect x="536" y="64" width="120" height="138" rx="12" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
-  <!-- gear -->
-  <circle cx="596" cy="96" r="9" fill="#041a10" stroke="#1D9E75" stroke-width="0.5"/>
-  <circle cx="596" cy="96" r="4.5" fill="#1D9E75"/>
-  <rect x="593" y="85" width="6" height="5" rx="1" fill="#1D9E75"/>
-  <rect x="593" y="102" width="6" height="5" rx="1" fill="#1D9E75"/>
-  <rect x="583" y="93" width="5" height="6" rx="1" fill="#1D9E75"/>
-  <rect x="604" y="93" width="5" height="6" rx="1" fill="#1D9E75"/>
-  <text x="596" y="120" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="500" font-family="inherit">Modo sistema</text>
-  <text x="596" y="136" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="monospace">TrustedInstaller</text>
-  <line x1="548" y1="148" x2="644" y2="148" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="596" y="161" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">Servicio Windows</text>
-  <text x="596" y="177" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">Privilegio SYSTEM</text>
-  <text x="596" y="193" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="inherit">Script ejecucion</text>
+<!-- PROGRAM FILES -->
+<g onclick="tip('progfiles')" style="cursor:pointer">
+  <rect x="490" y="230" width="120" height="90" rx="10" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
+  <path d="M512 248 L512 272 L566 272 L566 248 L548 248 L544 244 L512 244 Z" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
+  <line x1="512" y1="256" x2="566" y2="256" stroke="#3c2a8a" stroke-width="0.5"/>
+  <text x="550" y="286" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="12" font-weight="700" font-family="Arial,sans-serif">Program Files</text>
+  <text x="550" y="302" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Tabla File</text>
+  <text x="550" y="316" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Binarios producto</text>
 </g>
 
-<!-- flecha 5: sistema → ejecucion -->
-<line x1="596" y1="202" x2="596" y2="246" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="583" y="217" width="16" height="14" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
-<text x="591" y="224" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-family="inherit">5</text>
-
-<!-- ══════════════════════════════════
-     PROGRAM FILES
-══════════════════════════════════ -->
-<g class="node" onclick="tip('progfiles')" style="cursor:pointer">
-  <rect x="500" y="248" width="116" height="100" rx="12" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <!-- folder -->
-  <path d="M524 264 L524 290 L574 290 L574 264 L556 264 L552 260 L524 260 Z" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
-  <line x1="524" y1="272" x2="574" y2="272" stroke="#3c2a8a" stroke-width="0.5"/>
-  <text x="557" y="306" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="13" font-weight="500" font-family="inherit">Program Files</text>
-  <text x="557" y="322" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="inherit">Tabla File</text>
-  <text x="557" y="336" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="inherit">Binarios producto</text>
-</g>
-
-<!-- REGISTRY (columna derecha) -->
-<g class="node" onclick="tip('registry')" style="cursor:pointer">
-  <rect x="622" y="248" width="40" height="100" rx="8" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <text x="642" y="298" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="10" font-weight="500" font-family="inherit" transform="rotate(-90,642,298)">Registry</text>
+<!-- REGISTRY -->
+<g onclick="tip('registry')" style="cursor:pointer">
+  <rect x="618" y="230" width="42" height="90" rx="8" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
+  <text x="639" y="275" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="10" font-weight="700" font-family="Arial,sans-serif" transform="rotate(-90,639,275)">Registry</text>
 </g>
 
 <!-- LOCAL DB -->
-<g class="node" onclick="tip('localdb')" style="cursor:pointer">
-  <rect x="500" y="362" width="162" height="80" rx="12" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <ellipse cx="530" cy="384" rx="14" ry="5" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
-  <rect x="516" y="384" width="28" height="14" fill="#120d30" stroke="none"/>
-  <ellipse cx="530" cy="398" rx="14" ry="5" fill="#0d0820" stroke="#3c2a8a" stroke-width="0.5"/>
-  <text x="578" y="381" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="13" font-weight="500" font-family="inherit">Local DB</text>
-  <text x="578" y="397" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="monospace">C:\Windows\Installer</text>
-  <text x="578" y="413" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="inherit">Registro producto</text>
+<g onclick="tip('localdb')" style="cursor:pointer">
+  <rect x="490" y="334" width="170" height="76" rx="10" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
+  <ellipse cx="518" cy="354" rx="14" ry="5" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
+  <rect x="504" y="354" width="28" height="14" fill="#120d30" stroke="none"/>
+  <ellipse cx="518" cy="368" rx="14" ry="5" fill="#0d0820" stroke="#3c2a8a" stroke-width="0.5"/>
+  <text x="567" y="352" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="12" font-weight="700" font-family="Arial,sans-serif">Local DB</text>
+  <text x="567" y="368" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,monospace">C:\Windows\Installer</text>
+  <text x="567" y="384" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Registro producto</text>
 </g>
-<line x1="557" y1="348" x2="557" y2="361" stroke="#3c2a8a" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
+<line x1="550" y1="320" x2="550" y2="333" stroke="#3c2a8a" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
 
-<!-- ══════════════════════════════════
-     ROLLBACK
-══════════════════════════════════ -->
-<g class="node" onclick="tip('rollback')" style="cursor:pointer">
-  <rect x="286" y="286" width="172" height="100" rx="12" fill="#100608" stroke="#7a2a1a" stroke-width="1"/>
-  <!-- rewind icon -->
-  <polygon points="340,306 340,328 320,317" fill="#cc3a20" stroke="none"/>
-  <polygon points="356,306 356,328 336,317" fill="#993020" stroke="none"/>
-  <text x="372" y="352" text-anchor="middle" dominant-baseline="central" fill="#ff6644" font-size="13" font-weight="500" font-family="inherit">Rollback</text>
-  <text x="372" y="368" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="inherit">Reversion transaccional</text>
-  <text x="372" y="382" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="inherit">Restaura estado previo</text>
+<!-- ROLLBACK -->
+<g onclick="tip('rollback')" style="cursor:pointer">
+  <rect x="278" y="230" width="172" height="96" rx="10" fill="#100608" stroke="#7a2a1a" stroke-width="1"/>
+  <polygon points="324,252 324,274 304,263" fill="#cc3a20" stroke="none"/>
+  <polygon points="340,252 340,274 320,263" fill="#993020" stroke="none"/>
+  <text x="364" y="292" text-anchor="middle" dominant-baseline="central" fill="#ff6644" font-size="13" font-weight="700" font-family="Arial,sans-serif">Rollback</text>
+  <text x="364" y="308" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="Arial,sans-serif">Reversion transaccional</text>
+  <text x="364" y="322" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="Arial,sans-serif">Restaura estado previo</text>
 </g>
-<!-- flecha error: ejecucion → rollback -->
-<path d="M500 296 L460 324" fill="none" stroke="#aa2a10" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ar)"/>
-<text x="484" y="300" text-anchor="middle" dominant-baseline="central" fill="#cc3a20" font-size="10" font-family="inherit">error</text>
+<!-- ejecucion → rollback -->
+<path d="M490 264 L452 278" fill="none" stroke="#aa2a10" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+<text x="474" y="258" text-anchor="middle" dominant-baseline="central" fill="#cc3a20" font-size="10" font-family="Arial,sans-serif">error</text>
 
-<!-- MSI FILE cache -->
-<g class="node" onclick="tip('msifile')" style="cursor:pointer">
-  <rect x="286" y="402" width="172" height="64" rx="12" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <!-- doc icon -->
-  <rect x="304" y="416" width="22" height="28" rx="3" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
-  <path d="M318 416 L326 424 L326 444 L304 444 L304 416 Z" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
-  <path d="M318 416 L318 424 L326 424" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
-  <line x1="308" y1="431" x2="322" y2="431" stroke="#1a6abf" stroke-width="0.5"/>
-  <line x1="308" y1="436" x2="322" y2="436" stroke="#1a6abf" stroke-width="0.5"/>
-  <text x="386" y="428" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="500" font-family="inherit">MSI File</text>
-  <text x="386" y="444" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="inherit">Cache · reparacion offline</text>
+<!-- MSI FILE -->
+<g onclick="tip('msifile')" style="cursor:pointer">
+  <rect x="278" y="340" width="172" height="62" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
+  <rect x="296" y="352" width="22" height="28" rx="3" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
+  <path d="M310 352 L318 360 L318 380 L296 380 L296 352 Z" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
+  <path d="M310 352 L310 360 L318 360" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
+  <line x1="300" y1="366" x2="314" y2="366" stroke="#1a6abf" stroke-width="0.5"/>
+  <line x1="300" y1="371" x2="314" y2="371" stroke="#1a6abf" stroke-width="0.5"/>
+  <text x="376" y="364" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="12" font-weight="700" font-family="Arial,sans-serif">MSI File — Cache</text>
+  <text x="376" y="382" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Reparacion offline</text>
 </g>
-<line x1="372" y1="386" x2="372" y2="401" stroke="#7a2a1a" stroke-width="1" class="fl2" marker-end="url(#ar)"/>
+<line x1="364" y1="326" x2="364" y2="339" stroke="#7a2a1a" stroke-width="1" class="fl2" marker-end="url(#ar)"/>
 
-<!-- ══════════════════════════════════
-     SELF-HEALING
-══════════════════════════════════ -->
-<g class="node" onclick="tip('selfheal')" style="cursor:pointer">
-  <rect x="28" y="286" width="230" height="200" rx="14" fill="#020a04" stroke="#0a4a1a" stroke-width="1"/>
-  <!-- windows 4-squares icon -->
-  <rect x="56" y="304" width="20" height="20" rx="3" fill="#0a2a10" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="80" y="304" width="20" height="20" rx="3" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="56" y="328" width="20" height="20" rx="3" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="80" y="328" width="20" height="20" rx="3" fill="#1a5a24" stroke="#1D9E75" stroke-width="0.5"/>
-  <!-- loop arrow -->
-  <path d="M118 312 Q148 300 158 314 Q168 328 152 338 Q136 348 118 340" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ar)" class="fl2"/>
-  <text x="143" y="364" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="500" font-family="inherit">Self-healing</text>
-  <text x="143" y="380" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="inherit">Autoreparacion automatica</text>
-  <line x1="42" y1="394" x2="246" y2="394" stroke="#0a4a1a" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="143" y="408" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="inherit">Verifica ComponentID</text>
-  <text x="143" y="424" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="inherit">Detecta archivos faltantes</text>
-  <text x="143" y="440" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="inherit">Repara claves registro</text>
-  <text x="143" y="456" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="inherit">Sin intervencion usuario</text>
-  <text x="143" y="472" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="inherit">↻ en cada lanzamiento</text>
+<!-- ══ SELF-HEALING ══ -->
+<g onclick="tip('selfheal')" style="cursor:pointer">
+  <rect x="20" y="230" width="220" height="188" rx="12" fill="#020a04" stroke="#0a4a1a" stroke-width="1"/>
+  <rect x="44" y="248" width="18" height="18" rx="2" fill="#0a2a10" stroke="#1D9E75" stroke-width="0.5"/>
+  <rect x="66" y="248" width="18" height="18" rx="2" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
+  <rect x="44" y="270" width="18" height="18" rx="2" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
+  <rect x="66" y="270" width="18" height="18" rx="2" fill="#1a5a24" stroke="#1D9E75" stroke-width="0.5"/>
+  <path d="M102 256 Q130 246 140 258 Q150 270 135 280 Q120 290 102 283" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ar)" class="fl2"/>
+  <text x="130" y="306" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Self-Healing</text>
+  <text x="130" y="322" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">Autoreparacion automatica</text>
+  <line x1="34" y1="335" x2="228" y2="335" stroke="#0a4a1a" stroke-width="0.5" stroke-dasharray="2 2"/>
+  <text x="130" y="350" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Verifica ComponentID</text>
+  <text x="130" y="366" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Detecta archivos faltantes</text>
+  <text x="130" y="382" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Repara claves registro</text>
+  <text x="130" y="398" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Sin intervencion usuario</text>
+  <text x="130" y="412" text-anchor="middle" dominant-baseline="central" fill="#0a5a30" font-size="11" font-family="Arial,sans-serif">↻ cada lanzamiento</text>
 </g>
 <!-- rollback → self-healing -->
-<path d="M286 336 L260 336" fill="none" stroke="#1D9E75" stroke-width="1.5" class="flr" marker-end="url(#ar)"/>
+<path d="M278 308 L242 308" fill="none" stroke="#1D9E75" stroke-width="1.5" class="flr" marker-end="url(#ar)"/>
 <!-- self-healing → MSI file -->
-<path d="M245 434 L284 434" fill="none" stroke="#0a4a1a" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+<path d="M232 371 L276 371" fill="none" stroke="#0a4a1a" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar)"/>
 
-<!-- ══════════════════════════════════
-     LEYENDA FASES (pie del SVG)
-══════════════════════════════════ -->
-<rect x="28" y="502" width="624" height="0.5" fill="#0d1a2a"/>
-
-<text x="44" y="522" fill="#1a4a7a" font-size="10" font-family="inherit">1 Descarga</text>
-<text x="44" y="536" fill="#2a5a8a" font-size="10" font-family="inherit">Server → .msi</text>
-
-<text x="150" y="522" fill="#1a4a7a" font-size="10" font-family="inherit">2 Adquisicion</text>
-<text x="150" y="536" fill="#2a5a8a" font-size="10" font-family="inherit">OLE-DB → memoria</text>
-
-<text x="278" y="522" fill="#7a4a00" font-size="10" font-family="inherit">3 UAC</text>
-<text x="278" y="536" fill="#7a5a2a" font-size="10" font-family="inherit">Token elevado</text>
-
-<text x="370" y="522" fill="#1a4a7a" font-size="10" font-family="inherit">4 Delegacion</text>
-<text x="370" y="536" fill="#2a5a8a" font-size="10" font-family="inherit">→ TrustedInstaller</text>
-
-<text x="492" y="522" fill="#1a4a7a" font-size="10" font-family="inherit">5 Ejecucion</text>
-<text x="492" y="536" fill="#2a5a8a" font-size="10" font-family="inherit">Files + Registry + DB</text>
-
-<text x="598" y="522" fill="#0a4a1a" font-size="10" font-family="inherit">↻ Heal</text>
-<text x="598" y="536" fill="#0a5a2a" font-size="10" font-family="inherit">Autoreparacion</text>
+<!-- ══ LEYENDA PIE ══ -->
+<line x1="20" y1="430" x2="660" y2="430" stroke="#0d1a2a" stroke-width="0.5"/>
+<text x="40" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">1 Descarga</text>
+<text x="40" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">Server → .msi</text>
+<text x="140" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">2 Adquisicion</text>
+<text x="140" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">OLE-DB → memoria</text>
+<text x="260" y="447" fill="#7a4a00" font-size="10" font-weight="700" font-family="Arial,sans-serif">3 UAC</text>
+<text x="260" y="460" fill="#7a5a2a" font-size="10" font-family="Arial,sans-serif">Token elevado</text>
+<text x="340" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">4 Delegacion</text>
+<text x="340" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">→ TrustedInstaller</text>
+<text x="460" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">5 Ejecucion</text>
+<text x="460" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">Files + Registry + DB</text>
+<text x="580" y="447" fill="#0a4a1a" font-size="10" font-weight="700" font-family="Arial,sans-serif">↻ Self-Healing</text>
+<text x="580" y="460" fill="#0a5a2a" font-size="10" font-family="Arial,sans-serif">Autoreparacion</text>
 
 </svg>
 
 <!-- PANEL DETALLE -->
 <div id="tip-box">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <span id="tip-icon" style="font-size:18px;width:20px;text-align:center;color:#4db8ff"></span>
+    <span id="tip-icon" style="font-size:16px;width:20px;color:#4db8ff;font-family:Arial,sans-serif"></span>
     <span id="tip-title"></span>
-    <button class="close-btn" onclick="document.getElementById('tip-box').style.display='none'" style="margin-left:auto">cerrar</button>
+    <button class="cbtn" onclick="document.getElementById('tip-box').style.display='none'" style="margin-left:auto">cerrar</button>
   </div>
   <div id="tip-body"></div>
   <div style="display:flex;flex-wrap:wrap;gap:5px" id="tip-tags"></div>
 </div>
 
-<!-- BOTONES -->
 <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
   <button class="dbtn" onclick="sendPrompt('Explica el mecanismo de rollback transaccional de Windows Installer y cómo el script de rollback protege la integridad del sistema')">Rollback transaccional ↗</button>
   <button class="dbtn" onclick="sendPrompt('¿Cómo funciona exactamente el self-healing de Windows Installer? ¿Qué detecta, qué tablas consulta y cuándo se activa?')">Self-healing detalle ↗</button>
   <button class="dbtn" onclick="sendPrompt('Diferencia técnica entre msiexec.exe en modo usuario y TrustedInstaller en modo SYSTEM durante la instalación MSI')">User vs SYSTEM ↗</button>
 </div>
-
 </div>
 
 <script>
 const data={
-  server:{icon:"▣",title:"Server — repositorio",body:"Origen del paquete MSI. Puede ser servidor de red SMB, WSUS, SCCM/Intune o carpeta local. El circuito de comunicación RED gestiona la transmisión completa del archivo .msi al cliente antes de iniciar cualquier instalación.",tags:["SMB/HTTP","WSUS","SCCM","Intune","Descarga .msi"]},
+  server:{icon:"▣",title:"Server — Repositorio",body:"Origen del paquete MSI. Puede ser servidor de red SMB, WSUS, SCCM/Intune o carpeta local. El circuito de comunicación RED gestiona la transmisión completa del archivo .msi al cliente antes de iniciar cualquier instalación.",tags:["SMB/HTTP","WSUS","SCCM","Intune","Descarga .msi"]},
   msi:{icon:"◈",title:"Paquete .msi — OLE-DB Storage",body:"Archivo que es una base de datos relacional Microsoft (OLE Structured Storage). Contiene streams binarios con tablas: Directory, Component, File, InstallExecuteSequence, Registry, Condition, CustomAction. También empaqueta un CAB con los binarios del producto.",tags:["OLE-DB","CAB embebido","Property","Feature","Component","CustomAction"]},
   usermode:{icon:"◉",title:"Modo usuario — msiexec.exe",body:"Fase 2 de adquisición. msiexec.exe mapea las tablas MSI a memoria del cliente usando SQL COM. Evalúa LaunchCondition, resuelve Features, ejecuta la UI Sequence y escribe TARGETDIR e INSTALLLEVEL en tabla Property.",tags:["InstallUISequence","SQL COM","TARGETDIR","INSTALLLEVEL","Dialog table","LaunchCondition"]},
-  uac:{icon:"◆",title:"UAC — elevación de privilegios",body:"Antes de delegar al servicio TrustedInstaller, msiexec solicita elevación UAC mostrando el prompt de consentimiento. El token elevado permite escribir en directorios protegidos del sistema y en HKLM del Registro.",tags:["UAC prompt","Token elevado","HKLM write","Admin consent","ShellExecute runas"]},
+  uac:{icon:"◆",title:"UAC — Elevación de privilegios",body:"Antes de delegar al servicio TrustedInstaller, msiexec solicita elevación UAC mostrando el prompt de consentimiento. El token elevado permite escribir en directorios protegidos del sistema y en HKLM del Registro.",tags:["UAC prompt","Token elevado","HKLM write","Admin consent","ShellExecute runas"]},
   sysmode:{icon:"◎",title:"Modo sistema — TrustedInstaller",body:"El motor delega la ejecución al servicio TrustedInstaller que corre con privilegio SYSTEM. Genera primero el Script de Ejecución y luego ejecuta la InstallExecuteSequence: copia archivos, escribe registro, registra COM servers.",tags:["TrustedInstaller","SYSTEM token","InstallExecuteSequence","Script ejecucion","WRP bypass"]},
-  progfiles:{icon:"▤",title:"Program Files — tabla File",body:"TrustedInstaller copia los archivos extraídos del CAB embebido a los directorios resueltos desde la tabla Directory. Cada archivo tiene hash MD5 para verificación de integridad, usada también por el self-healing.",tags:["Tabla File","Tabla Directory","CAB extraccion","Hash MD5","ComponentKeyPath"]},
-  registry:{icon:"▥",title:"Registro de Windows — tabla Registry",body:"Todas las claves declaradas en la tabla Registry del MSI se escriben en HKLM o HKCU según el atributo Root. Las claves de desinstalación se generan automáticamente en HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall.",tags:["Tabla Registry","HKLM","HKCU","Uninstall keys","COM registration"]},
+  progfiles:{icon:"▤",title:"Program Files — Tabla File",body:"TrustedInstaller copia los archivos extraídos del CAB embebido a los directorios resueltos desde la tabla Directory. Cada archivo tiene hash MD5 para verificación de integridad, usada también por el self-healing.",tags:["Tabla File","Tabla Directory","CAB extraccion","Hash MD5","ComponentKeyPath"]},
+  registry:{icon:"▥",title:"Registro de Windows — Tabla Registry",body:"Todas las claves declaradas en la tabla Registry del MSI se escriben en HKLM o HKCU según el atributo Root. Las claves de desinstalación se generan automáticamente en HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall.",tags:["Tabla Registry","HKLM","HKCU","Uninstall keys","COM registration"]},
   localdb:{icon:"◫",title:"Local DB — C:\\Windows\\Installer",body:"El motor guarda una copia del .msi y registra ProductCode, UpgradeCode y ComponentIDs en la base de datos interna del instalador de Windows. Imprescindible para desinstalación, reparación y self-healing.",tags:["ProductCode","UpgradeCode","ComponentID","C:\\Windows\\Installer","Add/Remove Programs"]},
-  rollback:{icon:"↩",title:"Rollback — reversión transaccional",body:"Si cualquier acción de InstallExecuteSequence falla, el motor ejecuta el Script de Rollback pre-generado. Cada operación tiene su inversa grabada: archivos copiados se eliminan, claves escritas se borran. La instalación es atómica.",tags:["Script rollback","Transaccion atomica","Idempotente","Error handler","Revert"]},
-  msifile:{icon:"◪",title:"MSI File — caché local",body:"Copia del paquete .msi en C:\\Windows\\Installer. Usada por el self-healing para reparar componentes sin el medio original. También la requieren Add/Remove Features y la desinstalación completa.",tags:["Cache offline","Add features","Remove features","Desinstalacion","Reparacion"]},
-  selfheal:{icon:"↻",title:"Self-healing — autoreparación",body:"En cada lanzamiento del producto, Windows Installer verifica la integridad de componentes comparando ComponentIDs con la Local DB. Si detecta archivo faltante, clave ausente o COM roto, re-ejecuta silenciosamente usando el MSI cacheado.",tags:["ComponentID check","File hash verify","Registry check","COM repair","Silencioso"]}
+  rollback:{icon:"↩",title:"Rollback — Reversión transaccional",body:"Si cualquier acción de InstallExecuteSequence falla, el motor ejecuta el Script de Rollback pre-generado. Cada operación tiene su inversa grabada: archivos copiados se eliminan, claves escritas se borran. La instalación es atómica.",tags:["Script rollback","Transaccion atomica","Idempotente","Error handler","Revert"]},
+  msifile:{icon:"◪",title:"MSI File — Caché local",body:"Copia del paquete .msi en C:\\Windows\\Installer. Usada por el self-healing para reparar componentes sin el medio original. También la requieren Add/Remove Features y la desinstalación completa.",tags:["Cache offline","Add features","Remove features","Desinstalacion","Reparacion"]},
+  selfheal:{icon:"↻",title:"Self-Healing — Autoreparación",body:"En cada lanzamiento del producto, Windows Installer verifica la integridad de componentes comparando ComponentIDs con la Local DB. Si detecta archivo faltante, clave ausente o COM roto, re-ejecuta silenciosamente usando el MSI cacheado.",tags:["ComponentID check","File hash verify","Registry check","COM repair","Silencioso"]}
 };
 function tip(k){
   const d=data[k];if(!d)return;
