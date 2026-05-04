@@ -1,0 +1,432 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#root{background:#04060d;min-height:820px;position:relative;overflow:hidden;font-family:'Share Tech Mono',monospace}
+canvas#bgc{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hud-top{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px 7px;border-bottom:1px solid rgba(0,180,255,0.1)}
+.hud-title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;letter-spacing:3px;color:#8bb8d0}
+.ctrl-bar{position:relative;z-index:10;display:flex;align-items:center;gap:6px;padding:7px 16px;flex-wrap:wrap}
+.cbtn{font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1px;padding:5px 12px;border:1px solid rgba(0,180,255,0.2);border-radius:2px;cursor:pointer;background:transparent;color:rgba(0,180,255,0.45);transition:all .2s}
+.cbtn:hover,.cbtn.on{color:#00b4ff;border-color:#00b4ff;background:rgba(0,180,255,0.07)}
+.cbtn.w{border-color:rgba(255,170,0,0.25);color:rgba(255,170,0,0.4)}
+.cbtn.w:hover,.cbtn.w.on{color:#ffaa00;border-color:#ffaa00;background:rgba(255,170,0,0.07)}
+.cbtn.r{border-color:rgba(226,75,74,0.3);color:rgba(226,75,74,0.4)}
+.cbtn.r:hover{color:#e24b4a;border-color:#e24b4a;background:rgba(226,75,74,0.06)}
+#slbl{font-size:9px;color:rgba(0,180,255,0.35);letter-spacing:2px;margin-left:auto}
+.scene-wrap{position:relative;z-index:10;margin:0 16px}
+canvas#mc{display:block;width:100%}
+.log-panel{position:relative;z-index:10;margin:5px 16px 0;background:rgba(0,5,16,0.93);border:1px solid rgba(0,180,255,0.1);border-radius:3px;padding:6px 10px;min-height:58px}
+.log-title{font-size:8px;color:rgba(0,180,255,0.3);letter-spacing:2px;margin-bottom:3px}
+#log-out{font-size:9px;line-height:1.6}
+.hud-foot{position:relative;z-index:10;text-align:center;padding:4px;font-size:8px;color:rgba(255,255,255,0.08);letter-spacing:2px;border-top:1px solid rgba(255,255,255,0.04);margin-top:3px}
+</style>
+<div id="root">
+<canvas id="bgc"></canvas>
+<div class="hud-top">
+  <div class="hud-title">▸ SAN FCoE — FLUJO LAN → STORAGE AR ◂</div>
+  <span style="font-size:9px;color:rgba(0,180,255,0.2);letter-spacing:2px" id="clk">--:--:--</span>
+</div>
+<div class="ctrl-bar">
+  <button class="cbtn" onclick="prev()">◀ PREV</button>
+  <button class="cbtn on" id="abtn" onclick="toggleAuto()">▶ AUTO</button>
+  <button class="cbtn" onclick="next()">NEXT ▶</button>
+  <button class="cbtn w on" id="wbtn" onclick="toggleWrite()">✦ WRITE</button>
+  <button class="cbtn w" id="rbtn" onclick="toggleRead()">◈ READ</button>
+  <button class="cbtn r" onclick="resetAll()">↺ RESET</button>
+  <span id="slbl">PASO 0 / 6</span>
+</div>
+<div class="scene-wrap"><canvas id="mc"></canvas></div>
+<div class="log-panel">
+  <div class="log-title">▸ SAN I/O LOG — TRAZABILIDAD SIMULTÁNEA</div>
+  <div id="log-out"></div>
+</div>
+<div class="hud-foot">[ SAN-FCoE-AR v7.0 ] · REDES 2 — UPN · <span id="clk2">--:--:--</span></div>
+</div>
+<script>
+function tick(){const n=new Date();const s=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+':'+n.getSeconds().toString().padStart(2,'0');document.getElementById('clk').textContent=s;document.getElementById('clk2').textContent=s;}
+setInterval(tick,1000);tick();
+
+// BG
+const bgc=document.getElementById('bgc');const bgx=bgc.getContext('2d');
+let bW=0,bH=0;
+function resizeBg(){bW=bgc.offsetWidth;bH=bgc.offsetHeight;bgc.width=bW;bgc.height=bH;}
+resizeBg();
+let bgT=0;
+(function loop(){bgx.clearRect(0,0,bW,bH);const gs=44,off=bgT%gs;bgx.strokeStyle='rgba(0,60,120,0.055)';bgx.lineWidth=.4;for(let x=off;x<bW;x+=gs){bgx.beginPath();bgx.moveTo(x,0);bgx.lineTo(x,bH);bgx.stroke()}for(let y=off;y<bH;y+=gs){bgx.beginPath();bgx.moveTo(0,y);bgx.lineTo(bW,y);bgx.stroke()}bgT+=.1;requestAnimationFrame(loop);})();
+
+// Main canvas
+const mc=document.getElementById('mc');const mx=mc.getContext('2d');
+let W=0,H=0;
+function resize(){W=mc.offsetWidth;H=Math.round(W*0.74);mc.width=W;mc.height=H;mc.style.height=H+'px';}
+resize();
+
+// Colors
+const CB='#1a9de0';   // blue — LAN / FCoE
+const CO='#f5820a';   // orange — FC
+const CG='#1d9e75';   // green — storage response
+const CW='#00d4ff';   // write mode
+const CR='#ff6b35';   // read mode
+const CV='#cc44ff';   // VM traffic
+
+// State
+let step=0,autoOn=false,autoInt=null,writeMode=true,readMode=false;
+const MAXSTEP=6;
+const logs=[];
+function log(txt,c){logs.push({txt,c:c||CB});if(logs.length>5)logs.shift();document.getElementById('log-out').innerHTML=logs.map(l=>`<div style="color:${l.c}">${l.txt}</div>`).join('');}
+function setLabel(){document.getElementById('slbl').textContent='PASO '+step+' / '+MAXSTEP;}
+function next(){if(step<MAXSTEP){step++;onStep();}}
+function prev(){if(step>0){step--;onStep();}}
+function resetAll(){step=0;logs.length=0;document.getElementById('log-out').innerHTML='';stopAuto();onStep();}
+function toggleAuto(){if(autoOn){stopAuto();}else{autoOn=true;document.getElementById('abtn').textContent='⏸ PAUSE';document.getElementById('abtn').classList.add('on');autoInt=setInterval(()=>{if(step<MAXSTEP){step++;onStep();}else stopAuto();},2800);}}
+function stopAuto(){autoOn=false;clearInterval(autoInt);document.getElementById('abtn').textContent='▶ AUTO';}
+function toggleWrite(){writeMode=!writeMode;document.getElementById('wbtn').classList.toggle('on',writeMode);}
+function toggleRead(){readMode=!readMode;document.getElementById('rbtn').classList.toggle('on',readMode);}
+
+const stepLogs=[
+  {txt:'[INICIO] Topología SAN FCoE activa. LAN conectada. Servidores en espera.',c:CB},
+  {txt:'[1] LAN → FCoE Switch: petición de cliente (Ethernet frame + FC payload encapsulado)',c:CB},
+  {txt:'[2] FCoE Switch → Servidores/VMs: distribución del request. HBA procesa en cada server.',c:CB},
+  {txt:'[3] FCoE Switch → FC Switch: handoff de tráfico storage. Ethernet → Fibre Channel.',c:CO},
+  {txt:'[4] FC Switch → Storage Arrays: SCSI I/O simultáneo. LUN masking activo por servidor.',c:CO},
+  {txt:'[5] Storage Arrays → FC Switch → FCoE: datos leídos/escritos. TTL bloques confirmados.',c:CG},
+  {txt:'[6] Respuesta completa → LAN. Cache actualizada. IOPS: READ+WRITE simultáneos ✓',c:CG},
+];
+
+function onStep(){setLabel();if(stepLogs[step])log(stepLogs[step].txt,stepLogs[step].c);}
+
+// Node geometry — mirrors reference image layout
+function N(){
+  // Row Y positions (% of H)
+  const r1=H*0.10;  // servers row
+  const r2=H*0.40;  // FCoE switches row
+  const r3=H*0.62;  // FC switches row
+  const r4=H*0.84;  // Storage arrays row
+  return {
+    // Servers (4 positions matching reference: left bare, center-left hypervisor, center-right bare, right hypervisor)
+    sv1:{x:W*0.10,y:r1,lbl:'Server',sub:'bare metal',c:CB},
+    sv2:{x:W*0.30,y:r1,lbl:'Servers',sub:'Hypervisor',c:CV,vm:true},
+    sv3:{x:W*0.52,y:r1,lbl:'Server',sub:'bare metal',c:CB},
+    sv4:{x:W*0.72,y:r1,lbl:'Servers',sub:'Hypervisor',c:CV,vm:true},
+    // FCoE Switches (2, center)
+    fc1:{x:W*0.28,y:r2,lbl:'FCoE Switch A',sub:'10GbE+FC',c:CB,sw:true},
+    fc2:{x:W*0.54,y:r2,lbl:'FCoE Switch B',sub:'10GbE+FC',c:CB,sw:true},
+    // LAN cloud (right)
+    lan:{x:W*0.87,y:r2,lbl:'LAN',c:CB,cloud:true},
+    // FC Switches (2, center)
+    fcs1:{x:W*0.28,y:r3,lbl:'FC Switch A',sub:'8/16G FC',c:CO,sw:true},
+    fcs2:{x:W*0.54,y:r3,lbl:'FC Switch B',sub:'8/16G FC',c:CO,sw:true},
+    // Storage Arrays (2)
+    sa1:{x:W*0.24,y:r4,lbl:'Storage Array A',sub:'LUN 0-7',c:CG,stor:true},
+    sa2:{x:W*0.58,y:r4,lbl:'Storage Array B',sub:'LUN 8-15',c:CG,stor:true},
+  };
+}
+
+// ── Draw helpers ──
+function drawSwitch(ctx,x,y,w,h,color,active,label,sub){
+  const c=active?color:color+'44';
+  ctx.fillStyle=active?color+'18':'rgba(0,8,20,0.7)';
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.4:.5;
+  ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,3);ctx.fill();ctx.stroke();
+  // Port row top
+  for(let p=0;p<10;p++){
+    ctx.fillStyle=active&&p<5?color:color+'33';
+    ctx.beginPath();ctx.roundRect(x-w/2+4+p*(w-8)/10,y-h/2+3,((w-8)/10)-1,5,1);ctx.fill();
+  }
+  // Port row bottom
+  for(let p=0;p<10;p++){
+    ctx.fillStyle=active&&p>=5?color:color+'22';
+    ctx.beginPath();ctx.roundRect(x-w/2+4+p*(w-8)/10,y+h/2-8,((w-8)/10)-1,5,1);ctx.fill();
+  }
+  // SFP indicators
+  ctx.beginPath();ctx.arc(x-w/2+10,y,4,0,Math.PI*2);ctx.fillStyle=active?color+'cc':color+'22';ctx.fill();
+  ctx.beginPath();ctx.arc(x+w/2-10,y,4,0,Math.PI*2);ctx.fillStyle=active?color+'cc':color+'22';ctx.fill();
+  ctx.fillStyle=c;ctx.font='bold 8px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(label,x,y+h/2+4);
+  if(sub){ctx.font='7px Share Tech Mono';ctx.fillStyle=active?color+'aa':color+'33';ctx.fillText(sub,x,y+h/2+14);}
+}
+
+function drawServer(ctx,x,y,w,h,color,active,label,sub,vm){
+  const c=active?color:color+'44';
+  ctx.fillStyle=active?color+'15':'rgba(0,8,20,0.65)';
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.2:.5;
+  ctx.beginPath();ctx.roundRect(x-w/2,y,w,h,3);ctx.fill();ctx.stroke();
+  // Rack stripes
+  const rows=4;
+  for(let i=0;i<rows;i++){
+    const ry=y+4+i*(h-8)/rows;
+    ctx.fillStyle=active?color+'18':'rgba(0,15,35,0.5)';
+    ctx.beginPath();ctx.roundRect(x-w/2+4,ry,(h-8)/rows-1,w-8,1);
+    // vertical strips
+    ctx.fillStyle=active?color+'18':color+'08';
+    ctx.fillRect(x-w/2+4,ry,w-8,(h-8)/rows-2);
+    ctx.strokeStyle=active?color+'33':color+'11';ctx.lineWidth=.3;
+    ctx.strokeRect(x-w/2+4,ry,w-8,(h-8)/rows-2);
+  }
+  // LED column
+  for(let i=0;i<3;i++){
+    ctx.beginPath();ctx.arc(x+w/2-6,y+10+i*10,2,0,Math.PI*2);
+    ctx.fillStyle=active?(i===0?color:'#39ff14'+88):color+'22';ctx.fill();
+  }
+  // VM chips on top if hypervisor
+  if(vm){
+    for(let v=0;v<2;v++){
+      ctx.fillStyle=active?CV+'33':CV+'0a';ctx.strokeStyle=active?CV:CV+'33';ctx.lineWidth=.5;
+      ctx.beginPath();ctx.roundRect(x-w/2+4+v*(w/2-4),y-18,w/2-6,14,2);ctx.fill();ctx.stroke();
+      ctx.fillStyle=active?CV:CV+'44';ctx.font='6px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('VM',x-w/2+4+v*(w/2-4)+(w/2-6)/2,y-11);
+    }
+  }
+  ctx.fillStyle=c;ctx.font='bold 8px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(label,x,y+h+3);
+  if(sub){ctx.font='7px Share Tech Mono';ctx.fillStyle=active?color+'99':color+'33';ctx.fillText(sub,x,y+h+13);}
+}
+
+function drawStorage(ctx,x,y,w,h,color,active,label,sub){
+  const c=active?color:color+'44';
+  ctx.fillStyle=active?color+'14':'rgba(0,8,20,0.7)';
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.4:.5;
+  ctx.beginPath();ctx.roundRect(x-w/2,y,w,h,3);ctx.fill();ctx.stroke();
+  // Drive bays — grid
+  const cols=3,rows=4;
+  const bw=(w-12)/cols,bh=(h-12)/rows;
+  for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
+    const bx=x-w/2+6+col*bw,by2=y+6+r*bh;
+    ctx.fillStyle=active&&r*cols+col<9?color+'22':color+'08';
+    ctx.strokeStyle=active&&r*cols+col<9?color+'55':color+'18';ctx.lineWidth=.4;
+    ctx.beginPath();ctx.roundRect(bx,by2,bw-2,bh-2,1);ctx.fill();ctx.stroke();
+    // Active disk LED
+    if(active&&r*cols+col<9){ctx.beginPath();ctx.arc(bx+4,by2+4,1.5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+  }
+  ctx.fillStyle=c;ctx.font='bold 8px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(label,x,y+h+4);
+  if(sub){ctx.font='7px Share Tech Mono';ctx.fillStyle=active?color+'aa':color+'33';ctx.fillText(sub,x,y+h+14);}
+}
+
+function drawCloud(ctx,x,y,w,h,color,active,label){
+  const c=active?color:color+'44';
+  ctx.fillStyle=active?color+'18':'rgba(0,8,20,0.6)';
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.4:.6;
+  // Cloud shape
+  ctx.beginPath();
+  ctx.arc(x,y,h*0.5,0,Math.PI*2);
+  ctx.arc(x-w*0.28,y+h*0.05,h*0.38,0,Math.PI*2);
+  ctx.arc(x+w*0.28,y+h*0.05,h*0.38,0,Math.PI*2);
+  ctx.arc(x-w*0.12,y+h*0.22,h*0.3,0,Math.PI*2);
+  ctx.arc(x+w*0.12,y+h*0.22,h*0.3,0,Math.PI*2);
+  ctx.fill();
+  // Re-outline
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.2:.5;
+  ctx.beginPath();
+  ctx.arc(x,y,h*0.5,Math.PI,0);
+  ctx.arc(x+w*0.28,y+h*0.05,h*0.38,Math.PI*1.5,Math.PI*0.5);
+  ctx.arc(x+w*0.12,y+h*0.22,h*0.3,0,Math.PI);
+  ctx.arc(x-w*0.12,y+h*0.22,h*0.3,0,Math.PI);
+  ctx.arc(x-w*0.28,y+h*0.05,h*0.38,Math.PI*0.5,Math.PI*1.5);
+  ctx.closePath();ctx.stroke();
+  ctx.fillStyle=c;ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(label,x,y+h*0.6);
+}
+
+function line(ctx,x1,y1,x2,y2,color,w,dash,alpha){
+  ctx.globalAlpha=alpha||1;ctx.strokeStyle=color;ctx.lineWidth=w||1;
+  if(dash)ctx.setLineDash(dash);else ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.setLineDash([]);ctx.globalAlpha=1;
+}
+
+// Animated packets pool
+let pkts=[];
+function spawnPkt(from,to,color,lbl,delay){
+  setTimeout(()=>{pkts.push({fx:from.x,fy:from.y+(from.h||0),tx:to.x,ty:to.y+(to.h||0),c:color,lbl:lbl||'',t:0,done:false});},delay||0);
+}
+
+// Step-based spawning
+function spawnStep(n){
+  pkts=pkts.filter(p=>false); // clear
+  const sv=[n.sv1,n.sv2,n.sv3,n.sv4];
+  const sw=[n.fc1,n.fc2];
+  const fcsw=[n.fcs1,n.fcs2];
+  const st=[n.sa1,n.sa2];
+  if(step===1){
+    // LAN → FCoE switches
+    spawnPkt({x:n.lan.x,y:n.lan.y},{x:n.fc1.x,y:n.fc1.y},CB,'ETH',0);
+    spawnPkt({x:n.lan.x,y:n.lan.y},{x:n.fc2.x,y:n.fc2.y},CB,'ETH',200);
+  }else if(step===2){
+    // FCoE → all servers
+    sv.forEach((s,i)=>{
+      spawnPkt({x:n.fc1.x,y:n.fc1.y},{x:s.x,y:s.y+10},writeMode?CW:CR,writeMode?'WR':'RD',i*150);
+      spawnPkt({x:n.fc2.x,y:n.fc2.y},{x:s.x,y:s.y+10},CV,'VM',i*150+80);
+    });
+  }else if(step===3){
+    // FCoE → FC switches
+    spawnPkt({x:n.fc1.x,y:n.fc1.y},{x:n.fcs1.x,y:n.fcs1.y},CO,'FC',0);
+    spawnPkt({x:n.fc1.x,y:n.fc1.y},{x:n.fcs2.x,y:n.fcs2.y},CO,'FC',120);
+    spawnPkt({x:n.fc2.x,y:n.fc2.y},{x:n.fcs1.x,y:n.fcs1.y},CO,'FC',240);
+    spawnPkt({x:n.fc2.x,y:n.fc2.y},{x:n.fcs2.x,y:n.fcs2.y},CO,'FC',360);
+  }else if(step===4){
+    // FC switches → storage arrays (simultaneous cross-connect like reference)
+    spawnPkt({x:n.fcs1.x,y:n.fcs1.y},{x:n.sa1.x,y:n.sa1.y},CO,'SCSI',0);
+    spawnPkt({x:n.fcs1.x,y:n.fcs1.y},{x:n.sa2.x,y:n.sa2.y},CO,'SCSI',150);
+    spawnPkt({x:n.fcs2.x,y:n.fcs2.y},{x:n.sa1.x,y:n.sa1.y},CO,'SCSI',300);
+    spawnPkt({x:n.fcs2.x,y:n.fcs2.y},{x:n.sa2.x,y:n.sa2.y},CO,'SCSI',450);
+  }else if(step===5){
+    // Response: storage → FC → FCoE
+    spawnPkt({x:n.sa1.x,y:n.sa1.y},{x:n.fcs1.x,y:n.fcs1.y},CG,'ACK',0);
+    spawnPkt({x:n.sa2.x,y:n.sa2.y},{x:n.fcs2.x,y:n.fcs2.y},CG,'ACK',180);
+    spawnPkt({x:n.fcs1.x,y:n.fcs1.y},{x:n.fc1.x,y:n.fc1.y},CG,'DATA',400);
+    spawnPkt({x:n.fcs2.x,y:n.fcs2.y},{x:n.fc2.x,y:n.fc2.y},CG,'DATA',580);
+  }else if(step===6){
+    // FCoE → LAN final response
+    spawnPkt({x:n.fc1.x,y:n.fc1.y},{x:n.lan.x,y:n.lan.y},CG,'OK',0);
+    spawnPkt({x:n.fc2.x,y:n.fc2.y},{x:n.lan.x,y:n.lan.y},CG,'OK',200);
+    // Also servers confirming
+    sv.forEach((s,i)=>spawnPkt({x:s.x,y:s.y+10},{x:n.fc1.x+(i%2===0?0:n.fc2.x-n.fc1.x),y:n.fc1.y},CG,'✓',i*100));
+  }
+}
+
+// Active node sets per step
+function activeSet(s){
+  return{
+    0:['lan'],
+    1:['lan','fc1','fc2'],
+    2:['fc1','fc2','sv1','sv2','sv3','sv4'],
+    3:['fc1','fc2','fcs1','fcs2'],
+    4:['fcs1','fcs2','sa1','sa2'],
+    5:['sa1','sa2','fcs1','fcs2','fc1','fc2'],
+    6:['fc1','fc2','lan','sv1','sv2','sv3','sv4'],
+  }[s]||[];
+}
+
+// Step annotation text
+const annots=[
+  'Topología SAN FCoE lista — LAN conectada a fabric de almacenamiento',
+  'LAN envía request Ethernet → FCoE Switches — payload FC encapsulado en 10GbE',
+  'FCoE distribuye tráfico a todos los servidores y VMs simultáneamente',
+  'Handoff Ethernet→FC — FCoE Switches entregan a FC Switches (orange fabric)',
+  'FC Switches ejecutan I/O SCSI simultáneo a ambos Storage Arrays (LUN masking)',
+  'Storage Arrays responden — datos suben por FC fabric hacia FCoE layer',
+  'Respuesta completa regresa a LAN — READ+WRITE simultáneo confirmado ✓',
+];
+
+function drawScene(){
+  mx.clearRect(0,0,W,H);
+  mx.fillStyle='rgba(3,5,12,0.2)';mx.fillRect(0,0,W,H);
+  const n=N();
+  const act=new Set(activeSet(step));
+
+  const SWW=W*0.18,SWH=26;
+  const SVW=W*0.11,SVH=H*0.18;
+  const STW=W*0.14,STH=H*0.21;
+
+  // ── Backbone wires (faint) ──
+  // Servers → FCoE switches (blue cross-connect like reference)
+  const svs=[n.sv1,n.sv2,n.sv3,n.sv4];
+  const fces=[n.fc1,n.fc2];
+  svs.forEach(s=>fces.forEach(f=>{
+    line(mx,s.x,s.y+SVH,f.x,f.y-SWH/2,CB+'18',.5,[3,5]);
+  }));
+  // FCoE → FC switches (orange vertical)
+  [[n.fc1,n.fcs1],[n.fc2,n.fcs2],[n.fc1,n.fcs2],[n.fc2,n.fcs1]].forEach(([a,b])=>{
+    line(mx,a.x,a.y+SWH/2,b.x,b.y-SWH/2,CO+'18',.5,[3,5]);
+  });
+  // FC → Storage (orange cross-connect)
+  [n.fcs1,n.fcs2].forEach(f=>[n.sa1,n.sa2].forEach(s=>{
+    line(mx,f.x,f.y+SWH/2,s.x,s.y,CO+'18',.5,[3,5]);
+  }));
+  // LAN → FCoE switches
+  fces.forEach(f=>line(mx,n.lan.x,n.lan.y,f.x,f.y,CB+'15',.5,[4,6]));
+
+  // ── Active wires (bright) ──
+  if(step>=1){fces.forEach(f=>line(mx,n.lan.x,n.lan.y,f.x,f.y,CB+(step>=6?'cc':'55'),1.5));}
+  if(step>=2){svs.forEach(s=>fces.forEach(f=>line(mx,s.x,s.y+SVH,f.x,f.y-SWH/2,CB+'55',1)));}
+  if(step>=3){[[n.fc1,n.fcs1],[n.fc2,n.fcs2],[n.fc1,n.fcs2],[n.fc2,n.fcs1]].forEach(([a,b])=>line(mx,a.x,a.y+SWH/2,b.x,b.y-SWH/2,CO+'88',1.5));}
+  if(step>=4){[n.fcs1,n.fcs2].forEach(f=>[n.sa1,n.sa2].forEach(s=>line(mx,f.x,f.y+SWH/2,s.x,s.y,CO+(step>=5?'cc':'77'),1.5)));}
+
+  // ── Nodes ──
+  // Servers
+  svs.forEach(s=>drawServer(mx,s.x,s.y,SVW,SVH,s.c,act.has(Object.keys(n).find(k=>n[k]===s)),s.lbl,s.sub,s.vm));
+  Object.entries({sv1:n.sv1,sv2:n.sv2,sv3:n.sv3,sv4:n.sv4}).forEach(([k,s])=>{
+    drawServer(mx,s.x,s.y,SVW,SVH,s.c,act.has(k),s.lbl,s.sub,s.vm);
+  });
+  // FCoE Switches
+  ['fc1','fc2'].forEach(k=>drawSwitch(mx,n[k].x,n[k].y,SWW,SWH,n[k].c,act.has(k),n[k].lbl,n[k].sub));
+  // FC Switches
+  ['fcs1','fcs2'].forEach(k=>drawSwitch(mx,n[k].x,n[k].y,SWW,SWH,n[k].c,act.has(k),n[k].lbl,n[k].sub));
+  // Storage Arrays
+  ['sa1','sa2'].forEach(k=>drawStorage(mx,n[k].x,n[k].y,STW,STH,n[k].c,act.has(k),n[k].lbl,n[k].sub));
+  // LAN Cloud
+  drawCloud(mx,n.lan.x,n.lan.y,W*0.12,H*0.095,n.lan.c,act.has('lan'),'LAN');
+
+  // ── Layer labels ──
+  const layers=[
+    {y:H*0.10+SVH/2,lbl:'CAPA SERVIDORES — HBA / Hypervisor / VMs',c:CB},
+    {y:H*0.40,lbl:'CAPA FCoE — Fibre Channel over Ethernet (10GbE)',c:CB},
+    {y:H*0.62,lbl:'CAPA FC — Fibre Channel 8/16G (fabric dedicado)',c:CO},
+    {y:H*0.84+STH/2,lbl:'CAPA STORAGE — Disk Arrays / LUNs / RAID',c:CG},
+  ];
+  layers.forEach(l=>{
+    mx.fillStyle=l.c+'33';mx.font='7px Share Tech Mono';mx.textAlign='left';mx.textBaseline='middle';
+    mx.fillText(l.lbl,14,l.y);
+    mx.strokeStyle=l.c+'18';mx.lineWidth=.4;mx.setLineDash([2,4]);
+    mx.beginPath();mx.moveTo(0,l.y+10);mx.lineTo(W,l.y+10);mx.stroke();mx.setLineDash([]);
+  });
+
+  // ── Animated packets ──
+  pkts.forEach(p=>{
+    if(p.done)return;
+    const dx=p.tx-p.fx,dy=p.ty-p.fy;
+    const px=p.fx+dx*p.t,py=p.fy+dy*p.t;
+    // Trail
+    for(let i=1;i<=5;i++){
+      const tx2=p.fx+dx*(p.t-i*0.025),ty2=p.fy+dy*(p.t-i*0.025);
+      if(tx2<0||tx2>W||ty2<0||ty2>H)continue;
+      mx.beginPath();mx.arc(tx2,ty2,4-i*0.6,0,Math.PI*2);
+      mx.fillStyle=p.c+Math.floor((1-i/6)*180).toString(16).padStart(2,'0');mx.fill();
+    }
+    mx.beginPath();mx.arc(px,py,5,0,Math.PI*2);mx.fillStyle=p.c;mx.fill();
+    mx.beginPath();mx.arc(px,py,9,0,Math.PI*2);mx.strokeStyle=p.c+'44';mx.lineWidth=1;mx.stroke();
+    if(p.lbl){mx.fillStyle=p.c;mx.font='bold 7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='bottom';mx.fillText(p.lbl,px,py-11);}
+    p.t=Math.min(1,p.t+0.015);
+    if(p.t>=1)p.done=true;
+  });
+
+  // ── Title bar ──
+  mx.fillStyle='rgba(3,5,12,0.9)';mx.beginPath();mx.roundRect(12,6,W-24,20,3);mx.fill();
+  mx.strokeStyle='rgba(0,180,255,0.2)';mx.lineWidth=.5;mx.beginPath();mx.roundRect(12,6,W-24,20,3);mx.stroke();
+  mx.fillStyle='rgba(0,212,255,0.85)';mx.font='bold 9px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText(annots[step]||'',W/2,16);
+
+  // ── I/O mode badge ──
+  const modeX=W-110,modeY=H-22;
+  mx.fillStyle='rgba(3,5,12,0.88)';mx.beginPath();mx.roundRect(modeX,modeY,96,16,2);mx.fill();
+  if(writeMode){mx.strokeStyle=CW+'88';mx.lineWidth=.6;mx.beginPath();mx.roundRect(modeX,modeY,44,16,2);mx.stroke();mx.fillStyle=CW;mx.font='7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';mx.fillText('WRITE ✦',modeX+22,modeY+8);}
+  if(readMode){mx.strokeStyle=CR+'88';mx.lineWidth=.6;mx.beginPath();mx.roundRect(modeX+50,modeY,44,16,2);mx.stroke();mx.fillStyle=CR;mx.font='7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';mx.fillText('READ ◈',modeX+72,modeY+8);}
+
+  // ── Legend ──
+  const lx=14,ly=H-54;
+  mx.fillStyle='rgba(3,5,12,0.85)';mx.beginPath();mx.roundRect(lx,ly,220,46,3);mx.fill();
+  mx.strokeStyle='rgba(0,180,255,0.1)';mx.lineWidth=.4;mx.beginPath();mx.roundRect(lx,ly,220,46,3);mx.stroke();
+  [{c:CB,t:'Azul — Ethernet / FCoE (10GbE)'},{c:CO,t:'Naranja — Fibre Channel (FC fabric)'},{c:CG,t:'Verde — Respuesta / datos almacenados'},{c:CV,t:'Violeta — Tráfico VM / Hypervisor'}].forEach((l,i)=>{
+    mx.beginPath();mx.arc(lx+9,ly+8+i*10,3,0,Math.PI*2);mx.fillStyle=l.c;mx.fill();
+    mx.fillStyle=l.c+'cc';mx.font='7px Share Tech Mono';mx.textAlign='left';mx.textBaseline='middle';mx.fillText(l.t,lx+17,ly+8+i*10);
+  });
+
+  requestAnimationFrame(drawScene);
+}
+
+// init
+onStep();
+// Start auto after short delay
+setTimeout(()=>toggleAuto(),600);
+
+function spawnStep2(n){spawnStep(n);}
+// Hook spawnStep into onStep
+const _onStep=onStep;
+window.onStep=function(){_onStep();setTimeout(()=>spawnStep(N()),100);}
+
+// Override onStep so spawning happens
+function onStep(){setLabel();if(stepLogs[step])log(stepLogs[step].txt,stepLogs[step].c);setTimeout(()=>spawnStep(N()),80);}
+
+drawScene();
+</script>
