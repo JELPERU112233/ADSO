@@ -1,0 +1,322 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#root{background:#05080f;min-height:800px;position:relative;overflow:hidden;font-family:'Share Tech Mono',monospace}
+canvas#bgc{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hud-top{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:11px 18px 8px;border-bottom:1px solid rgba(0,212,255,0.1)}
+.hud-title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;letter-spacing:3px;color:#a0c4d8}
+.ctrl-bar{position:relative;z-index:10;display:flex;align-items:center;gap:8px;padding:8px 18px}
+.cbtn{font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1px;padding:6px 14px;border:1px solid rgba(0,212,255,0.2);border-radius:2px;cursor:pointer;background:transparent;color:rgba(0,212,255,0.45);transition:all .2s}
+.cbtn:hover,.cbtn.go{color:#00d4ff;border-color:#00d4ff;background:rgba(0,212,255,0.07)}
+.cbtn.rst{border-color:rgba(226,75,74,0.3);color:rgba(226,75,74,0.45)}
+.cbtn.rst:hover{color:#e24b4a;border-color:#e24b4a;background:rgba(226,75,74,0.06)}
+#slbl{font-size:9px;color:rgba(0,212,255,0.4);letter-spacing:2px;margin-left:auto}
+.scene-wrap{position:relative;z-index:10;margin:0 18px}
+canvas#mc{display:block;width:100%}
+.log-panel{position:relative;z-index:10;margin:6px 18px 0;background:rgba(0,6,18,0.92);border:1px solid rgba(0,212,255,0.12);border-radius:3px;padding:7px 12px;min-height:62px}
+.log-title{font-size:8px;color:rgba(0,212,255,0.35);letter-spacing:2px;margin-bottom:3px}
+#log-out{font-size:9px;line-height:1.65}
+.hud-foot{position:relative;z-index:10;text-align:center;padding:5px;font-size:8px;color:rgba(255,255,255,0.1);letter-spacing:2px;border-top:1px solid rgba(255,255,255,0.04);margin-top:4px}
+</style>
+<div id="root">
+<canvas id="bgc"></canvas>
+<div class="hud-top">
+  <div class="hud-title">▸ DNS RESOLUTION — TOPOLOGÍA ITERATIVA AR ◂</div>
+  <span style="font-size:9px;color:rgba(0,212,255,0.2);letter-spacing:2px" id="clk">--:--:--</span>
+</div>
+<div class="ctrl-bar">
+  <button class="cbtn" onclick="prev()">◀ PREV</button>
+  <button class="cbtn go" id="abtn" onclick="toggleAuto()">▶ AUTO</button>
+  <button class="cbtn" onclick="next()">NEXT ▶</button>
+  <button class="cbtn rst" onclick="reset()">↺ RESET</button>
+  <span id="slbl">FLECHA 0 / 8</span>
+</div>
+<div class="scene-wrap"><canvas id="mc"></canvas></div>
+<div class="log-panel">
+  <div class="log-title">▸ DNS QUERY LOG — TRAZABILIDAD</div>
+  <div id="log-out"></div>
+</div>
+<div class="hud-foot">[ DNS-AR v6.0 ] · REDES 1 — UPN · <span id="clk2">--:--:--</span></div>
+</div>
+<script>
+// ── Clock ──
+function tick(){const n=new Date();const s=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+':'+n.getSeconds().toString().padStart(2,'0');document.getElementById('clk').textContent=s;document.getElementById('clk2').textContent=s;}
+setInterval(tick,1000);tick();
+
+// ── BG grid ──
+const bgc=document.getElementById('bgc');const bgx=bgc.getContext('2d');
+let bW=0,bH=0;
+function resizeBg(){bW=bgc.offsetWidth;bH=bgc.offsetHeight;bgc.width=bW;bgc.height=bH;}
+resizeBg();
+let bgT=0;
+(function loop(){bgx.clearRect(0,0,bW,bH);const gs=46,off=bgT%gs;bgx.strokeStyle='rgba(0,70,130,0.055)';bgx.lineWidth=.4;for(let x=off;x<bW;x+=gs){bgx.beginPath();bgx.moveTo(x,0);bgx.lineTo(x,bH);bgx.stroke()}for(let y=off;y<bH;y+=gs){bgx.beginPath();bgx.moveTo(0,y);bgx.lineTo(bW,y);bgx.stroke()}bgT+=.1;requestAnimationFrame(loop);})();
+
+// ── Main canvas ──
+const mc=document.getElementById('mc');const mx=mc.getContext('2d');
+let W=0,H=0;
+function resize(){W=mc.offsetWidth;H=Math.round(W*0.70);mc.width=W;mc.height=H;mc.style.height=H+'px';}
+resize();
+
+// ── State ──
+let step=0,auto=false,autoInt=null,pkts=[];
+const STEPS=8;
+const BLUE='#1a9de0', ORANGE='#f5820a';
+
+// ── Log ──
+const logs=[];
+function log(txt,c){logs.push({txt,c:c||BLUE});if(logs.length>5)logs.shift();document.getElementById('log-out').innerHTML=logs.map(l=>`<div style="color:${l.c}">${l.txt}</div>`).join('');}
+
+function setLabel(){document.getElementById('slbl').textContent='FLECHA '+step+' / '+STEPS;}
+
+// ── Controls ──
+function next(){if(step<STEPS){step++;fire();}}
+function prev(){if(step>0){step--;pkts=[];fireLog();setLabel();}}
+function reset(){step=0;pkts=[];logs.length=0;document.getElementById('log-out').innerHTML='';stopAuto();setLabel();}
+function toggleAuto(){if(auto){stopAuto();}else{auto=true;document.getElementById('abtn').textContent='⏸ PAUSE';autoInt=setInterval(()=>{if(step<STEPS){step++;fire();}else stopAuto();},2600);}}
+function stopAuto(){auto=false;clearInterval(autoInt);document.getElementById('abtn').textContent='▶ AUTO';}
+
+// ── Node layout mirrors the reference image exactly ──
+// PC: left-center | DNS Local: center | Root: top-right | TLD: right-center | Dominio: bottom-right
+function N(){
+  const cx=W/2;
+  return {
+    pc:     {x:W*0.10, y:H*0.50},
+    local:  {x:W*0.38, y:H*0.50},
+    root:   {x:W*0.72, y:H*0.18},
+    tld:    {x:W*0.72, y:H*0.50},
+    dominio:{x:W*0.72, y:H*0.82},
+  };
+}
+
+// ── Step data: which arrow fires, color, from→to, label, log text ──
+const stepData=[
+  null,
+  {arrow:1, from:'pc',    to:'local',   c:BLUE,   num:'1', dir:'query',  msg:'[1] Tu equipo → DNS Local: consulta recursiva www.ejemplo.com (UDP 53)'},
+  {arrow:2, from:'local', to:'root',    c:BLUE,   num:'2', dir:'query',  msg:'[2] DNS Local → Root Server: ¿Quién gestiona .com? (query iterativa)'},
+  {arrow:3, from:'root',  to:'local',   c:ORANGE, num:'3', dir:'resp',   msg:'[3] Root → DNS Local: Referral — TLD .com está en 192.5.6.30'},
+  {arrow:4, from:'local', to:'tld',     c:BLUE,   num:'4', dir:'query',  msg:'[4] DNS Local → TLD .com: ¿Quién es el NS de ejemplo.com?'},
+  {arrow:5, from:'tld',   to:'local',   c:ORANGE, num:'5', dir:'resp',   msg:'[5] TLD → DNS Local: Auth NS = ns1.ejemplo.com (205.251.196.1)'},
+  {arrow:6, from:'local', to:'dominio', c:ORANGE, num:'6', dir:'query',  msg:'[6] DNS Local → DNS Dominio: ¿A record de www.ejemplo.com?'},
+  {arrow:7, from:'dominio',to:'local',  c:BLUE,   num:'7', dir:'resp',   msg:'[7] DNS Dominio → DNS Local: 93.184.216.34 TTL=300s (autoritativo)'},
+  {arrow:8, from:'local', to:'pc',      c:ORANGE, num:'8', dir:'resp',   msg:'[8] DNS Local → Tu equipo: IP final 93.184.216.34 — Cache guardada ✓'},
+];
+
+function fire(){
+  const d=stepData[step];
+  if(d){
+    const n=N();
+    pkts.push({from:{...n[d.from]},to:{...n[d.to]},c:d.c,num:d.num,t:0,done:false});
+    log(d.msg, d.c);
+  }
+  setLabel();
+}
+function fireLog(){const d=stepData[step];if(d)log(d.msg,d.c);}
+
+// ── Draw server icon (rack style matching reference) ──
+function drawServer(ctx,x,y,w,h,color,active,label1,label2){
+  const bright=active?color:color+'44';
+  // Main chassis
+  ctx.strokeStyle=bright;ctx.lineWidth=active?1.2:.5;
+  ctx.fillStyle=active?color+'18':'rgba(0,10,25,0.6)';
+  ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,3);ctx.fill();ctx.stroke();
+  // Rack units (stripes like reference image)
+  const units=5,uh=(h-14)/units;
+  for(let i=0;i<units;i++){
+    const uy=y-h/2+7+i*uh;
+    ctx.fillStyle=active?color+'22':'rgba(0,15,30,0.5)';
+    ctx.beginPath();ctx.roundRect(x-w/2+5,uy,w-10,uh-2,1);ctx.fill();
+    ctx.strokeStyle=active?color+'55':color+'18';ctx.lineWidth=.4;
+    ctx.beginPath();ctx.roundRect(x-w/2+5,uy,w-10,uh-2,1);ctx.stroke();
+    // LED dots on right side of each unit
+    for(let d=0;d<3;d++){
+      ctx.beginPath();ctx.arc(x+w/2-8-d*7,uy+uh/2-1,1.8,0,Math.PI*2);
+      ctx.fillStyle=(active&&d===0)?color:color+'33';ctx.fill();
+    }
+  }
+  // Labels
+  ctx.fillStyle=active?color:color+'66';
+  ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(label1,x,y+h/2+6);
+  if(label2){ctx.font='8px Share Tech Mono';ctx.fillStyle=active?color+'cc':color+'44';ctx.fillText(label2,x,y+h/2+18);}
+}
+
+// ── Draw PC / laptop icon ──
+function drawPC(ctx,x,y,active){
+  const c=active?BLUE:BLUE+'44';
+  // Screen
+  ctx.strokeStyle=c;ctx.lineWidth=active?1.2:.5;
+  ctx.fillStyle=active?'rgba(26,157,224,0.12)':'rgba(0,10,25,0.6)';
+  ctx.beginPath();ctx.roundRect(x-36,y-32,72,46,3);ctx.fill();ctx.stroke();
+  // WWW text on screen
+  ctx.fillStyle=active?BLUE:BLUE+'44';ctx.font='bold 11px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('WWW',x,y-12);
+  // Cursor arrow
+  ctx.fillStyle=active?BLUE:BLUE+'33';ctx.font='10px Share Tech Mono';ctx.fillText('↗',x+10,y+4);
+  // Base/hinge
+  ctx.strokeStyle=c;ctx.lineWidth=active?1:.4;
+  ctx.beginPath();ctx.moveTo(x-30,y+14);ctx.lineTo(x+30,y+14);ctx.stroke();
+  // Keyboard base
+  ctx.fillStyle=active?'rgba(26,157,224,0.1)':'rgba(0,10,25,0.5)';
+  ctx.strokeStyle=c;ctx.lineWidth=active?1:.4;
+  ctx.beginPath();ctx.roundRect(x-40,y+14,80,14,2);ctx.fill();ctx.stroke();
+  // Label
+  ctx.fillStyle=active?BLUE:BLUE+'55';ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Tu equipo',x,y+32);
+}
+
+// ── Draw arrow with bubble number (matches reference style) ──
+function drawArrow(ctx,x1,y1,x2,y2,color,num,alpha,offset){
+  const off=offset||0;
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  const nx=-dy/len,ny=dx/len; // normal
+  const ox=nx*off,oy=ny*off;
+  const ax=x1+ox,ay=y1+oy,bx=x2+ox,by=y2+oy;
+
+  ctx.globalAlpha=alpha||1;
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.setLineDash([]);
+  // Arrow shaft
+  ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+  // Arrowhead
+  const angle=Math.atan2(by-ay,bx-ax);
+  const hs=10;
+  ctx.beginPath();
+  ctx.moveTo(bx,by);
+  ctx.lineTo(bx-hs*Math.cos(angle-0.4),by-hs*Math.sin(angle-0.4));
+  ctx.lineTo(bx-hs*Math.cos(angle+0.4),by-hs*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  // Number bubble
+  const mx2=(ax+bx)/2,my2=(ay+by)/2;
+  ctx.beginPath();ctx.arc(mx2,my2,10,0,Math.PI*2);
+  ctx.fillStyle=color;ctx.fill();
+  ctx.fillStyle='#05080f';ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(num,mx2,my2);
+  ctx.globalAlpha=1;
+}
+
+// ── Completed arrows to draw persistently ──
+// Each step fires one arrow; keep all previous arrows visible (dimmed)
+function arrowDef(n,i){
+  // offsets so paired arrows don't overlap
+  const pairs={1:0,2:7,3:-7,4:7,5:-7,6:-8,7:8,8:0};
+  const d=stepData[i];if(!d)return null;
+  return {from:n[d.from],to:n[d.to],c:d.c,num:d.num,off:pairs[i]||0};
+}
+
+// ── Main draw ──
+function draw(){
+  mx.clearRect(0,0,W,H);
+  mx.fillStyle='rgba(3,5,12,0.25)';mx.fillRect(0,0,W,H);
+  const n=N();
+
+  // ── Faint backbone lines ──
+  const blines=[[n.pc,n.local],[n.local,n.root],[n.local,n.tld],[n.local,n.dominio]];
+  blines.forEach(([a,b])=>{
+    mx.strokeStyle='rgba(26,157,224,0.06)';mx.lineWidth=.5;
+    mx.beginPath();mx.moveTo(a.x,a.y);mx.lineTo(b.x,b.y);mx.stroke();
+  });
+
+  // ── Draw completed arrows (dimmed) ──
+  for(let i=1;i<=step;i++){
+    const a=arrowDef(n,i);if(!a)continue;
+    const isLast=i===step&&pkts.length===0;
+    drawArrow(mx,a.from.x,a.from.y,a.to.x,a.to.y,a.c,a.num,isLast?0.95:0.28,a.off);
+  }
+
+  // ── Animated packet ──
+  pkts.forEach(p=>{
+    const dx=p.to.x-p.from.x,dy=p.to.y-p.from.y;
+    const px=p.from.x+dx*p.t,py=p.from.y+dy*p.t;
+    // Trail
+    for(let t=1;t<=5;t++){
+      const tx=p.from.x+dx*(p.t-t*0.03),ty=p.from.y+dy*(p.t-t*0.03);
+      if(tx<0||tx>W||ty<0||ty>H)continue;
+      mx.beginPath();mx.arc(tx,ty,4-t*0.6,0,Math.PI*2);
+      mx.fillStyle=p.c+Math.floor((1-t/6)*200).toString(16).padStart(2,'0');mx.fill();
+    }
+    // Head
+    mx.beginPath();mx.arc(px,py,6,0,Math.PI*2);mx.fillStyle=p.c;mx.fill();
+    mx.beginPath();mx.arc(px,py,10,0,Math.PI*2);mx.strokeStyle=p.c+'55';mx.lineWidth=1.5;mx.stroke();
+    // Number on packet
+    mx.fillStyle='#05080f';mx.font='bold 8px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+    mx.fillText(p.num,px,py);
+    p.t=Math.min(1,p.t+0.016);
+    if(p.t>=1)p.done=true;
+  });
+  pkts=pkts.filter(p=>!p.done);
+
+  // ── Nodes ──
+  const localActive=step>=1;
+  const rootActive=step>=2&&step<=3;
+  const tldActive=step>=4&&step<=5;
+  const domActive=step>=6&&step<=7;
+  const pcActive=step===1||step===8;
+
+  drawPC(mx,n.pc.x,n.pc.y,pcActive||step===0);
+  drawServer(mx,n.local.x,n.local.y,80,130,BLUE,step>=1,'Servidor','DNS local');
+  drawServer(mx,n.root.x,n.root.y,80,120,'#9c5bff',rootActive,'Servidor DNS','raíz');
+  drawServer(mx,n.tld.x,n.tld.y,80,120,'#1d9e75',tldActive,'Servidor DNS','(.com)');
+  drawServer(mx,n.dominio.x,n.dominio.y,80,120,'#ff6b35',domActive,'Servidor DNS','(dominio .com)');
+
+  // ── Annotations per step ──
+  const annots={
+    0:{x:W/2,y:H*0.92,txt:'Escribe una URL en el navegador para iniciar la resolución DNS',c:BLUE},
+    1:{x:(n.pc.x+n.local.x)/2,y:n.pc.y-28,txt:'Query recursiva — UDP puerto 53',c:BLUE},
+    2:{x:(n.local.x+n.root.x)/2+10,y:(n.local.y+n.root.y)/2-22,txt:'¿Quién gestiona .com?',c:BLUE},
+    3:{x:(n.local.x+n.root.x)/2+10,y:(n.local.y+n.root.y)/2+16,txt:'Referral → TLD server IP',c:ORANGE},
+    4:{x:(n.local.x+n.tld.x)/2,y:n.tld.y-22,txt:'¿NS de ejemplo.com?',c:BLUE},
+    5:{x:(n.local.x+n.tld.x)/2,y:n.tld.y+16,txt:'Auth NS = ns1.ejemplo.com',c:ORANGE},
+    6:{x:(n.local.x+n.dominio.x)/2+10,y:(n.local.y+n.dominio.y)/2-22,txt:'¿A record www.ejemplo.com?',c:ORANGE},
+    7:{x:(n.local.x+n.dominio.x)/2+10,y:(n.local.y+n.dominio.y)/2+16,txt:'IP: 93.184.216.34  TTL=300s',c:BLUE},
+    8:{x:(n.pc.x+n.local.x)/2,y:n.pc.y+30,txt:'IP entregada → Cache guardada ✓',c:ORANGE},
+  };
+  const ann=annots[step];
+  if(ann){
+    const tw=mx.measureText(ann.txt).width+20;
+    mx.fillStyle='rgba(3,5,12,0.88)';mx.beginPath();mx.roundRect(ann.x-tw/2,ann.y-10,tw,20,3);mx.fill();
+    mx.strokeStyle=ann.c+'55';mx.lineWidth=.6;mx.beginPath();mx.roundRect(ann.x-tw/2,ann.y-10,tw,20,3);mx.stroke();
+    mx.fillStyle=ann.c;mx.font='8px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+    mx.fillText(ann.txt,ann.x,ann.y);
+  }
+
+  // ── Step title ──
+  const titles=[
+    'Estado inicial — sin caché DNS',
+    'Flecha 1 — Tu equipo envía consulta al DNS Local',
+    'Flecha 2 — DNS Local consulta Root Server',
+    'Flecha 3 — Root responde con referral TLD',
+    'Flecha 4 — DNS Local consulta TLD .com',
+    'Flecha 5 — TLD responde con Auth NS',
+    'Flecha 6 — DNS Local consulta DNS Dominio',
+    'Flecha 7 — DNS Dominio responde con IP final',
+    'Flecha 8 — DNS Local entrega IP a tu equipo · Cache ✓',
+  ];
+  mx.fillStyle='rgba(3,5,12,0.88)';mx.beginPath();mx.roundRect(14,8,W-28,22,3);mx.fill();
+  mx.strokeStyle='rgba(0,212,255,0.18)';mx.lineWidth=.5;mx.beginPath();mx.roundRect(14,8,W-28,22,3);mx.stroke();
+  mx.fillStyle='rgba(0,212,255,0.85)';mx.font='bold 9px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText(titles[step]||'',W/2,19);
+
+  // ── Cache status badge (bottom of PC) ──
+  const cacheOK=step>=8;
+  mx.strokeStyle=cacheOK?'#39ff14':'rgba(57,255,20,0.2)';mx.lineWidth=cacheOK?1:.4;
+  mx.beginPath();mx.roundRect(n.pc.x-60,n.pc.y+50,120,16,2);mx.stroke();
+  mx.fillStyle='rgba(3,5,12,0.9)';mx.fillRect(n.pc.x-59,n.pc.y+51,118,14);
+  mx.fillStyle=cacheOK?'#39ff14':'rgba(57,255,20,0.2)';mx.font='7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText(cacheOK?'CACHE HIT ✓  93.184.216.34':'CACHE MISS — sin registro',n.pc.x,n.pc.y+58);
+
+  // ── Legend ──
+  const lx=14,ly=H-64;
+  mx.fillStyle='rgba(3,5,12,0.82)';mx.beginPath();mx.roundRect(lx,ly,210,56,3);mx.fill();
+  mx.strokeStyle='rgba(0,212,255,0.12)';mx.lineWidth=.4;mx.beginPath();mx.roundRect(lx,ly,210,56,3);mx.stroke();
+  mx.fillStyle='rgba(0,212,255,0.45)';mx.font='bold 8px Share Tech Mono';mx.textAlign='left';mx.textBaseline='top';mx.fillText('LEYENDA',lx+8,ly+6);
+  [{c:BLUE,t:'Flechas azules — QUERY (consulta)'},{c:ORANGE,t:'Flechas naranjas — RESPONSE (respuesta)'},{c:'#39ff14',t:'Cache DNS — TTL 300s guardado localmente'}].forEach((l,i)=>{
+    mx.beginPath();mx.arc(lx+12,ly+22+i*12,4,0,Math.PI*2);mx.fillStyle=l.c;mx.fill();
+    mx.fillStyle=l.c+'cc';mx.font='8px Share Tech Mono';mx.textAlign='left';mx.textBaseline='middle';mx.fillText(l.t,lx+22,ly+22+i*12);
+  });
+
+  requestAnimationFrame(draw);
+}
+
+setLabel();
+draw();
+</script>
