@@ -1,0 +1,424 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-das:#e24b4a;--c-nas:#378add;--c-san:#1d9e75;
+  --c-das-dim:rgba(226,75,74,0.15);--c-nas-dim:rgba(55,138,221,0.12);--c-san-dim:rgba(29,158,117,0.12);
+}
+#root{background:#06080f;min-height:720px;padding:0;position:relative;overflow:hidden;font-family:'Share Tech Mono',monospace}
+canvas#bgc{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hud-top{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:1px solid rgba(255,255,255,0.07)}
+.hud-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#a0b4cc}
+#live-label{font-size:10px;letter-spacing:2px;color:rgba(160,180,204,0.4)}
+.tab-bar{position:relative;z-index:10;display:flex;gap:6px;padding:10px 20px}
+.tbtn{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;padding:7px 18px;border:1px solid rgba(255,255,255,0.12);border-radius:2px;cursor:pointer;background:transparent;transition:all .2s;color:rgba(255,255,255,0.35)}
+.tbtn.das{--tc:var(--c-das)}.tbtn.nas{--tc:var(--c-nas)}.tbtn.san{--tc:var(--c-san)}
+.tbtn.active,.tbtn:hover{color:var(--tc);border-color:var(--tc);background:rgba(255,255,255,0.04)}
+.scene-wrap{position:relative;z-index:10;margin:0 20px;height:390px}
+.scene{display:none;width:100%;height:100%}
+.scene.active{display:block}
+canvas.sc{width:100%;height:100%;display:block}
+.info-bar{position:relative;z-index:10;margin:10px 20px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.icard{padding:10px 12px;border:1px solid rgba(255,255,255,0.07);border-radius:3px;background:rgba(255,255,255,0.02)}
+.icard-title{font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:2px;margin-bottom:6px}
+.icard.das .icard-title{color:var(--c-das)}.icard.nas .icard-title{color:var(--c-nas)}.icard.san .icard-title{color:var(--c-san)}
+.icard-row{font-size:9px;color:rgba(255,255,255,0.45);margin-bottom:3px;line-height:1.5}
+.icard-row span{color:rgba(255,255,255,0.75)}
+.props-row{position:relative;z-index:10;margin:8px 20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.prop{padding:8px 10px;border-radius:2px;text-align:center;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)}
+.prop-val{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;margin-bottom:2px}
+.prop-lbl{font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:1px}
+.das-v{color:var(--c-das)}.nas-v{color:var(--c-nas)}.san-v{color:var(--c-san)}
+.hud-foot{position:relative;z-index:10;text-align:center;padding:8px;font-size:8px;color:rgba(255,255,255,0.15);letter-spacing:2px;border-top:1px solid rgba(255,255,255,0.05);margin-top:8px}
+</style>
+
+<div id="root">
+<canvas id="bgc"></canvas>
+<div class="hud-top">
+  <div class="hud-title">▸ STORAGE ARCHITECTURE ANALYZER ◂</div>
+  <div id="live-label">● LIVE · SISTEMAS OPERATIVOS · UPN</div>
+</div>
+<div class="tab-bar">
+  <button class="tbtn das active" onclick="setMode('das')">▣ DAS — Direct Attached</button>
+  <button class="tbtn nas" onclick="setMode('nas')">◈ NAS — Network Attached</button>
+  <button class="tbtn san" onclick="setMode('san')">◆ SAN — Storage Area Network</button>
+</div>
+<div class="scene-wrap">
+  <div class="scene active" id="s-das"><canvas class="sc" id="c-das"></canvas></div>
+  <div class="scene" id="s-nas"><canvas class="sc" id="c-nas"></canvas></div>
+  <div class="scene" id="s-san"><canvas class="sc" id="c-san"></canvas></div>
+</div>
+<div class="info-bar">
+  <div class="icard das">
+    <div class="icard-title">▣ DAS</div>
+    <div class="icard-row">Interfaz <span>SATA / SAS / NVMe</span></div>
+    <div class="icard-row">Latencia <span>0.1 – 0.5 ms</span></div>
+    <div class="icard-row">Acceso <span>Local exclusivo</span></div>
+    <div class="icard-row">Cloud eq. <span>Instance Store (EC2)</span></div>
+  </div>
+  <div class="icard nas">
+    <div class="icard-title">◈ NAS</div>
+    <div class="icard-row">Protocolo <span>NFS / SMB / CIFS</span></div>
+    <div class="icard-row">Latencia <span>1 – 5 ms</span></div>
+    <div class="icard-row">Acceso <span>Compartido LAN</span></div>
+    <div class="icard-row">Cloud eq. <span>Amazon EFS / Azure Files</span></div>
+  </div>
+  <div class="icard san">
+    <div class="icard-title">◆ SAN</div>
+    <div class="icard-row">Protocolo <span>iSCSI / Fibre Channel</span></div>
+    <div class="icard-row">Latencia <span>0.2 – 1 ms</span></div>
+    <div class="icard-row">Acceso <span>Bloque dedicado</span></div>
+    <div class="icard-row">Cloud eq. <span>Amazon EBS / Azure Disk</span></div>
+  </div>
+</div>
+<div class="props-row">
+  <div class="prop"><div class="prop-val das-v">MÁXIMO</div><div class="prop-lbl">DAS — rendimiento</div></div>
+  <div class="prop"><div class="prop-val nas-v">ALTO</div><div class="prop-lbl">NAS — compartición</div></div>
+  <div class="prop"><div class="prop-val san-v">MÁXIMO</div><div class="prop-lbl">SAN — IOPS bloque</div></div>
+  <div class="prop"><div class="prop-val" style="color:#a0b4cc">BAJO</div><div class="prop-lbl">DAS — escalabilidad</div></div>
+</div>
+<div class="hud-foot">[ AR-STORAGE-ARCH v3.1 ] · SISTEMAS OPERATIVOS · UPN · <span id="clk">--:--:--</span></div>
+</div>
+
+<script>
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clk').textContent=
+    n.getHours().toString().padStart(2,'0')+':'+
+    n.getMinutes().toString().padStart(2,'0')+':'+
+    n.getSeconds().toString().padStart(2,'0');
+},1000);
+
+let mode='das';
+function setMode(m){
+  mode=m;
+  ['das','nas','san'].forEach(x=>{
+    document.getElementById('s-'+x).classList.toggle('active',x===m);
+    document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('active',b.classList.contains(x)&&x===m));
+  });
+}
+
+// Background star grid
+const bgc=document.getElementById('bgc');
+const bgx=bgc.getContext('2d');
+let bW,bH;
+const stars=Array.from({length:60},()=>({x:Math.random()*1400,y:Math.random()*800,o:Math.random()*.4+.05,r:Math.random()*.8+.2}));
+function resizeBg(){bW=bgc.offsetWidth;bH=bgc.offsetHeight;bgc.width=bW;bgc.height=bH;}
+resizeBg();
+let bgT=0;
+function drawBg(){
+  bgx.clearRect(0,0,bW,bH);
+  bgx.fillStyle='rgba(6,8,15,0.6)';bgx.fillRect(0,0,bW,bH);
+  const gs=50;const off=bgT%gs;
+  bgx.strokeStyle='rgba(60,90,130,0.07)';bgx.lineWidth=.5;
+  for(let x=off;x<bW;x+=gs){bgx.beginPath();bgx.moveTo(x,0);bgx.lineTo(x,bH);bgx.stroke()}
+  for(let y=off;y<bH;y+=gs){bgx.beginPath();bgx.moveTo(0,y);bgx.lineTo(bW,y);bgx.stroke()}
+  stars.forEach(s=>{
+    bgx.beginPath();bgx.arc(s.x%bW,s.y%bH,s.r,0,Math.PI*2);
+    bgx.fillStyle='rgba(160,180,220,'+s.o+')';bgx.fill();
+  });
+  bgT+=.15;requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ─── DAS SCENE ─────────────────────────────────────
+const dasC=document.getElementById('c-das');
+const dasX=dasC.getContext('2d');
+let dasT=0;
+
+function dasServer(ctx,x,y,w,h,label,color,active){
+  ctx.strokeStyle=active?color:'rgba(226,75,74,0.3)';
+  ctx.lineWidth=active?1.5:.6;
+  ctx.fillStyle=active?'rgba(226,75,74,0.12)':'rgba(226,75,74,0.04)';
+  ctx.beginPath();ctx.roundRect(x,y,w,h,3);ctx.fill();ctx.stroke();
+  // Server body detail lines
+  ctx.strokeStyle=active?'rgba(226,75,74,0.5)':'rgba(226,75,74,0.15)';
+  ctx.lineWidth=.5;
+  for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(x+6,y+i*h/3);ctx.lineTo(x+w-6,y+i*h/3);ctx.stroke()}
+  // LED dot
+  ctx.beginPath();ctx.arc(x+w-12,y+10,3,0,Math.PI*2);
+  ctx.fillStyle=active?'#e24b4a':'rgba(226,75,74,0.2)';ctx.fill();
+  ctx.fillStyle=active?'rgba(226,75,74,0.9)':'rgba(226,75,74,0.3)';
+  ctx.font='9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(label,x+w/2,y+h/2);
+}
+
+function dasDisk(ctx,x,y,r,label,color,fill){
+  // Cylinder top ellipse
+  ctx.strokeStyle=color;ctx.lineWidth=1;
+  ctx.fillStyle=fill?'rgba(226,75,74,0.18)':'rgba(226,75,74,0.06)';
+  ctx.beginPath();ctx.ellipse(x,y,r,r*0.3,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // Cylinder body
+  ctx.fillStyle=fill?'rgba(226,75,74,0.12)':'rgba(226,75,74,0.03)';
+  ctx.fillRect(x-r,y,r*2,r*0.8);
+  ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x-r,y+r*0.8);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+r,y+r*0.8);ctx.stroke();
+  ctx.beginPath();ctx.ellipse(x,y+r*0.8,r,r*0.3,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle=color;ctx.font='8px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(label,x,y+r*0.8+6);
+}
+
+function drawDas(){
+  const W=dasC.offsetWidth,H=dasC.offsetHeight;
+  if(dasC.width!==Math.round(W)||dasC.height!==Math.round(H)){dasC.width=Math.round(W);dasC.height=Math.round(H);}
+  dasX.clearRect(0,0,W,H);
+  const cc='#e24b4a',cd='rgba(226,75,74,0.5)';
+  // Label
+  dasX.fillStyle='rgba(226,75,74,0.7)';dasX.font='bold 11px Share Tech Mono';dasX.textAlign='left';
+  dasX.fillText('DAS · Direct Attached Storage · SATA/SAS/NVMe',14,18);
+
+  // 3 servers
+  const servers=[{x:80,y:60},{x:280,y:60},{x:480,y:60}];
+  const phase=Math.floor(dasT/40)%3;
+  servers.forEach((s,i)=>{
+    const active=i===phase;
+    dasServer(dasX,s.x,s.y,110,60,'SERVER '+(i+1),cc,active);
+    // Cable down from server
+    const cx=s.x+55;
+    dasX.strokeStyle=active?cc:cd;dasX.lineWidth=active?2:.8;
+    dasX.setLineDash(active?[]:[4,4]);
+    dasX.beginPath();dasX.moveTo(cx,s.y+60);dasX.lineTo(cx,s.y+110);dasX.stroke();
+    dasX.setLineDash([]);
+    // Connector block
+    dasX.fillStyle=active?'rgba(226,75,74,0.2)':'rgba(226,75,74,0.05)';
+    dasX.strokeStyle=active?cc:cd;dasX.lineWidth=.8;
+    dasX.beginPath();dasX.roundRect(cx-16,s.y+110,32,14,2);dasX.fill();dasX.stroke();
+    dasX.fillStyle=active?cc:cd;dasX.font='8px Share Tech Mono';dasX.textAlign='center';
+    dasX.fillText('SATA',cx,s.y+119);
+    // Cable to disk
+    dasX.strokeStyle=active?cc:cd;dasX.lineWidth=active?2:.8;
+    dasX.beginPath();dasX.moveTo(cx,s.y+124);dasX.lineTo(cx,s.y+155);dasX.stroke();
+    // Disk
+    dasDisk(dasX,cx,s.y+155,28,'HDD/SSD',active?cc:cd,active);
+  });
+
+  // Data packet on active cable
+  const srv=servers[phase];
+  const cx=srv.x+55;
+  const pct=((dasT%40)/40);
+  const py=srv.y+60+(95*pct);
+  dasX.beginPath();dasX.arc(cx,py,4,0,Math.PI*2);
+  dasX.fillStyle='#e24b4a';dasX.fill();
+  dasX.beginPath();dasX.arc(cx,py,7,0,Math.PI*2);
+  dasX.strokeStyle='rgba(226,75,74,0.4)';dasX.lineWidth=1;dasX.stroke();
+
+  // Label: dedicated connection
+  dasX.fillStyle='rgba(226,75,74,0.4)';dasX.font='9px Share Tech Mono';dasX.textAlign='center';
+  dasX.fillText('conexión directa — sin red — latencia mínima',W/2,320);
+
+  // Isolation boxes (servers are isolated)
+  servers.forEach((s,i)=>{
+    dasX.setLineDash([3,5]);dasX.strokeStyle='rgba(226,75,74,0.15)';dasX.lineWidth=.5;
+    dasX.beginPath();dasX.roundRect(s.x-6,s.y-8,122,290,6);dasX.stroke();
+    dasX.setLineDash([]);
+    dasX.fillStyle='rgba(226,75,74,0.2)';dasX.font='8px Share Tech Mono';dasX.textAlign='center';
+    dasX.fillText('AISLADO',s.x+55,s.y-16);
+  });
+
+  dasX.fillStyle='rgba(226,75,74,0.35)';dasX.font='9px Share Tech Mono';dasX.textAlign='center';
+  dasX.fillText('▲ cada servidor accede SOLO a su disco — sin compartición',W/2,348);
+
+  dasT++;requestAnimationFrame(drawDas);
+}
+drawDas();
+
+// ─── NAS SCENE ─────────────────────────────────────
+const nasC=document.getElementById('c-nas');
+const nasX=nasC.getContext('2d');
+let nasT=0;
+const PACKETS_NAS=Array.from({length:6},(_,i)=>({srv:i%4,t:i/6,phase:i%2}));
+
+function nasBox(ctx,x,y,w,h,label,sub,color,active){
+  ctx.strokeStyle=active?color:'rgba(55,138,221,0.25)';ctx.lineWidth=active?1.5:.5;
+  ctx.fillStyle=active?'rgba(55,138,221,0.14)':'rgba(55,138,221,0.04)';
+  ctx.beginPath();ctx.roundRect(x,y,w,h,3);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.arc(x+w-14,y+h/2,4,0,Math.PI*2);
+  ctx.fillStyle=active?'#378add':'rgba(55,138,221,0.2)';ctx.fill();
+  ctx.fillStyle=active?'#378add':'rgba(55,138,221,0.45)';
+  ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(label,x+w/2-6,y+h/2-6);
+  ctx.font='8px Share Tech Mono';ctx.fillStyle='rgba(55,138,221,0.5)';
+  ctx.fillText(sub,x+w/2-6,y+h/2+6);
+}
+
+function drawNas(){
+  const W=nasC.offsetWidth,H=nasC.offsetHeight;
+  if(nasC.width!==Math.round(W)||nasC.height!==Math.round(H)){nasC.width=Math.round(W);nasC.height=Math.round(H);}
+  nasX.clearRect(0,0,W,H);
+  const cc='#378add',cd='rgba(55,138,221,0.35)';
+  nasX.fillStyle='rgba(55,138,221,0.7)';nasX.font='bold 11px Share Tech Mono';nasX.textAlign='left';
+  nasX.fillText('NAS · Network Attached Storage · NFS / SMB',14,18);
+
+  // Ethernet switch hub at center-top
+  const swX=W/2,swY=75;
+  nasX.fillStyle='rgba(55,138,221,0.1)';nasX.strokeStyle=cc;nasX.lineWidth=1.2;
+  nasX.beginPath();nasX.roundRect(swX-60,swY-18,120,36,4);nasX.fill();nasX.stroke();
+  for(let p=0;p<8;p++){
+    nasX.fillStyle=p%2===0?cc:'rgba(55,138,221,0.2)';
+    nasX.beginPath();nasX.roundRect(swX-56+p*14,swY-8,10,16,2);nasX.fill();
+  }
+  nasX.fillStyle='rgba(55,138,221,0.8)';nasX.font='8px Share Tech Mono';nasX.textAlign='center';nasX.textBaseline='top';
+  nasX.fillText('ETHERNET SWITCH',swX,swY+22);
+
+  // NAS device center-bottom
+  const nasDevX=W/2,nasDevY=270;
+  nasX.fillStyle='rgba(55,138,221,0.12)';nasX.strokeStyle=cc;nasX.lineWidth=1.5;
+  nasX.beginPath();nasX.roundRect(nasDevX-50,nasDevY-20,100,40,4);nasX.fill();nasX.stroke();
+  nasX.fillStyle='rgba(55,138,221,0.9)';nasX.font='bold 10px Share Tech Mono';nasX.textAlign='center';nasX.textBaseline='middle';
+  nasX.fillText('NAS DEVICE',nasDevX,nasDevY-6);
+  nasX.font='8px Share Tech Mono';nasX.fillStyle='rgba(55,138,221,0.6)';
+  nasX.fillText('NFS · SMB · RAID',nasDevX,nasDevY+8);
+  // Disks under NAS
+  for(let d=0;d<4;d++){
+    const dx=nasDevX-46+d*24;
+    nasX.strokeStyle='rgba(55,138,221,0.4)';nasX.lineWidth=.6;
+    nasX.beginPath();nasX.roundRect(dx,nasDevY+22,18,14,2);nasX.fill();nasX.stroke();
+    nasX.fillStyle='rgba(55,138,221,0.6)';nasX.font='7px Share Tech Mono';nasX.textAlign='center';nasX.textBaseline='middle';
+    nasX.fillText('D'+(d+1),dx+9,nasDevY+29);
+  }
+  nasX.fillStyle='rgba(55,138,221,0.3)';nasX.font='8px Share Tech Mono';nasX.textAlign='center';
+  nasX.fillText('RAID array compartido',nasDevX,nasDevY+50);
+
+  // Line from switch down to NAS
+  nasX.strokeStyle=cc;nasX.lineWidth=1.5;
+  nasX.beginPath();nasX.moveTo(swX,swY+18);nasX.lineTo(nasDevX,nasDevY-20);nasX.stroke();
+
+  // 4 servers around switch
+  const srvPos=[{x:80,y:140},{x:200,y:140},{x:370,y:140},{x:490,y:140}];
+  const activeNas=Math.floor(nasT/35)%4;
+  srvPos.forEach((s,i)=>{
+    const act=i===activeNas;
+    nasBox(nasX,s.x-40,s.y,80,44,'SRV '+(i+1),act?'TX/RX':'IDLE','#378add',act);
+    // Line from switch to server
+    nasX.strokeStyle=act?cc:'rgba(55,138,221,0.2)';nasX.lineWidth=act?1.5:.5;
+    nasX.beginPath();nasX.moveTo(swX,swY+18);nasX.lineTo(s.x,s.y);nasX.stroke();
+  });
+
+  // Moving packets on active server path
+  const aS=srvPos[activeNas];
+  const t=(nasT%35)/35;
+  // Request: server → switch
+  const rx=aS.x+(swX-aS.x)*t,ry=aS.y+(swY+18-aS.y)*t;
+  nasX.beginPath();nasX.arc(rx,ry,4,0,Math.PI*2);
+  nasX.fillStyle='#378add';nasX.fill();
+  // Response: switch → NAS
+  const rt2=((nasT+18)%35)/35;
+  const rx2=swX+(nasDevX-swX)*rt2,ry2=(swY+18)+(nasDevY-20-(swY+18))*rt2;
+  nasX.beginPath();nasX.arc(rx2,ry2,3,0,Math.PI*2);
+  nasX.fillStyle='rgba(55,138,221,0.7)';nasX.fill();
+
+  nasX.fillStyle='rgba(55,138,221,0.35)';nasX.font='9px Share Tech Mono';nasX.textAlign='center';
+  nasX.fillText('▲ todos los servidores comparten el mismo almacenamiento de archivos',W/2,340);
+
+  nasT++;requestAnimationFrame(drawNas);
+}
+drawNas();
+
+// ─── SAN SCENE ─────────────────────────────────────
+const sanC=document.getElementById('c-san');
+const sanX=sanC.getContext('2d');
+let sanT=0;
+
+function sanRect(ctx,x,y,w,h,label,sub,color,active){
+  ctx.strokeStyle=active?color:'rgba(29,158,117,0.25)';ctx.lineWidth=active?1.5:.5;
+  ctx.fillStyle=active?'rgba(29,158,117,0.14)':'rgba(29,158,117,0.04)';
+  ctx.beginPath();ctx.roundRect(x,y,w,h,3);ctx.fill();ctx.stroke();
+  ctx.fillStyle=active?'rgba(29,158,117,0.9)':'rgba(29,158,117,0.4)';
+  ctx.font='bold 9px Share Tech Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(label,x+w/2,y+h/2-(sub?5:0));
+  if(sub){ctx.font='7px Share Tech Mono';ctx.fillStyle='rgba(29,158,117,0.5)';ctx.fillText(sub,x+w/2,y+h/2+7);}
+}
+
+function drawSan(){
+  const W=sanC.offsetWidth,H=sanC.offsetHeight;
+  if(sanC.width!==Math.round(W)||sanC.height!==Math.round(H)){sanC.width=Math.round(W);sanC.height=Math.round(H);}
+  sanX.clearRect(0,0,W,H);
+  const cc='#1d9e75',cd='rgba(29,158,117,0.3)';
+  sanX.fillStyle='rgba(29,158,117,0.7)';sanX.font='bold 11px Share Tech Mono';sanX.textAlign='left';
+  sanX.fillText('SAN · Storage Area Network · iSCSI / Fibre Channel',14,18);
+
+  // IP/FC Network cloud top
+  const nx=W/2,ny=58;
+  sanX.strokeStyle='rgba(29,158,117,0.4)';sanX.lineWidth=.8;sanX.setLineDash([3,4]);
+  sanX.beginPath();sanX.ellipse(nx,ny,80,22,0,0,Math.PI*2);sanX.stroke();
+  sanX.setLineDash([]);
+  sanX.fillStyle='rgba(29,158,117,0.08)';sanX.beginPath();sanX.ellipse(nx,ny,80,22,0,0,Math.PI*2);sanX.fill();
+  sanX.fillStyle='rgba(29,158,117,0.6)';sanX.font='9px Share Tech Mono';sanX.textAlign='center';sanX.textBaseline='middle';
+  sanX.fillText('IP / FC NETWORK',nx,ny);
+
+  // 3 servers top row
+  const srvS=[{x:100,y:110},{x:W/2-40,y:110},{x:W-180,y:110}];
+  const actSrv=Math.floor(sanT/45)%3;
+  srvS.forEach((s,i)=>{
+    const act=i===actSrv;
+    sanRect(sanX,s.x,s.y,80,42,'SERVER '+(i+1),act?'INITIATOR':'IDLE',cc,act);
+    // HBA card inside server
+    sanX.strokeStyle=act?cc:cd;sanX.lineWidth=act?1:.4;
+    sanX.beginPath();sanX.roundRect(s.x+6,s.y+28,30,10,2);sanX.fill();sanX.stroke();
+    sanX.fillStyle=act?cc:cd;sanX.font='6px Share Tech Mono';sanX.textAlign='center';sanX.textBaseline='middle';
+    sanX.fillText('HBA',s.x+21,s.y+33);
+    // Line from server to cloud
+    sanX.strokeStyle=act?cc:cd;sanX.lineWidth=act?1.5:.5;
+    sanX.beginPath();sanX.moveTo(s.x+40,s.y);sanX.lineTo(nx,ny+22);sanX.stroke();
+  });
+
+  // SAN Fabric Switch center
+  const fabX=W/2,fabY=205;
+  sanX.fillStyle='rgba(29,158,117,0.14)';sanX.strokeStyle=cc;sanX.lineWidth=1.5;
+  sanX.beginPath();sanX.roundRect(fabX-60,fabY-20,120,40,4);sanX.fill();sanX.stroke();
+  sanX.fillStyle='rgba(29,158,117,0.9)';sanX.font='bold 9px Share Tech Mono';sanX.textAlign='center';sanX.textBaseline='middle';
+  sanX.fillText('SAN FABRIC SWITCH',fabX,fabY-6);
+  sanX.font='7px Share Tech Mono';sanX.fillStyle='rgba(29,158,117,0.5)';
+  sanX.fillText('FC / iSCSI',fabX,fabY+7);
+  // Switch ports
+  for(let p=0;p<6;p++){
+    const act=sanT%6===p;
+    sanX.fillStyle=act?cc:'rgba(29,158,117,0.2)';
+    sanX.beginPath();sanX.roundRect(fabX-52+p*18,fabY+22,12,8,1);sanX.fill();
+  }
+
+  // Cloud → Switch
+  sanX.strokeStyle=cc;sanX.lineWidth=1.2;
+  sanX.beginPath();sanX.moveTo(nx,ny+22);sanX.lineTo(fabX,fabY-20);sanX.stroke();
+
+  // 3 storage arrays bottom
+  const storS=[{x:80,y:285},{x:W/2-45,y:285},{x:W-170,y:285}];
+  storS.forEach((s,i)=>{
+    const act=i===actSrv;
+    sanRect(sanX,s.x,s.y,90,36,'DISK ARRAY '+(i+1),'LUN '+i,cc,act);
+    // Disks visual
+    for(let d=0;d<3;d++){
+      sanX.strokeStyle=act?cc:cd;sanX.lineWidth=.6;
+      sanX.fillStyle=act?'rgba(29,158,117,0.2)':'rgba(29,158,117,0.04)';
+      sanX.beginPath();sanX.ellipse(s.x+18+d*22,s.y+52,10,3,0,0,Math.PI*2);sanX.fill();sanX.stroke();
+      sanX.fillRect(s.x+8+d*22,s.y+52,20,12);
+      sanX.beginPath();sanX.ellipse(s.x+18+d*22,s.y+64,10,3,0,0,Math.PI*2);sanX.fill();sanX.stroke();
+    }
+    // Line from switch to array
+    sanX.strokeStyle=act?cc:cd;sanX.lineWidth=act?1.5:.5;
+    sanX.beginPath();sanX.moveTo(fabX,fabY+20);sanX.lineTo(s.x+45,s.y);sanX.stroke();
+  });
+
+  // Moving block packets
+  const asrv=srvS[actSrv],asto=storS[actSrv];
+  const pct=(sanT%45)/45;
+  // Server → Switch packet
+  const p1x=asrv.x+40+(fabX-(asrv.x+40))*pct,p1y=asrv.y+(fabY-20-asrv.y)*pct;
+  sanX.beginPath();sanX.arc(p1x,p1y,4,0,Math.PI*2);sanX.fillStyle='#1d9e75';sanX.fill();
+  sanX.beginPath();sanX.arc(p1x,p1y,7,0,Math.PI*2);sanX.strokeStyle='rgba(29,158,117,0.3)';sanX.lineWidth=1;sanX.stroke();
+  // Switch → Storage packet
+  const p2x=fabX+(asto.x+45-fabX)*pct,p2y=fabY+20+(asto.y-(fabY+20))*pct;
+  sanX.beginPath();sanX.arc(p2x,p2y,3,0,Math.PI*2);sanX.fillStyle='rgba(29,158,117,0.7)';sanX.fill();
+
+  // LUN label
+  sanX.fillStyle='rgba(29,158,117,0.4)';sanX.font='8px Share Tech Mono';sanX.textAlign='center';
+  sanX.fillText('LUN: Logical Unit Number — bloque dedicado por servidor',W/2,350);
+
+  sanX.fillStyle='rgba(29,158,117,0.35)';sanX.font='9px Share Tech Mono';sanX.textAlign='center';
+  sanX.fillText('▲ fabric dedicado — máximo IOPS — aislamiento por LUN',W/2,370);
+
+  sanT++;requestAnimationFrame(drawSan);
+}
+drawSan();
+</script>
