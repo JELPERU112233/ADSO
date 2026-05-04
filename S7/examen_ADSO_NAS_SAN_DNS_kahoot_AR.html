@@ -1,0 +1,281 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#qroot{background:#000;min-height:600px;font-family:'Share Tech Mono',monospace;position:relative;overflow:hidden;padding:0}
+canvas#qbg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.qscreen{position:relative;z-index:10;padding:14px 16px}
+.qtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.qbadge{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:3px;color:#00d4ff;border:1px solid rgba(0,212,255,0.3);padding:4px 10px;border-radius:2px}
+.qprog{font-size:9px;color:rgba(0,212,255,0.5);letter-spacing:2px}
+.qscore-live{font-family:'Orbitron',sans-serif;font-size:11px;color:#39ff14;letter-spacing:1px}
+.qtimer-wrap{display:flex;align-items:center;justify-content:center;margin:6px 0 10px}
+.qtimer-arc{width:64px;height:64px}
+.qtimer-num{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;fill:#fff}
+.qquestion{background:rgba(0,20,40,0.9);border:1px solid rgba(0,212,255,0.25);border-radius:6px;padding:14px 16px;margin-bottom:12px;min-height:72px;display:flex;align-items:center;justify-content:center;text-align:center}
+.qquestion-text{color:#fff;font-size:14px;line-height:1.5;font-family:'Share Tech Mono',monospace}
+.qopts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.qopt{border:none;border-radius:6px;padding:14px 10px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;text-align:center;line-height:1.35;transition:transform .1s,opacity .2s;position:relative;min-height:64px;display:flex;align-items:center;justify-content:center;word-break:break-word}
+.qopt:hover{transform:scale(1.03)}
+.qopt:active{transform:scale(0.97)}
+.qopt.red{background:#e50000;color:#fff}
+.qopt.blue{background:#0055ff;color:#fff}
+.qopt.yellow{background:#f5c400;color:#1a1000}
+.qopt.green{background:#00a800;color:#fff}
+.qopt.correct{outline:4px solid #39ff14;box-shadow:0 0 0 4px #39ff14}
+.qopt.wrong{opacity:0.35}
+.qopt.disabled{pointer-events:none}
+.qfeedback{background:rgba(0,15,30,0.95);border:1px solid rgba(0,212,255,0.3);border-radius:6px;padding:12px 14px;margin-bottom:10px;display:none}
+.qfeedback.show{display:block}
+.qfeed-title{font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;margin-bottom:6px}
+.qfeed-title.ok{color:#39ff14}
+.qfeed-title.no{color:#ff3366}
+.qfeed-body{color:rgba(255,255,255,0.8);font-size:11px;line-height:1.5}
+.qnext{display:none;width:100%;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;padding:10px;border:1px solid #00d4ff;border-radius:4px;background:rgba(0,212,255,0.12);color:#00d4ff;cursor:pointer;transition:all .2s}
+.qnext:hover{background:rgba(0,212,255,0.25)}
+.qnext.show{display:block}
+.qend{display:none;text-align:center;padding:20px 10px}
+.qend.show{display:block}
+.qend-title{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:#00d4ff;letter-spacing:3px;margin-bottom:8px}
+.qend-nota{font-family:'Orbitron',sans-serif;font-size:48px;font-weight:900;margin:10px 0}
+.qend-desc{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:6px}
+.qend-detail{font-size:11px;color:rgba(0,212,255,0.6);margin-bottom:16px}
+.qend-restart{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:12px 24px;border:1px solid #39ff14;border-radius:4px;background:rgba(57,255,20,0.1);color:#39ff14;cursor:pointer;transition:all .2s}
+.qend-restart:hover{background:rgba(57,255,20,0.25)}
+.qstart{text-align:center;padding:30px 20px}
+.qstart-title{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:#00d4ff;letter-spacing:3px;margin-bottom:6px}
+.qstart-sub{font-size:11px;color:rgba(0,212,255,0.5);letter-spacing:2px;margin-bottom:20px}
+.qstart-info{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:20px;line-height:1.7}
+.qstart-btn{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:12px 28px;border:1px solid #00d4ff;border-radius:4px;background:rgba(0,212,255,0.12);color:#00d4ff;cursor:pointer;transition:all .2s}
+.qstart-btn:hover{background:rgba(0,212,255,0.25);transform:scale(1.04)}
+</style>
+
+<div id="qroot">
+<canvas id="qbg"></canvas>
+<div class="qscreen" id="screen-start">
+  <div class="qstart">
+    <div class="qstart-title">AUTOEVALUACION AR</div>
+    <div class="qstart-sub">ADSO 1INF35 — PUCP</div>
+    <div class="qstart-info">
+      Almacenamiento convergente (NAS y SAN)<br>
+      Servicios de red (DHCP, DNS, NTP)<br><br>
+      10 preguntas · 30 segundos c/u<br>
+      Sistema vigesimal (0 – 20)
+    </div>
+    <button class="qstart-btn" onclick="startQuiz()">INICIAR EXAMEN</button>
+  </div>
+</div>
+
+<div class="qscreen" id="screen-quiz" style="display:none">
+  <div class="qtop">
+    <div class="qbadge" id="qnum-badge">PREGUNTA 1/10</div>
+    <div class="qprog" id="qprog-dots"></div>
+    <div class="qscore-live" id="qlive-score">0 pts</div>
+  </div>
+  <div class="qtimer-wrap">
+    <svg class="qtimer-arc" id="timer-svg" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(0,212,255,0.15)" stroke-width="5"/>
+      <circle id="timer-ring" cx="32" cy="32" r="28" fill="none" stroke="#00d4ff" stroke-width="5"
+        stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round"
+        transform="rotate(-90 32 32)"/>
+      <text id="timer-num" x="32" y="37" text-anchor="middle" class="qtimer-num">30</text>
+    </svg>
+  </div>
+  <div class="qquestion"><div class="qquestion-text" id="qtext">Cargando...</div></div>
+  <div class="qopts" id="qopts-grid"></div>
+  <div class="qfeedback" id="qfeedback">
+    <div class="qfeed-title" id="qfeed-title">CORRECTO</div>
+    <div class="qfeed-body" id="qfeed-body"></div>
+  </div>
+  <button class="qnext" id="qnext-btn" onclick="nextQ()">SIGUIENTE PREGUNTA &rarr;</button>
+</div>
+
+<div class="qscreen" id="screen-end" style="display:none">
+  <div class="qend show">
+    <div class="qend-title">RESULTADO FINAL</div>
+    <div class="qend-nota" id="end-nota" style="color:#39ff14">--</div>
+    <div class="qend-desc" id="end-desc">--</div>
+    <div class="qend-detail" id="end-detail">--</div>
+    <button class="qend-restart" onclick="restartQuiz()">VOLVER A RENDIR</button>
+  </div>
+</div>
+</div>
+
+<script>
+const bgc=document.getElementById('qbg');const bgx=bgc.getContext('2d');
+let bW=0,bH=0;
+function resizeBg(){bW=bgc.offsetWidth;bH=bgc.offsetHeight||600;bgc.width=bW;bgc.height=bH;}
+resizeBg();
+const stars=Array.from({length:55},()=>({x:Math.random()*1400,y:Math.random()*700,o:Math.random()*.4+.05,r:Math.random()*.9+.2}));
+let bgT=0;
+(function loop(){
+  bgx.clearRect(0,0,bW,bH);
+  const gs=46,off=bgT%gs;
+  bgx.strokeStyle='rgba(0,80,160,0.08)';bgx.lineWidth=.4;
+  for(let x=off;x<bW;x+=gs){bgx.beginPath();bgx.moveTo(x,0);bgx.lineTo(x,bH);bgx.stroke()}
+  for(let y=off;y<bH;y+=gs){bgx.beginPath();bgx.moveTo(0,y);bgx.lineTo(bW,y);bgx.stroke()}
+  stars.forEach(s=>{
+    bgx.beginPath();bgx.arc(s.x%bW,s.y%bH,s.r,0,Math.PI*2);
+    bgx.fillStyle='rgba(0,212,255,'+s.o+')';bgx.fill();
+  });
+  bgT+=.1;requestAnimationFrame(loop);
+})();
+
+const QUESTIONS=[
+  {q:'¿Cuál es la principal diferencia entre NAS y DAS?',opts:['NAS accede por red, DAS es local y directo','DAS accede por red, NAS es local','NAS usa Fibre Channel, DAS usa Ethernet','DAS necesita RAID, NAS no'],ans:0,fb:'NAS (Network Attached Storage) es accesible a través de la red LAN usando protocolos NFS o SMB/CIFS. DAS (Direct Attached Storage) se conecta directamente al servidor por SATA, SAS o NVMe, sin red intermedia.'},
+  {q:'¿Qué protocolo usa NAS en entornos Unix/Linux y fue desarrollado por Sun Microsystems en 1984?',opts:['CIFS/SMB','iSCSI','NFS (Network File System)','FTP'],ans:2,fb:'NFS (Network File System) fue creado por Sun Microsystems en 1984 y es el protocolo estándar para compartir archivos en entornos Unix y Linux. Usa el puerto 2049 para el tráfico de datos.'},
+  {q:'En una SAN con Fibre Channel, ¿qué componente hardware del servidor permite conectarse al fabric de almacenamiento?',opts:['NIC (tarjeta de red Ethernet)','HBA (Host Bus Adapter)','RAID Controller','Storage Controller SATA'],ans:1,fb:'El HBA (Host Bus Adapter) es la tarjeta especializada instalada en el servidor que convierte comandos SCSI en tramas Fibre Channel. Tiene su propio procesador (offload engine) y posee un WWN único para identificación en el fabric.'},
+  {q:'¿Qué es un LUN en el contexto de una SAN?',opts:['Un protocolo de transferencia de bloques','Una partición lógica del disk array asignada a un servidor','El nombre del cable de fibra óptica','Un tipo de switch Ethernet para storage'],ans:1,fb:'LUN (Logical Unit Number) es una partición lógica creada dentro del disk array. El servidor la ve como un disco físico local. El LUN masking garantiza que solo el servidor autorizado (por su WWN) pueda acceder a ese LUN.'},
+  {q:'¿Cuál es la función principal del servicio DHCP en una red TCP/IP?',opts:['Resolver nombres de dominio a direcciones IP','Distribuir configuración IP automáticamente a los clientes','Autenticar usuarios en Active Directory','Sincronizar los relojes de los servidores'],ans:1,fb:'DHCP (Dynamic Host Configuration Protocol) distribuye automáticamente a los clientes: dirección IP, máscara de subred, gateway por defecto y servidores DNS. Evita la configuración manual en cada equipo de la red.'},
+  {q:'En el proceso de resolución DNS, ¿qué servidor responde primero cuando el DNS Resolver no tiene la respuesta en caché?',opts:['TLD Server (.com, .pe)','Auth Server del dominio','Root Server (gestionado por ICANN)','DNS local del ISP'],ans:2,fb:'El Root Server es el primer paso de la consulta iterativa. Existen 13 clusters mundiales gestionados por ICANN. El Root no sabe quién es "ejemplo.com" pero conoce qué servidor TLD gestiona ".com" y devuelve un referral.'},
+  {q:'¿Qué protocolo permite a SAN transportar tráfico Fibre Channel encapsulado sobre redes IP/Ethernet estándar a través de WAN?',opts:['NFS v4','FCoE (Fibre Channel over Ethernet)','FCIP (Fibre Channel over IP)','iSCSI sobre UDP'],ans:2,fb:'FCIP (FC over IP) encapsula tramas FC nativas en paquetes TCP/IP usando el puerto 3225, permitiendo conectar dos datacenters SAN a través de la WAN. El FCIP Gateway hace la conversión FC↔TCP/IP. FCoE en cambio opera solo en LAN Ethernet.'},
+  {q:'¿Cuál es la velocidad máxima actual de Fibre Channel según el estándar más reciente mencionado en el curso?',opts:['10 Gbps','32 Gbps','64 Gbps','100 Gbps'],ans:2,fb:'Fibre Channel comenzó con 1 Gbps y ha escalado a 2, 4, 8, 16, 32 y actualmente 64 Gbps en su versión más reciente. Es una tecnología diseñada específicamente para storage con baja sobrecarga de transmisión.'},
+  {q:'¿Cuál es el puerto UDP usado por el protocolo NTP para sincronización de tiempo?',opts:['Puerto 53','Puerto 123','Puerto 443','Puerto 2049'],ans:1,fb:'NTP (Network Time Protocol) usa el puerto UDP 123. El cliente envía un timestamp (T1) al servidor, el servidor registra T2 y responde con T3, el cliente registra T4. Con estos 4 valores calcula el offset y el delay para ajustar su reloj.'},
+  {q:'¿Qué implementación de DNS en Linux usa BIND 9 (Berkeley Internet Name Domain) y es compatible con Ubuntu, CentOS y RedHat?',opts:['Solo con Windows Server y Active Directory','BIND 9 en distribuciones Linux como Ubuntu y CentOS','Amazon Route 53 exclusivamente','Solo con equipos Cisco IOS'],ans:1,fb:'BIND 9 (Berkeley Internet Name Domain) es el servidor DNS más usado en Linux. Es compatible con Ubuntu, CentOS/Fedora y está incluido en RedHat. En Windows, DNS se configura como rol del servidor, integrable con Active Directory.'},
+];
+
+const COLORS=['red','blue','yellow','green'];
+let cur=0,score=0,timerVal=30,timerInt=null,answered=false;
+const TOTAL_TIME=30,CIRC=2*Math.PI*28;
+
+function startQuiz(){
+  document.getElementById('screen-start').style.display='none';
+  document.getElementById('screen-quiz').style.display='block';
+  cur=0;score=0;answered=false;
+  renderQ();
+}
+
+function renderQ(){
+  answered=false;
+  const q=QUESTIONS[cur];
+  document.getElementById('qnum-badge').textContent='PREGUNTA '+(cur+1)+'/10';
+  document.getElementById('qlive-score').textContent=score+' pts';
+  document.getElementById('qtext').textContent=q.q;
+  document.getElementById('qfeedback').classList.remove('show');
+  document.getElementById('qnext-btn').classList.remove('show');
+  updateDots();
+  const grid=document.getElementById('qopts-grid');
+  grid.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className='qopt '+COLORS[i];
+    btn.textContent=opt;
+    btn.onclick=()=>answer(i);
+    grid.appendChild(btn);
+  });
+  startTimer();
+}
+
+function updateDots(){
+  let s='';
+  for(let i=0;i<10;i++){
+    if(i<cur)s+='<span style="color:#39ff14">■</span>';
+    else if(i===cur)s+='<span style="color:#00d4ff">■</span>';
+    else s+='<span style="color:rgba(255,255,255,0.15)">■</span>';
+  }
+  document.getElementById('qprog-dots').innerHTML=s;
+}
+
+function startTimer(){
+  timerVal=TOTAL_TIME;
+  clearInterval(timerInt);
+  updateTimerUI();
+  timerInt=setInterval(()=>{
+    timerVal--;
+    updateTimerUI();
+    if(timerVal<=0){clearInterval(timerInt);timeOut();}
+  },1000);
+}
+
+function updateTimerUI(){
+  const ring=document.getElementById('timer-ring');
+  const num=document.getElementById('timer-num');
+  const frac=timerVal/TOTAL_TIME;
+  ring.setAttribute('stroke-dashoffset',CIRC*(1-frac));
+  const col=timerVal>10?'#00d4ff':timerVal>5?'#f5c400':'#ff3366';
+  ring.setAttribute('stroke',col);
+  num.textContent=timerVal;
+  num.setAttribute('fill',col);
+}
+
+function timeOut(){
+  if(answered)return;
+  answered=true;
+  disableOpts();
+  showCorrect(-1);
+  showFeedback(false,'Tiempo agotado. La respuesta correcta era la opcion '+(QUESTIONS[cur].ans+1)+'.\n'+QUESTIONS[cur].fb);
+}
+
+function answer(idx){
+  if(answered)return;
+  answered=true;
+  clearInterval(timerInt);
+  const q=QUESTIONS[cur];
+  const correct=idx===q.ans;
+  if(correct){
+    const pts=Math.max(2,Math.round(2*timerVal/TOTAL_TIME*10));
+    score+=pts;
+  }
+  disableOpts();
+  showCorrect(idx);
+  showFeedback(correct,q.fb);
+}
+
+function disableOpts(){
+  document.querySelectorAll('.qopt').forEach(b=>b.classList.add('disabled'));
+}
+
+function showCorrect(chosen){
+  const ans=QUESTIONS[cur].ans;
+  document.querySelectorAll('.qopt').forEach((b,i)=>{
+    if(i===ans)b.classList.add('correct');
+    else if(i===chosen&&i!==ans)b.classList.add('wrong');
+    else b.classList.add('wrong');
+  });
+}
+
+function showFeedback(ok,text){
+  const fb=document.getElementById('qfeedback');
+  const title=document.getElementById('qfeed-title');
+  const body=document.getElementById('qfeed-body');
+  fb.classList.add('show');
+  title.className='qfeed-title '+(ok?'ok':'no');
+  title.textContent=ok?'CORRECTO ✓':'INCORRECTO ✗';
+  body.textContent=text;
+  document.getElementById('qlive-score').textContent=score+' pts';
+  document.getElementById('qnext-btn').classList.add('show');
+  document.getElementById('qnext-btn').textContent=cur<9?'SIGUIENTE PREGUNTA →':'VER RESULTADO FINAL →';
+}
+
+function nextQ(){
+  cur++;
+  if(cur>=10){showEnd();return;}
+  renderQ();
+}
+
+function showEnd(){
+  document.getElementById('screen-quiz').style.display='none';
+  document.getElementById('screen-end').style.display='block';
+  const maxPts=10*2*10/TOTAL_TIME*TOTAL_TIME;
+  const nota=Math.min(20,Math.round((score/100)*20*10)/10);
+  const nota20=parseFloat(nota.toFixed(1));
+  document.getElementById('end-nota').textContent=nota20.toFixed(1);
+  const colors=['#ff3366','#f5c400','#00d4ff','#39ff14'];
+  const col=nota20<10?colors[0]:nota20<13?colors[1]:nota20<16?colors[2]:colors[3];
+  document.getElementById('end-nota').style.color=col;
+  let desc='',emoji='';
+  if(nota20<10){desc='Desaprobado — Necesitas repasar el material';emoji='Revisa el Capítulo 4 Semana 4';}
+  else if(nota20<13){desc='Aprobado con observaciones';emoji='Refuerza NAS/SAN y servicios de red';}
+  else if(nota20<16){desc='Buen desempeño';emoji='Dominas los conceptos principales';}
+  else{desc='Excelente desempeño';emoji='Dominio sobresaliente del tema';}
+  document.getElementById('end-desc').textContent=desc;
+  document.getElementById('end-detail').textContent=score+' puntos acumulados · '+emoji;
+}
+
+function restartQuiz(){
+  document.getElementById('screen-end').style.display='none';
+  document.getElementById('screen-quiz').style.display='none';
+  document.getElementById('screen-start').style.display='block';
+  cur=0;score=0;
+}
+</script>
