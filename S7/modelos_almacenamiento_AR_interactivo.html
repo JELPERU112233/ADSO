@@ -1,0 +1,488 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --neon-blue:#00d4ff;--neon-green:#39ff14;--neon-amber:#ffaa00;
+    --dark-bg:#020d1a;--panel-bg:rgba(0,20,40,0.92);
+    --grid-color:rgba(0,212,255,0.08);
+  }
+  #ar-root{
+    background:var(--dark-bg);
+    min-height:700px;padding:0;position:relative;overflow:hidden;
+    font-family:'Share Tech Mono',monospace;
+  }
+  canvas#bg-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  .hud-header{
+    position:relative;z-index:10;text-align:center;padding:18px 0 8px;
+    border-bottom:1px solid rgba(0,212,255,0.25);
+  }
+  .hud-title{
+    font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;
+    color:var(--neon-blue);letter-spacing:4px;text-transform:uppercase;
+    text-shadow:0 0 12px rgba(0,212,255,0.7);
+  }
+  .hud-sub{font-size:10px;color:rgba(0,212,255,0.5);letter-spacing:3px;margin-top:3px}
+  .tab-row{
+    position:relative;z-index:10;display:flex;justify-content:center;gap:8px;
+    padding:12px 16px;
+  }
+  .tab-btn{
+    font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;
+    letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+    padding:8px 16px;border:1px solid;border-radius:2px;
+    transition:all .25s;background:transparent;
+  }
+  .tab-btn.blue{color:var(--neon-blue);border-color:rgba(0,212,255,0.4)}
+  .tab-btn.green{color:var(--neon-green);border-color:rgba(57,255,20,0.4)}
+  .tab-btn.amber{color:var(--neon-amber);border-color:rgba(255,170,0,0.4)}
+  .tab-btn.blue.active,.tab-btn.blue:hover{background:rgba(0,212,255,0.12);border-color:var(--neon-blue);box-shadow:0 0 16px rgba(0,212,255,0.3)}
+  .tab-btn.green.active,.tab-btn.green:hover{background:rgba(57,255,20,0.1);border-color:var(--neon-green);box-shadow:0 0 16px rgba(57,255,20,0.25)}
+  .tab-btn.amber.active,.tab-btn.amber:hover{background:rgba(255,170,0,0.1);border-color:var(--neon-amber);box-shadow:0 0 16px rgba(255,170,0,0.25)}
+  .scene-panel{
+    position:relative;z-index:10;
+    margin:0 16px 12px;border:1px solid;border-radius:4px;
+    padding:20px;min-height:340px;transition:all .4s;display:none;
+  }
+  .scene-panel.active{display:flex;flex-direction:column;gap:16px}
+  .scene-panel.blue{border-color:rgba(0,212,255,0.35);background:rgba(0,20,40,0.85)}
+  .scene-panel.green{border-color:rgba(57,255,20,0.3);background:rgba(0,20,10,0.85)}
+  .scene-panel.amber{border-color:rgba(255,170,0,0.3);background:rgba(20,12,0,0.85)}
+  .scene-top{display:flex;gap:16px;align-items:flex-start}
+  .anim-box{flex:0 0 200px;height:180px;position:relative;border:1px solid;border-radius:3px;overflow:hidden}
+  .scene-panel.blue .anim-box{border-color:rgba(0,212,255,0.3)}
+  .scene-panel.green .anim-box{border-color:rgba(57,255,20,0.3)}
+  .scene-panel.amber .anim-box{border-color:rgba(255,170,0,0.3)}
+  .info-block{flex:1}
+  .model-label{
+    font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;
+    letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;
+  }
+  .blue .model-label{color:var(--neon-blue)}
+  .green .model-label{color:var(--neon-green)}
+  .amber .model-label{color:var(--neon-amber)}
+  .prop-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:11px}
+  .prop-key{color:rgba(255,255,255,0.4);min-width:80px;flex-shrink:0;letter-spacing:1px}
+  .prop-val{color:rgba(255,255,255,0.85);line-height:1.4}
+  .blue .prop-val span{color:var(--neon-blue)}
+  .green .prop-val span{color:var(--neon-green)}
+  .amber .prop-val span{color:var(--neon-amber)}
+  .metrics-row{display:flex;gap:8px;flex-wrap:wrap}
+  .metric-card{
+    flex:1;min-width:80px;padding:10px;border-radius:3px;text-align:center;
+    border:1px solid;
+  }
+  .blue .metric-card{border-color:rgba(0,212,255,0.25);background:rgba(0,212,255,0.06)}
+  .green .metric-card{border-color:rgba(57,255,20,0.2);background:rgba(57,255,20,0.05)}
+  .amber .metric-card{border-color:rgba(255,170,0,0.2);background:rgba(255,170,0,0.05)}
+  .metric-val{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;margin-bottom:3px}
+  .blue .metric-val{color:var(--neon-blue)}
+  .green .metric-val{color:var(--neon-green)}
+  .amber .metric-val{color:var(--neon-amber)}
+  .metric-lbl{font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase}
+  .bar-section{margin-top:4px}
+  .bar-lbl{font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:4px;letter-spacing:1px}
+  .bar-track{height:6px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:8px}
+  .bar-fill{height:100%;border-radius:2px;transition:width 1s ease}
+  .blue .bar-fill{background:linear-gradient(90deg,rgba(0,212,255,0.4),var(--neon-blue))}
+  .green .bar-fill{background:linear-gradient(90deg,rgba(57,255,20,0.3),var(--neon-green))}
+  .amber .bar-fill{background:linear-gradient(90deg,rgba(255,170,0,0.3),var(--neon-amber))}
+  .usecase-list{margin-top:10px}
+  .usecase-item{
+    font-size:10px;padding:5px 8px;margin-bottom:4px;border-left:2px solid;
+    color:rgba(255,255,255,0.7);letter-spacing:.5px;
+  }
+  .blue .usecase-item{border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.04)}
+  .green .usecase-item{border-color:rgba(57,255,20,0.4);background:rgba(57,255,20,0.03)}
+  .amber .usecase-item{border-color:rgba(255,170,0,0.4);background:rgba(255,170,0,0.04)}
+  .compare-row{
+    position:relative;z-index:10;margin:0 16px 16px;
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
+  }
+  .compare-cell{
+    padding:8px 10px;border-radius:3px;font-size:10px;text-align:center;
+    border-top:2px solid;
+  }
+  .compare-cell.blue{border-color:var(--neon-blue);background:rgba(0,212,255,0.06);color:rgba(0,212,255,0.8)}
+  .compare-cell.green{border-color:var(--neon-green);background:rgba(57,255,20,0.05);color:rgba(57,255,20,0.8)}
+  .compare-cell.amber{border-color:var(--neon-amber);background:rgba(255,170,0,0.06);color:rgba(255,170,0,0.8)}
+  .compare-cell .cc-title{font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:2px;margin-bottom:4px}
+  .hud-footer{
+    position:relative;z-index:10;text-align:center;padding:8px;
+    font-size:9px;color:rgba(0,212,255,0.25);letter-spacing:2px;
+    border-top:1px solid rgba(0,212,255,0.1);
+  }
+  @keyframes floatUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-160px);opacity:0}}
+  @keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+  @keyframes scanline{0%{top:-30px}100%{top:calc(100% + 30px)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .scanline{
+    position:absolute;left:0;width:100%;height:28px;pointer-events:none;z-index:2;
+    background:linear-gradient(transparent,rgba(0,212,255,0.04),transparent);
+    animation:scanline 3.5s linear infinite;
+  }
+</style>
+
+<div id="ar-root">
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="hud-header">
+    <div class="hud-title">▸ STORAGE MODEL ANALYZER ◂</div>
+    <div class="hud-sub">AR INTERACTIVE — SISTEMAS OPERATIVOS · UPN</div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn blue active" onclick="showPanel('file')">▣ Archivos</button>
+    <button class="tab-btn green" onclick="showPanel('block')">▦ Bloques</button>
+    <button class="tab-btn amber" onclick="showPanel('object')">◉ Objetos</button>
+  </div>
+
+  <!-- PANEL 1: ARCHIVOS -->
+  <div class="scene-panel blue active" id="panel-file">
+    <div class="scene-top">
+      <div class="anim-box" id="anim-file">
+        <div class="scanline"></div>
+        <canvas id="canvas-file" width="200" height="180" style="width:100%;height:100%"></canvas>
+      </div>
+      <div class="info-block">
+        <div class="model-label">Almacenamiento de Archivos</div>
+        <div class="prop-row"><span class="prop-key">Estructura</span><span class="prop-val">Jerarquía de <span>directorios/carpetas</span></span></div>
+        <div class="prop-row"><span class="prop-key">Acceso</span><span class="prop-val">Via <span>ruta</span>: /home/user/docs/reporte.pdf</span></div>
+        <div class="prop-row"><span class="prop-key">Protocolo</span><span class="prop-val"><span>NFS, SMB/CIFS, POSIX</span></span></div>
+        <div class="prop-row"><span class="prop-key">Escalado</span><span class="prop-val">Vertical — limitado por sistema de archivos</span></div>
+        <div class="prop-row"><span class="prop-key">Cloud AWS</span><span class="prop-val"><span>Amazon EFS</span></span></div>
+        <div class="prop-row"><span class="prop-key">Cloud Azure</span><span class="prop-val"><span>Azure Files</span></span></div>
+      </div>
+    </div>
+    <div class="metrics-row">
+      <div class="metric-card"><div class="metric-val">O(n)</div><div class="metric-lbl">Búsqueda</div></div>
+      <div class="metric-card"><div class="metric-val">Alto</div><div class="metric-lbl">Compatibilidad</div></div>
+      <div class="metric-card"><div class="metric-val">Medio</div><div class="metric-lbl">Rendimiento</div></div>
+      <div class="metric-card"><div class="metric-val">Simple</div><div class="metric-lbl">Gestión</div></div>
+    </div>
+    <div class="bar-section">
+      <div class="bar-lbl">COMPATIBILIDAD SISTÉMICA</div>
+      <div class="bar-track"><div class="bar-fill" style="width:92%"></div></div>
+      <div class="bar-lbl">RENDIMIENTO I/O</div>
+      <div class="bar-track"><div class="bar-fill" style="width:55%"></div></div>
+      <div class="bar-lbl">ESCALABILIDAD HORIZONTAL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:30%"></div></div>
+    </div>
+    <div class="usecase-list">
+      <div class="usecase-item">▸ Sistemas de archivos compartidos en red corporativa (NAS)</div>
+      <div class="usecase-item">▸ Home directories de usuarios Linux/Windows</div>
+      <div class="usecase-item">▸ Servidores de archivos para colaboración de equipos</div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: BLOQUES -->
+  <div class="scene-panel green" id="panel-block">
+    <div class="scene-top">
+      <div class="anim-box" id="anim-block">
+        <div class="scanline" style="background:linear-gradient(transparent,rgba(57,255,20,0.04),transparent)"></div>
+        <canvas id="canvas-block" width="200" height="180" style="width:100%;height:100%"></canvas>
+      </div>
+      <div class="info-block">
+        <div class="model-label">Almacenamiento en Bloques</div>
+        <div class="prop-row"><span class="prop-key">Estructura</span><span class="prop-val">Bloques de datos de <span>tamaño fijo</span> (512B – 4KB)</span></div>
+        <div class="prop-row"><span class="prop-key">Acceso</span><span class="prop-val">Via <span>dirección LBA</span> (Logical Block Address)</span></div>
+        <div class="prop-row"><span class="prop-key">Protocolo</span><span class="prop-val"><span>iSCSI, Fibre Channel, NVMe-oF</span></span></div>
+        <div class="prop-row"><span class="prop-key">Escalado</span><span class="prop-val">Horizontal — múltiples volúmenes independientes</span></div>
+        <div class="prop-row"><span class="prop-key">Cloud AWS</span><span class="prop-val"><span>Amazon EBS</span></span></div>
+        <div class="prop-row"><span class="prop-key">Cloud Azure</span><span class="prop-val"><span>Azure Managed Disks</span></span></div>
+      </div>
+    </div>
+    <div class="metrics-row">
+      <div class="metric-card"><div class="metric-val">O(1)</div><div class="metric-lbl">Acceso LBA</div></div>
+      <div class="metric-card"><div class="metric-val">Máximo</div><div class="metric-lbl">Rendimiento</div></div>
+      <div class="metric-card"><div class="metric-val">Alto</div><div class="metric-lbl">IOPS</div></div>
+      <div class="metric-card"><div class="metric-val">Bajo</div><div class="metric-lbl">Latencia</div></div>
+    </div>
+    <div class="bar-section">
+      <div class="bar-lbl">RENDIMIENTO I/O</div>
+      <div class="bar-track"><div class="bar-fill" style="width:97%"></div></div>
+      <div class="bar-lbl">FLEXIBILIDAD DE DATOS</div>
+      <div class="bar-track"><div class="bar-fill" style="width:50%"></div></div>
+      <div class="bar-lbl">ESCALABILIDAD HORIZONTAL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:65%"></div></div>
+    </div>
+    <div class="usecase-list">
+      <div class="usecase-item">▸ Discos de máquinas virtuales (VMs en VMware, KVM, Hyper-V)</div>
+      <div class="usecase-item">▸ Bases de datos de alto rendimiento (Oracle, SQL Server, PostgreSQL)</div>
+      <div class="usecase-item">▸ SAN (Storage Area Network) empresarial</div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: OBJETOS -->
+  <div class="scene-panel amber" id="panel-object">
+    <div class="scene-top">
+      <div class="anim-box" id="anim-object">
+        <div class="scanline" style="background:linear-gradient(transparent,rgba(255,170,0,0.05),transparent)"></div>
+        <canvas id="canvas-object" width="200" height="180" style="width:100%;height:100%"></canvas>
+      </div>
+      <div class="info-block">
+        <div class="model-label">Almacenamiento de Objetos</div>
+        <div class="prop-row"><span class="prop-key">Estructura</span><span class="prop-val">Objetos planos con <span>metadatos</span> y UUID único</span></div>
+        <div class="prop-row"><span class="prop-key">Acceso</span><span class="prop-val">Via <span>API REST / HTTP</span> (GET, PUT, DELETE)</span></div>
+        <div class="prop-row"><span class="prop-key">Protocolo</span><span class="prop-val"><span>S3 API, Swift (OpenStack)</span></span></div>
+        <div class="prop-row"><span class="prop-key">Escalado</span><span class="prop-val">Masivo — petabytes, millones de objetos</span></div>
+        <div class="prop-row"><span class="prop-key">Cloud AWS</span><span class="prop-val"><span>Amazon S3</span></span></div>
+        <div class="prop-row"><span class="prop-key">Cloud Azure</span><span class="prop-val"><span>Azure Blob Storage</span></span></div>
+      </div>
+    </div>
+    <div class="metrics-row">
+      <div class="metric-card"><div class="metric-val">∞</div><div class="metric-lbl">Escalabilidad</div></div>
+      <div class="metric-card"><div class="metric-val">Máximo</div><div class="metric-lbl">Durabilidad</div></div>
+      <div class="metric-card"><div class="metric-val">REST</div><div class="metric-lbl">Interfaz</div></div>
+      <div class="metric-card"><div class="metric-val">Bajo</div><div class="metric-lbl">Costo/GB</div></div>
+    </div>
+    <div class="bar-section">
+      <div class="bar-lbl">ESCALABILIDAD HORIZONTAL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:99%"></div></div>
+      <div class="bar-lbl">RIQUEZA DE METADATOS</div>
+      <div class="bar-track"><div class="bar-fill" style="width:95%"></div></div>
+      <div class="bar-lbl">RENDIMIENTO I/O TRANSACCIONAL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:40%"></div></div>
+    </div>
+    <div class="usecase-list">
+      <div class="usecase-item">▸ Data lakes para Big Data y Machine Learning (S3 + Athena)</div>
+      <div class="usecase-item">▸ CDN — distribución de contenido estático (imágenes, videos)</div>
+      <div class="usecase-item">▸ Backup/archivado masivo a largo plazo (Glacier, Archive)</div>
+    </div>
+  </div>
+
+  <!-- TABLA COMPARATIVA -->
+  <div class="compare-row">
+    <div class="compare-cell blue">
+      <div class="cc-title">▣ Archivos</div>
+      Rutas jerárquicas · NFS/SMB · Colaboración · NAS
+    </div>
+    <div class="compare-cell green">
+      <div class="cc-title">▦ Bloques</div>
+      LBA directo · iSCSI/FC · Máx IOPS · VMs/DBs
+    </div>
+    <div class="compare-cell amber">
+      <div class="cc-title">◉ Objetos</div>
+      API REST · Metadatos · Petabytes · S3/Blob
+    </div>
+  </div>
+
+  <div class="hud-footer">[ AR-STORAGE-ANALYZER v2.6 ] · SISTEMAS OPERATIVOS · UPN · <span id="clock">--:--:--</span></div>
+</div>
+
+<script>
+// Clock
+function updateClock(){
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    n.getHours().toString().padStart(2,'0')+':'+
+    n.getMinutes().toString().padStart(2,'0')+':'+
+    n.getSeconds().toString().padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
+
+// Tab switch
+function showPanel(id){
+  ['file','block','object'].forEach(p=>{
+    document.getElementById('panel-'+p).classList.remove('active');
+  });
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const idx={file:0,block:1,object:2}[id];
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+}
+
+// Background canvas — scrolling grid + particles
+const bgCvs=document.getElementById('bg-canvas');
+const bgCtx=bgCvs.getContext('2d');
+let bgW,bgH;
+function resizeBg(){
+  bgW=bgCvs.offsetWidth;bgH=bgCvs.offsetHeight;
+  bgCvs.width=bgW;bgCvs.height=bgH;
+}
+resizeBg();
+
+const particles=Array.from({length:40},()=>({
+  x:Math.random()*1200,y:Math.random()*800,
+  vx:(Math.random()-.5)*.3,vy:-Math.random()*.4-.1,
+  r:Math.random()*1.5+.5,o:Math.random()*.5+.1
+}));
+
+let gt=0;
+function drawBg(){
+  bgCtx.clearRect(0,0,bgW,bgH);
+  // Grid
+  bgCtx.strokeStyle='rgba(0,212,255,0.06)';bgCtx.lineWidth=.5;
+  const gs=40;const off=gt%gs;
+  for(let x=off;x<bgW;x+=gs){bgCtx.beginPath();bgCtx.moveTo(x,0);bgCtx.lineTo(x,bgH);bgCtx.stroke()}
+  for(let y=off;y<bgH;y+=gs){bgCtx.beginPath();bgCtx.moveTo(0,y);bgCtx.lineTo(bgW,y);bgCtx.stroke()}
+  // Particles
+  particles.forEach(p=>{
+    bgCtx.beginPath();bgCtx.arc(p.x%bgW,p.y,p.r,0,Math.PI*2);
+    bgCtx.fillStyle='rgba(0,212,255,'+p.o+')';bgCtx.fill();
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.y<-5)p.y=bgH+5;
+    if(p.x<0)p.x=bgW;if(p.x>bgW)p.x=0;
+  });
+  gt+=.3;
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ─── CANVAS 1: File storage – tree animation ───
+const fc=document.getElementById('canvas-file');
+const fx=fc.getContext('2d');
+const tree=[
+  {x:100,y:20,label:'/',children:[1,2]},
+  {x:50,y:65,label:'home',children:[3]},
+  {x:150,y:65,label:'var',children:[4,5]},
+  {x:25,y:110,label:'user1',children:[6,7]},
+  {x:120,y:110,label:'log',children:[]},
+  {x:175,y:110,label:'www',children:[]},
+  {x:10,y:155,label:'doc.txt',children:[],leaf:true},
+  {x:55,y:155,label:'img.png',children:[],leaf:true},
+];
+const edges=[[0,1],[0,2],[1,3],[2,4],[2,5],[3,6],[3,7]];
+let fileT=0,activeNode=-1;
+function drawFile(){
+  fx.clearRect(0,0,200,180);
+  // Background
+  fx.fillStyle='rgba(0,8,20,0.6)';fx.fillRect(0,0,200,180);
+  // Draw edges with flow packets
+  edges.forEach(([a,b])=>{
+    const na=tree[a],nb=tree[b];
+    fx.strokeStyle='rgba(0,212,255,0.3)';fx.lineWidth=1;
+    fx.setLineDash([3,4]);
+    fx.beginPath();fx.moveTo(na.x,na.y);fx.lineTo(nb.x,nb.y);fx.stroke();
+    fx.setLineDash([]);
+    // Packet
+    const t=((fileT*0.6+a*30)%100)/100;
+    const px=na.x+(nb.x-na.x)*t,py=na.y+(nb.y-na.y)*t;
+    fx.beginPath();fx.arc(px,py,2,0,Math.PI*2);
+    fx.fillStyle='rgba(0,212,255,0.9)';fx.fill();
+  });
+  // Draw nodes
+  tree.forEach((n,i)=>{
+    const glow=activeNode===i;
+    if(n.leaf){
+      fx.fillStyle=glow?'rgba(0,212,255,0.4)':'rgba(0,212,255,0.1)';
+      fx.strokeStyle=glow?'#00d4ff':'rgba(0,212,255,0.5)';
+      fx.lineWidth=glow?1.5:.8;
+      fx.beginPath();fx.roundRect(n.x-18,n.y-8,36,16,2);fx.fill();fx.stroke();
+    } else {
+      fx.fillStyle=glow?'rgba(0,212,255,0.3)':'rgba(0,40,70,0.9)';
+      fx.strokeStyle=glow?'#00d4ff':'rgba(0,212,255,0.6)';
+      fx.lineWidth=glow?1.5:.8;
+      fx.beginPath();fx.rect(n.x-16,n.y-10,32,20);fx.fill();fx.stroke();
+    }
+    fx.fillStyle=glow?'#00d4ff':'rgba(0,212,255,0.85)';
+    fx.font=n.leaf?'8px Share Tech Mono':'9px Share Tech Mono';
+    fx.textAlign='center';fx.textBaseline='middle';
+    fx.fillText(n.label,n.x,n.y);
+  });
+  // Highlight path flash
+  const hi=Math.floor(fileT/50)%tree.length;
+  if(hi!==activeNode)activeNode=hi;
+  fileT++;
+  requestAnimationFrame(drawFile);
+}
+drawFile();
+
+// ─── CANVAS 2: Block storage – block grid ───
+const bc=document.getElementById('canvas-block');
+const bx=bc.getContext('2d');
+const blocks=[];
+const COLS=7,ROWS=5,BW=22,BH=22,GAPB=4;
+const OX=10,OY=10;
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)
+  blocks.push({c,r,active:false,timer:0,data:Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase()});
+let blockT=0,readHead=-1;
+function drawBlock(){
+  bx.clearRect(0,0,200,180);
+  bx.fillStyle='rgba(0,8,10,0.6)';bx.fillRect(0,0,200,180);
+  // Activate random blocks periodically
+  if(blockT%18===0){
+    const idx=Math.floor(Math.random()*blocks.length);
+    blocks[idx].active=true;blocks[idx].timer=30;
+    blocks[idx].data=Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase();
+  }
+  // Read head
+  const rhCol=Math.floor((blockT/4)%COLS);
+  readHead=rhCol;
+  // Draw LBA address bar
+  bx.fillStyle='rgba(57,255,20,0.08)';bx.fillRect(OX,OY+ROWS*(BH+GAPB)+6,COLS*(BW+GAPB)-GAPB,14);
+  bx.strokeStyle='rgba(57,255,20,0.3)';bx.lineWidth=.5;bx.strokeRect(OX,OY+ROWS*(BH+GAPB)+6,COLS*(BW+GAPB)-GAPB,14);
+  bx.fillStyle='rgba(57,255,20,0.6)';bx.font='8px Share Tech Mono';bx.textAlign='left';bx.textBaseline='middle';
+  bx.fillText('LBA: 0x'+((blockT*7)%0xFFFF).toString(16).padStart(4,'0').toUpperCase()+'h',OX+4,OY+ROWS*(BH+GAPB)+13);
+  blocks.forEach(bl=>{
+    const x=OX+bl.c*(BW+GAPB),y=OY+bl.r*(BH+GAPB);
+    const isRH=bl.c===rhCol;
+    const col=isRH?'rgba(57,255,20,0.9)':(bl.active?'rgba(57,255,20,0.7)':'rgba(57,255,20,0.25)');
+    const bgCol=bl.active?'rgba(57,255,20,0.15)':(isRH?'rgba(57,255,20,0.1)':'rgba(0,20,5,0.7)');
+    bx.fillStyle=bgCol;bx.fillRect(x,y,BW,BH);
+    bx.strokeStyle=col;bx.lineWidth=isRH?1.5:.6;bx.strokeRect(x,y,BW,BH);
+    bx.fillStyle=col;bx.font='7px Share Tech Mono';bx.textAlign='center';bx.textBaseline='middle';
+    bx.fillText(bl.data,x+BW/2,y+BH/2);
+    if(bl.active){bl.timer--;if(bl.timer<=0)bl.active=false;}
+  });
+  // Read head indicator
+  const rhX=OX+readHead*(BW+GAPB)+BW/2;
+  bx.strokeStyle='rgba(57,255,20,0.8)';bx.lineWidth=1.5;bx.setLineDash([2,2]);
+  bx.beginPath();bx.moveTo(rhX,OY-5);bx.lineTo(rhX,OY+ROWS*(BH+GAPB)+4);bx.stroke();
+  bx.setLineDash([]);
+  bx.fillStyle='rgba(57,255,20,0.9)';bx.font='7px Share Tech Mono';bx.textAlign='center';
+  bx.fillText('▼',rhX,OY-2);
+  blockT++;
+  requestAnimationFrame(drawBlock);
+}
+drawBlock();
+
+// ─── CANVAS 3: Object storage – floating objects with metadata ───
+const oc=document.getElementById('canvas-object');
+const ox2=oc.getContext('2d');
+const objs=[
+  {x:40,y:40,r:18,label:'IMG',meta:'type:jpeg\nsize:4.2MB',vx:.3,vy:.2,hue:40},
+  {x:120,y:30,r:14,label:'VID',meta:'type:mp4\nsize:890MB',vx:-.2,vy:.35,hue:30},
+  {x:170,y:70,r:12,label:'JSON',meta:'type:json\nsize:12KB',vx:-.3,vy:-.2,hue:50},
+  {x:60,y:110,r:16,label:'DOC',meta:'type:pdf\nsize:2.1MB',vx:.25,vy:-.3,hue:35},
+  {x:140,y:120,r:20,label:'LOG',meta:'type:gz\nsize:67MB',vx:-.15,vy:.25,hue:45},
+  {x:95,y:75,r:10,label:'CSV',meta:'rows:50k',vx:.4,vy:-.15,hue:55},
+];
+let objT=0;
+function drawObject(){
+  ox2.clearRect(0,0,200,180);
+  ox2.fillStyle='rgba(10,5,0,0.6)';ox2.fillRect(0,0,200,180);
+  // API ray
+  if(objT%60<30){
+    const target=objs[Math.floor(objT/60)%objs.length];
+    ox2.strokeStyle='rgba(255,170,0,0.4)';ox2.lineWidth=.8;ox2.setLineDash([2,3]);
+    ox2.beginPath();ox2.moveTo(0,90);ox2.lineTo(target.x,target.y);ox2.stroke();
+    ox2.setLineDash([]);
+    ox2.fillStyle='rgba(255,170,0,0.7)';ox2.font='7px Share Tech Mono';ox2.textAlign='left';ox2.textBaseline='middle';
+    ox2.fillText('GET /'+target.label.toLowerCase()+'/uuid',3,84);
+  }
+  objs.forEach(o=>{
+    // Move
+    o.x+=o.vx;o.y+=o.vy;
+    if(o.x-o.r<0||o.x+o.r>200)o.vx*=-1;
+    if(o.y-o.r<0||o.y+o.r>180)o.vy*=-1;
+    // Glow
+    const grad=ox2.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r*2);
+    grad.addColorStop(0,'rgba(255,170,0,0.15)');grad.addColorStop(1,'transparent');
+    ox2.fillStyle=grad;ox2.beginPath();ox2.arc(o.x,o.y,o.r*2,0,Math.PI*2);ox2.fill();
+    // Object circle
+    ox2.beginPath();ox2.arc(o.x,o.y,o.r,0,Math.PI*2);
+    ox2.fillStyle='rgba(20,10,0,0.85)';ox2.fill();
+    ox2.strokeStyle='rgba(255,170,0,0.8)';ox2.lineWidth=1;ox2.stroke();
+    // Label
+    ox2.fillStyle='rgba(255,170,0,0.95)';ox2.font=(o.r>14?'8px':'7px')+' Share Tech Mono';
+    ox2.textAlign='center';ox2.textBaseline='middle';ox2.fillText(o.label,o.x,o.y);
+    // UUID arc
+    ox2.strokeStyle='rgba(255,170,0,0.2)';ox2.lineWidth=.5;
+    ox2.beginPath();ox2.arc(o.x,o.y,o.r+4,(objT*.02)%Math.PI,(objT*.02+Math.PI*1.2)%Math.PI*2);ox2.stroke();
+  });
+  objT++;
+  requestAnimationFrame(drawObject);
+}
+drawObject();
+</script>
