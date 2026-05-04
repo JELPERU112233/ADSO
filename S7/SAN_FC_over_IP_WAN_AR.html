@@ -1,0 +1,496 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#root{background:#03050b;min-height:860px;position:relative;overflow:hidden;font-family:'Share Tech Mono',monospace}
+canvas#bgc{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hud-top{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px 7px;border-bottom:1px solid rgba(255,170,0,0.12)}
+.hud-title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;letter-spacing:3px;color:#c8a060}
+.ctrl-bar{position:relative;z-index:10;display:flex;align-items:center;gap:6px;padding:7px 16px;flex-wrap:wrap}
+.cbtn{font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1px;padding:5px 12px;border:1px solid rgba(255,170,0,0.2);border-radius:2px;cursor:pointer;background:transparent;color:rgba(255,170,0,0.4);transition:all .2s}
+.cbtn:hover,.cbtn.on{color:#ffaa00;border-color:#ffaa00;background:rgba(255,170,0,0.07)}
+.cbtn.bl{border-color:rgba(0,180,255,0.2);color:rgba(0,180,255,0.4)}
+.cbtn.bl:hover,.cbtn.bl.on{color:#00b4ff;border-color:#00b4ff;background:rgba(0,180,255,0.07)}
+.cbtn.rd{border-color:rgba(226,75,74,0.3);color:rgba(226,75,74,0.4)}
+.cbtn.rd:hover{color:#e24b4a;border-color:#e24b4a;background:rgba(226,75,74,0.06)}
+#slbl{font-size:9px;color:rgba(255,170,0,0.35);letter-spacing:2px;margin-left:auto}
+.scene-wrap{position:relative;z-index:10;margin:0 16px}
+canvas#mc{display:block;width:100%}
+.log-panel{position:relative;z-index:10;margin:5px 16px 0;background:rgba(2,4,12,0.95);border:1px solid rgba(255,170,0,0.1);border-radius:3px;padding:6px 10px;min-height:60px}
+.log-title{font-size:8px;color:rgba(255,170,0,0.3);letter-spacing:2px;margin-bottom:3px}
+#log-out{font-size:9px;line-height:1.65}
+.hud-foot{position:relative;z-index:10;text-align:center;padding:4px;font-size:8px;color:rgba(255,255,255,0.08);letter-spacing:2px;border-top:1px solid rgba(255,255,255,0.04);margin-top:3px}
+</style>
+<div id="root">
+<canvas id="bgc"></canvas>
+<div class="hud-top">
+  <div class="hud-title">▸ SAN FC over IP — REPLICACIÓN WAN DUAL-SITE AR ◂</div>
+  <span style="font-size:9px;color:rgba(255,170,0,0.2);letter-spacing:2px" id="clk">--:--:--</span>
+</div>
+<div class="ctrl-bar">
+  <button class="cbtn" onclick="prev()">◀ PREV</button>
+  <button class="cbtn on" id="abtn" onclick="toggleAuto()">▶ AUTO</button>
+  <button class="cbtn" onclick="next()">NEXT ▶</button>
+  <button class="cbtn bl on" id="wbtn" onclick="toggleW()">✦ WRITE</button>
+  <button class="cbtn bl" id="rbtn" onclick="toggleR()">◈ READ</button>
+  <button class="cbtn rd" onclick="resetAll()">↺ RESET</button>
+  <span id="slbl">PASO 0 / 7</span>
+</div>
+<div class="scene-wrap"><canvas id="mc"></canvas></div>
+<div class="log-panel">
+  <div class="log-title">▸ FCIP WAN LOG — TRAZABILIDAD FC over IP</div>
+  <div id="log-out"></div>
+</div>
+<div class="hud-foot">[ SAN-FCIP-AR v8.0 ] · REDES 2 — UPN · <span id="clk2">--:--:--</span></div>
+</div>
+<script>
+// Clock
+function tick(){const n=new Date();const s=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+':'+n.getSeconds().toString().padStart(2,'0');document.getElementById('clk').textContent=s;document.getElementById('clk2').textContent=s;}
+setInterval(tick,1000);tick();
+
+// BG animated grid
+const bgc=document.getElementById('bgc');const bgx=bgc.getContext('2d');
+let bW=0,bH=0;
+function resizeBg(){bW=bgc.offsetWidth;bH=bgc.offsetHeight;bgc.width=bW;bgc.height=bH;}
+resizeBg();
+let bgT=0;
+(function loop(){
+  bgx.clearRect(0,0,bW,bH);
+  const gs=44,off=bgT%gs;
+  bgx.strokeStyle='rgba(80,50,0,0.055)';bgx.lineWidth=.4;
+  for(let x=off;x<bW;x+=gs){bgx.beginPath();bgx.moveTo(x,0);bgx.lineTo(x,bH);bgx.stroke()}
+  for(let y=off;y<bH;y+=gs){bgx.beginPath();bgx.moveTo(0,y);bgx.lineTo(bW,y);bgx.stroke()}
+  bgT+=.12;requestAnimationFrame(loop);
+})();
+
+// Main canvas
+const mc=document.getElementById('mc');const mx=mc.getContext('2d');
+let W=0,H=0;
+function resize(){W=mc.offsetWidth;H=Math.round(W*0.76);mc.width=W;mc.height=H;mc.style.height=H+'px';}
+resize();
+
+// Palette
+const CO='#f5820a';   // orange — FC SAN fabric
+const CB='#1a9de0';   // blue — IP/WAN tunnel
+const CG='#1d9e75';   // green — response / ack
+const CV='#cc44ff';   // violet — VM traffic
+const CR='#ff3366';   // red — write confirm
+const CY='#ffe066';   // yellow — FCIP encap
+
+// State
+let step=0,autoOn=false,autoInt=null,wMode=true,rMode=false;
+const MAXSTEP=7;
+const logs=[];
+function log(txt,c){logs.push({txt,c:c||CO});if(logs.length>5)logs.shift();document.getElementById('log-out').innerHTML=logs.map(l=>`<div style="color:${l.c}">${l.txt}</div>`).join('');}
+function setLabel(){document.getElementById('slbl').textContent='PASO '+step+' / '+MAXSTEP;}
+function next(){if(step<MAXSTEP){step++;onStep();}}
+function prev(){if(step>0){step--;pkts=[];onStep();}}
+function resetAll(){step=0;pkts=[];logs.length=0;document.getElementById('log-out').innerHTML='';stopAuto();onStep();}
+function toggleAuto(){if(autoOn){stopAuto();}else{autoOn=true;document.getElementById('abtn').textContent='⏸ PAUSE';autoInt=setInterval(()=>{if(step<MAXSTEP){step++;onStep();}else stopAuto();},2700);}}
+function stopAuto(){autoOn=false;clearInterval(autoInt);document.getElementById('abtn').textContent='▶ AUTO';}
+function toggleW(){wMode=!wMode;document.getElementById('wbtn').classList.toggle('on',wMode);}
+function toggleR(){rMode=!rMode;document.getElementById('rbtn').classList.toggle('on',rMode);}
+
+const stepLogs=[
+  {t:'[INICIO] Dual-site SAN FC over IP activo. Site A ↔ Site B via WAN/IP.',c:CO},
+  {t:'[1] Servidores Site A → FC SAN A: I/O SCSI local. FC fabric orange activado.',c:CO},
+  {t:'[2] FC SAN A → FCIP Gateway A: encapsula tramas FC en paquetes TCP/IP para WAN.',c:CY},
+  {t:'[3] FCIP Gateway A → IP WAN (Internet/MPLS): tunnel TCP 3225. FC viaja sobre IP.',c:CB},
+  {t:'[4] IP WAN → FCIP Gateway B → FC SAN B: desencapsula IP, restaura trama FC.',c:CB},
+  {t:'[5] FC SAN B → Storage Array B: I/O SCSI remoto. Replicación simultánea activa.',c:CG},
+  {t:'[6] Storage Arrays A+B → confirmación ACK sube por ambos sites simultáneamente.',c:CG},
+  {t:'[7] Replicación completa ✓ Site A + Site B sincronizados. RPO = 0 (sync mirror).',c:CR},
+];
+
+let pkts=[];
+function spawnPkt(fx,fy,tx,ty,color,lbl,delay){
+  setTimeout(()=>pkts.push({fx,fy,tx,ty,c:color,lbl:lbl||'',t:0,done:false}),delay||0);
+}
+
+// Nodes (all computed fresh per draw for responsiveness)
+function N(){
+  // Site A left half, Site B right half, IP cloud center
+  const mX=W/2;
+  // Y rows
+  const rSrv=H*0.07;
+  const rSAN=H*0.47;
+  const rGW= H*0.47;
+  const rSTO=H*0.72;
+  const rIP= H*0.50;
+  return {
+    // Site A
+    svA1:{x:W*0.07,y:rSrv,lbl:'Server A1',bare:true},
+    svA2:{x:W*0.22,y:rSrv,lbl:'Servers A2',vm:true},
+    fcSanA:{x:W*0.17,y:rSAN,lbl:'FC SAN A'},
+    gwA:{x:W*0.34,y:rGW,lbl:'FCIP GW A'},
+    stoA:{x:W*0.12,y:rSTO,lbl:'Storage Array A'},
+    // WAN IP cloud
+    ip:{x:mX,y:rIP,lbl:'IP / WAN'},
+    // Site B
+    svB1:{x:W*0.78,y:rSrv,lbl:'Server B1',bare:true},
+    svB2:{x:W*0.93,y:rSrv,lbl:'Servers B2',vm:true},
+    fcSanB:{x:W*0.83,y:rSAN,lbl:'FC SAN B'},
+    gwB:{x:W*0.66,y:rGW,lbl:'FCIP GW B'},
+    stoB:{x:W*0.88,y:rSTO,lbl:'Storage Array B'},
+  };
+}
+
+// Active sets per step
+function actSet(s){
+  return{
+    0:['fcSanA','fcSanB'],
+    1:['svA1','svA2','fcSanA','stoA'],
+    2:['fcSanA','gwA'],
+    3:['gwA','ip','gwB'],
+    4:['gwB','fcSanB'],
+    5:['fcSanB','stoB','svB1','svB2'],
+    6:['stoA','stoB','fcSanA','fcSanB','gwA','gwB','ip'],
+    7:['svA1','svA2','svB1','svB2','fcSanA','fcSanB','stoA','stoB','gwA','gwB','ip'],
+  }[s]||[];
+}
+
+function onStep(){
+  setLabel();
+  if(stepLogs[step])log(stepLogs[step].t,stepLogs[step].c);
+  pkts=pkts.filter(()=>false);
+  const n=N();
+  const svAh=H*0.175,svBh=H*0.175;
+  if(step===1){
+    spawnPkt(n.svA1.x,n.svA1.y+svAh,n.fcSanA.x,n.fcSanA.y,CO,'SCSI',0);
+    spawnPkt(n.svA2.x,n.svA2.y+svAh,n.fcSanA.x,n.fcSanA.y,CV,'VM',180);
+    spawnPkt(n.fcSanA.x,n.fcSanA.y,n.stoA.x,n.stoA.y,CO,'FC',500);
+  }else if(step===2){
+    spawnPkt(n.fcSanA.x,n.fcSanA.y,n.gwA.x,n.gwA.y,CY,'FC→IP',0);
+    spawnPkt(n.fcSanA.x,n.fcSanA.y,n.gwA.x,n.gwA.y,CO,'ENCAP',220);
+  }else if(step===3){
+    spawnPkt(n.gwA.x,n.gwA.y,n.ip.x,n.ip.y,CB,'TCP/IP',0);
+    spawnPkt(n.gwA.x,n.gwA.y,n.ip.x,n.ip.y,CB,'FCIP',300);
+    spawnPkt(n.ip.x,n.ip.y,n.gwB.x,n.gwB.y,CB,'WAN',600);
+    spawnPkt(n.ip.x,n.ip.y,n.gwB.x,n.gwB.y,CY,'FCIP',900);
+  }else if(step===4){
+    spawnPkt(n.gwB.x,n.gwB.y,n.fcSanB.x,n.fcSanB.y,CO,'FC',0);
+    spawnPkt(n.gwB.x,n.gwB.y,n.fcSanB.x,n.fcSanB.y,CY,'DECAP',250);
+  }else if(step===5){
+    spawnPkt(n.fcSanB.x,n.fcSanB.y,n.stoB.x,n.stoB.y,CO,'SCSI',0);
+    spawnPkt(n.fcSanB.x,n.fcSanB.y,n.svB1.x,n.svB1.y+svBh,CV,'DATA',200);
+    spawnPkt(n.fcSanB.x,n.fcSanB.y,n.svB2.x,n.svB2.y+svBh,CV,'VM',350);
+  }else if(step===6){
+    spawnPkt(n.stoA.x,n.stoA.y,n.fcSanA.x,n.fcSanA.y,CG,'ACK',0);
+    spawnPkt(n.stoB.x,n.stoB.y,n.fcSanB.x,n.fcSanB.y,CG,'ACK',100);
+    spawnPkt(n.fcSanA.x,n.fcSanA.y,n.gwA.x,n.gwA.y,CG,'OK',400);
+    spawnPkt(n.fcSanB.x,n.fcSanB.y,n.gwB.x,n.gwB.y,CG,'OK',500);
+    spawnPkt(n.gwA.x,n.gwA.y,n.ip.x,n.ip.y,CG,'SYNC',800);
+    spawnPkt(n.gwB.x,n.gwB.y,n.ip.x,n.ip.y,CG,'SYNC',900);
+  }else if(step===7){
+    [n.svA1,n.svA2].forEach((s,i)=>spawnPkt(n.fcSanA.x,n.fcSanA.y,s.x,s.y+svAh,CR,'✓',i*150));
+    [n.svB1,n.svB2].forEach((s,i)=>spawnPkt(n.fcSanB.x,n.fcSanB.y,s.x,s.y+svBh,CR,'✓',i*150+200));
+    spawnPkt(n.gwA.x,n.gwA.y,n.gwB.x,n.gwB.y,CR,'MIRROR',500);
+  }
+}
+
+// ══ DRAW HELPERS ══════════════════════════════════
+function line(x1,y1,x2,y2,col,lw,dash,alpha){
+  mx.globalAlpha=alpha||1;mx.strokeStyle=col;mx.lineWidth=lw||1;
+  mx.setLineDash(dash||[]);mx.beginPath();mx.moveTo(x1,y1);mx.lineTo(x2,y2);mx.stroke();
+  mx.setLineDash([]);mx.globalAlpha=1;
+}
+
+// Realistic server rack
+function drawServerRack(x,y,w,h,active,vm,label){
+  // Shadow
+  mx.fillStyle='rgba(0,0,0,0.5)';
+  mx.beginPath();mx.roundRect(x-w/2+3,y+3,w,h,4);mx.fill();
+  // Chassis body
+  const grad=mx.createLinearGradient(x-w/2,y,x+w/2,y);
+  grad.addColorStop(0,'#1a1e2a');grad.addColorStop(0.3,'#252a38');grad.addColorStop(0.7,'#1e2230');grad.addColorStop(1,'#131620');
+  mx.fillStyle=grad;mx.strokeStyle=active?CO:'rgba(255,170,0,0.2)';mx.lineWidth=active?1.2:.4;
+  mx.beginPath();mx.roundRect(x-w/2,y,w,h,4);mx.fill();mx.stroke();
+  // Front panel bezel
+  mx.fillStyle='#0d0f18';mx.beginPath();mx.roundRect(x-w/2+3,y+3,w-6,h-6,2);mx.fill();
+  // Rack units
+  const unitH=Math.floor((h-12)/5);
+  for(let u=0;u<5;u++){
+    const uy=y+6+u*unitH;
+    // Unit body
+    const ug=mx.createLinearGradient(x-w/2+5,uy,x+w/2-5,uy);
+    ug.addColorStop(0,'#161920');ug.addColorStop(0.5,'#1e2230');ug.addColorStop(1,'#131620');
+    mx.fillStyle=ug;mx.beginPath();mx.roundRect(x-w/2+5,uy,w-10,unitH-2,1);mx.fill();
+    // Unit border
+    mx.strokeStyle=active?'rgba(255,170,0,0.25)':'rgba(255,255,255,0.05)';mx.lineWidth=.4;
+    mx.beginPath();mx.roundRect(x-w/2+5,uy,w-10,unitH-2,1);mx.stroke();
+    // Drive sleds (horizontal lines)
+    for(let d=0;d<3;d++){
+      mx.fillStyle=active?(u<3?'rgba(255,170,0,0.15)':'rgba(0,180,255,0.1)'):'rgba(255,255,255,0.04)';
+      mx.fillRect(x-w/2+7,uy+2+d*(unitH-6)/3,w-14,(unitH-6)/3-1);
+    }
+    // Status LEDs right side
+    const ledColors=active?['#39ff14','#39ff14',CO,CB]:[...Array(4)].map(()=>'rgba(255,255,255,0.08)');
+    for(let l=0;l<4;l++){
+      mx.beginPath();mx.arc(x+w/2-8-l*7,uy+unitH/2,1.8,0,Math.PI*2);
+      mx.fillStyle=ledColors[l%ledColors.length];mx.fill();
+    }
+    // Power button left
+    mx.beginPath();mx.arc(x-w/2+9,uy+unitH/2,2.5,0,Math.PI*2);
+    mx.fillStyle=active?'#39ff14':'#1a1a1a';mx.fill();
+    mx.strokeStyle='rgba(255,255,255,0.15)';mx.lineWidth=.4;mx.stroke();
+  }
+  // Vents top
+  for(let v=0;v<6;v++){
+    mx.fillStyle='rgba(0,0,0,0.6)';
+    mx.fillRect(x-w/2+6+v*(w-12)/6,y+2,(w-12)/6-1,1);
+  }
+  // VM chips overlay if hypervisor
+  if(vm){
+    for(let v=0;v<2;v++){
+      const chipX=x-w/2+4+v*(w/2-3),chipY=y-22;
+      const cg=mx.createLinearGradient(chipX,chipY,chipX+w/2-5,chipY+18);
+      cg.addColorStop(0,'#1a0a2e');cg.addColorStop(1,'#2a1050');
+      mx.fillStyle=cg;mx.strokeStyle=active?CV:'rgba(204,68,255,0.25)';mx.lineWidth=.6;
+      mx.beginPath();mx.roundRect(chipX,chipY,w/2-5,18,2);mx.fill();mx.stroke();
+      // APP label
+      mx.fillStyle='#39ff14';mx.font='bold 5px Share Tech Mono';mx.textAlign='left';mx.textBaseline='top';
+      mx.fillText('APP',chipX+2,chipY+1);
+      // OS label
+      mx.fillStyle='#1a9de0';mx.fillText('OS',chipX+2,chipY+7);
+      // VM label
+      mx.fillStyle=active?CV:'rgba(204,68,255,0.4)';mx.font='bold 6px Share Tech Mono';
+      mx.fillText('VM',chipX+(w/2-5)/2-4,chipY+12);
+    }
+  }
+  // Label
+  mx.fillStyle=active?CO:'rgba(255,170,0,0.35)';mx.font='bold 8px Share Tech Mono';mx.textAlign='center';mx.textBaseline='top';
+  mx.fillText(label,x,y+h+4);
+}
+
+// FC SAN hexagonal node
+function drawFCSAN(x,y,r,active,label){
+  const c=active?CO:'rgba(255,170,0,0.3)';
+  // Hex
+  mx.beginPath();
+  for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;mx.lineTo(x+r*Math.cos(a),y+r*Math.sin(a));}
+  mx.closePath();
+  mx.fillStyle=active?'rgba(255,170,0,0.18)':'rgba(255,100,0,0.05)';mx.fill();
+  mx.strokeStyle=c;mx.lineWidth=active?1.8:.6;mx.stroke();
+  // Inner hex
+  mx.beginPath();
+  for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;mx.lineTo(x+(r-6)*Math.cos(a),y+(r-6)*Math.sin(a));}
+  mx.closePath();mx.strokeStyle=active?CO+'66':CO+'15';mx.lineWidth=.5;mx.stroke();
+  // Pulse ring
+  if(active){
+    mx.beginPath();mx.arc(x,y,r+6+Math.sin(Date.now()/400)*3,0,Math.PI*2);
+    mx.strokeStyle=CO+'33';mx.lineWidth=.8;mx.stroke();
+  }
+  // Label
+  mx.fillStyle=c;mx.font='bold 9px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText(label.split(' ')[0],x,y-5);mx.fillText(label.split(' ').slice(1).join(' '),x,y+6);
+}
+
+// FCIP Gateway
+function drawGateway(x,y,w,h,active,label){
+  const c=active?CY:'rgba(255,224,102,0.25)';
+  // Shadow
+  mx.fillStyle='rgba(0,0,0,0.4)';mx.beginPath();mx.roundRect(x-w/2+2,y-h/2+2,w,h,3);mx.fill();
+  // Body
+  const g=mx.createLinearGradient(x-w/2,y-h/2,x+w/2,y+h/2);
+  g.addColorStop(0,'#1a1500');g.addColorStop(1,'#0a0d00');
+  mx.fillStyle=g;mx.strokeStyle=c;mx.lineWidth=active?1.2:.5;
+  mx.beginPath();mx.roundRect(x-w/2,y-h/2,w,h,3);mx.fill();mx.stroke();
+  // Arrows encap symbol
+  mx.fillStyle=active?CO:CO+'33';mx.font='14px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText('⇄',x-8,y);
+  mx.fillStyle=active?CB:CB+'33';mx.fillText('⇄',x+8,y);
+  // Port row
+  for(let p=0;p<6;p++){
+    mx.fillStyle=active&&p<3?CY:CY+'22';
+    mx.beginPath();mx.roundRect(x-w/2+4+p*(w-8)/6,y-h/2+3,(w-8)/6-1,4,1);mx.fill();
+  }
+  mx.fillStyle=c;mx.font='7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='top';
+  mx.fillText(label,x,y+h/2+3);
+  mx.fillStyle=active?CB+'cc':CB+'33';mx.font='6px Share Tech Mono';
+  mx.fillText('TCP:3225',x,y+h/2+12);
+}
+
+// IP Cloud realistic
+function drawIPCloud(x,y,active){
+  const c=active?CB:'rgba(26,157,224,0.25)';
+  const r=H*0.075;
+  // Glow
+  if(active){
+    mx.beginPath();mx.arc(x,y,r+12,0,Math.PI*2);
+    mx.fillStyle='rgba(26,157,224,0.06)';mx.fill();
+  }
+  // Puffs
+  const puffs=[{dx:0,dy:-r*.2,r:r*.55},{dx:-r*.45,dy:r*.1,r:r*.4},{dx:r*.45,dy:r*.1,r:r*.4},{dx:-r*.2,dy:r*.3,r:r*.35},{dx:r*.2,dy:r*.3,r:r*.35}];
+  puffs.forEach(p=>{
+    mx.beginPath();mx.arc(x+p.dx,y+p.dy,p.r,0,Math.PI*2);
+    mx.fillStyle=active?'rgba(26,80,160,0.55)':'rgba(10,30,80,0.35)';mx.fill();
+  });
+  // Outline
+  puffs.forEach(p=>{
+    mx.beginPath();mx.arc(x+p.dx,y+p.dy,p.r,0,Math.PI*2);
+    mx.strokeStyle=c;mx.lineWidth=active?.8:.35;mx.stroke();
+  });
+  mx.fillStyle=active?'#60b4ff':'rgba(96,180,255,0.35)';mx.font='bold 10px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText('IP',x,y-2);mx.font='7px Share Tech Mono';mx.fillText('WAN / MPLS',x,y+10);
+}
+
+// Storage Array realistic
+function drawStorageArray(x,y,w,h,active,label){
+  const c=active?CG:'rgba(29,158,117,0.3)';
+  // Shadow
+  mx.fillStyle='rgba(0,0,0,0.5)';mx.beginPath();mx.roundRect(x-w/2+3,y+3,w,h,4);mx.fill();
+  // Body
+  const g=mx.createLinearGradient(x-w/2,y,x+w/2,y+h);
+  g.addColorStop(0,'#001a10');g.addColorStop(0.5,'#002818');g.addColorStop(1,'#001008');
+  mx.fillStyle=g;mx.strokeStyle=c;mx.lineWidth=active?1.4:.5;
+  mx.beginPath();mx.roundRect(x-w/2,y,w,h,4);mx.fill();mx.stroke();
+  // Drive bay grid
+  const cols=3,rows=5,bw=(w-10)/cols,bh=(h-10)/rows;
+  for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
+    const bx=x-w/2+5+col*bw,by=y+5+r*bh;
+    // Drive sled
+    mx.fillStyle=active?'rgba(29,158,117,0.2)':'rgba(0,40,20,0.4)';
+    mx.strokeStyle=active?CG+'55':'rgba(29,158,117,0.1)';mx.lineWidth=.4;
+    mx.beginPath();mx.roundRect(bx,by,bw-2,bh-2,1);mx.fill();mx.stroke();
+    // Activity LED
+    const ledOn=active&&(r*cols+col)%3!==2;
+    mx.beginPath();mx.arc(bx+4,by+3,1.5,0,Math.PI*2);
+    mx.fillStyle=ledOn?CG:'rgba(29,158,117,0.15)';mx.fill();
+    // Drive label
+    mx.fillStyle=active?CG+'88':'rgba(29,158,117,0.2)';mx.font='5px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+    mx.fillText('HDD',bx+bw/2-1,by+bh/2);
+  }
+  // Status panel right strip
+  mx.fillStyle=active?'rgba(29,158,117,0.15)':'rgba(0,20,12,0.5)';
+  mx.beginPath();mx.roundRect(x+w/2-14,y+2,12,h-4,2);mx.fill();
+  for(let i=0;i<6;i++){
+    mx.beginPath();mx.arc(x+w/2-8,y+8+i*12,2.5,0,Math.PI*2);
+    mx.fillStyle=active?(i<4?CG:CY):'rgba(29,158,117,0.1)';mx.fill();
+  }
+  mx.fillStyle=c;mx.font='bold 8px Share Tech Mono';mx.textAlign='center';mx.textBaseline='top';
+  mx.fillText(label,x,y+h+4);
+}
+
+// Site label box
+function drawSiteLabel(x,y,w,lbl,sub,active){
+  mx.fillStyle=active?'rgba(255,170,0,0.08)':'rgba(255,170,0,0.02)';
+  mx.strokeStyle=active?'rgba(255,170,0,0.35)':'rgba(255,170,0,0.08)';mx.lineWidth=.6;
+  mx.setLineDash([4,6]);mx.beginPath();mx.roundRect(x,y,w,H-y-8,6);mx.fill();mx.stroke();mx.setLineDash([]);
+  mx.fillStyle=active?CO:'rgba(255,170,0,0.25)';mx.font='bold 10px Share Tech Mono';mx.textAlign='center';mx.textBaseline='top';
+  mx.fillText(lbl,x+w/2,y+6);
+  mx.fillStyle=active?CO+'88':'rgba(255,170,0,0.15)';mx.font='7px Share Tech Mono';
+  mx.fillText(sub,x+w/2,y+18);
+}
+
+// ══ MAIN DRAW LOOP ══════════════════════════════
+const annots=[
+  'Topología FC over IP — Dual datacenter. Site A ↔ Site B via WAN/MPLS',
+  'Paso 1 — Servidores Site A acceden al FC SAN local via HBA (Fibre Channel)',
+  'Paso 2 — FC SAN A entrega tráfico al FCIP Gateway — encapsula FC→TCP/IP',
+  'Paso 3 — FCIP Gateway A abre tunnel TCP 3225 → IP WAN → FCIP Gateway B',
+  'Paso 4 — Gateway B desencapsula IP→FC — FC SAN B recibe trama FC original',
+  'Paso 5 — FC SAN B ejecuta I/O SCSI en Storage Array B — replicación activa',
+  'Paso 6 — ACK simultáneo desde ambos Storage Arrays — confirmación dual-site',
+  'Paso 7 — Sync Mirror completo ✓ — Site A + Site B sincronizados — RPO = 0',
+];
+
+function drawScene(){
+  mx.clearRect(0,0,W,H);
+  mx.fillStyle='rgba(2,4,10,0.15)';mx.fillRect(0,0,W,H);
+  const n=N();
+  const act=new Set(actSet(step));
+  const SVW=W*0.12,SVH=H*0.175;
+  const STW=W*0.13,STH=H*0.21;
+  const GWW=W*0.12,GWH=28;
+  const SANR=W*0.075;
+
+  // Site backgrounds
+  drawSiteLabel(8,H*0.04,W*0.46,'SITE A — DATACENTER PRINCIPAL','DC Lima / Miraflores',act.has('fcSanA')||act.has('svA1'));
+  drawSiteLabel(W*0.52,H*0.04,W*0.46,'SITE B — DATACENTER BACKUP','DC Lima / San Isidro',act.has('fcSanB')||act.has('svB1'));
+
+  // ── BACKBONE LINES (faint) ──
+  // Servers → FC SAN
+  [[n.svA1,n.fcSanA],[n.svA2,n.fcSanA],[n.svB1,n.fcSanB],[n.svB2,n.fcSanB]].forEach(([s,f])=>{
+    line(s.x,s.y+SVH,f.x,f.y,CO+'18',.5,[3,6]);
+  });
+  // FC SAN → Storage
+  [[n.fcSanA,n.stoA],[n.fcSanB,n.stoB]].forEach(([f,s])=>{
+    line(f.x,f.y+SANR,s.x,s.y,CO+'18',.5,[3,6]);
+  });
+  // FC SAN → FCIP GW
+  [[n.fcSanA,n.gwA],[n.fcSanB,n.gwB]].forEach(([f,g])=>{
+    line(f.x,f.y,g.x,g.y,CY+'15',.5,[3,6]);
+  });
+  // GW → IP cloud
+  [[n.gwA,n.ip],[n.gwB,n.ip]].forEach(([g,ip])=>{
+    line(g.x,g.y,ip.x,ip.y,CB+'15',.5,[4,7]);
+  });
+
+  // ── ACTIVE LINES ──
+  if(step>=1){
+    [[n.svA1,n.fcSanA],[n.svA2,n.fcSanA]].forEach(([s,f])=>line(s.x,s.y+SVH,f.x,f.y,CO+'88',1.2));
+    line(n.fcSanA.x,n.fcSanA.y+SANR,n.stoA.x,n.stoA.y,CO+(step>=6?'cc':'55'),1.5);
+  }
+  if(step>=2)line(n.fcSanA.x,n.fcSanA.y,n.gwA.x,n.gwA.y,CY+(step>=6?'cc':'77'),1.5);
+  if(step>=3){
+    line(n.gwA.x,n.gwA.y,n.ip.x,n.ip.y,CB+(step>=6?'cc':'88'),2,[5,4]);
+    line(n.ip.x,n.ip.y,n.gwB.x,n.gwB.y,CB+(step>=6?'cc':'88'),2,[5,4]);
+  }
+  if(step>=4)line(n.gwB.x,n.gwB.y,n.fcSanB.x,n.fcSanB.y,CY+(step>=6?'cc':'77'),1.5);
+  if(step>=5){
+    [[n.svB1,n.fcSanB],[n.svB2,n.fcSanB]].forEach(([s,f])=>line(s.x,s.y+SVH,f.x,f.y,CO+'88',1.2));
+    line(n.fcSanB.x,n.fcSanB.y+SANR,n.stoB.x,n.stoB.y,CO+(step>=6?'cc':'55'),1.5);
+  }
+
+  // ── NODES ──
+  drawServerRack(n.svA1.x,n.svA1.y,SVW,SVH,act.has('svA1'),false,'Server A1');
+  drawServerRack(n.svA2.x,n.svA2.y,SVW,SVH,act.has('svA2'),true,'Servers A2');
+  drawServerRack(n.svB1.x,n.svB1.y,SVW,SVH,act.has('svB1'),false,'Server B1');
+  drawServerRack(n.svB2.x,n.svB2.y,SVW,SVH,act.has('svB2'),true,'Servers B2');
+  drawFCSAN(n.fcSanA.x,n.fcSanA.y,SANR,act.has('fcSanA'),'FC SAN A');
+  drawFCSAN(n.fcSanB.x,n.fcSanB.y,SANR,act.has('fcSanB'),'FC SAN B');
+  drawGateway(n.gwA.x,n.gwA.y,GWW,GWH,act.has('gwA'),'FCIP GW A');
+  drawGateway(n.gwB.x,n.gwB.y,GWW,GWH,act.has('gwB'),'FCIP GW B');
+  drawIPCloud(n.ip.x,n.ip.y,act.has('ip'));
+  drawStorageArray(n.stoA.x,n.stoA.y,STW,STH,act.has('stoA'),'Storage Array A');
+  drawStorageArray(n.stoB.x,n.stoB.y,STW,STH,act.has('stoB'),'Storage Array B');
+
+  // ── PACKETS ──
+  pkts.forEach(p=>{
+    if(p.done)return;
+    const dx=p.tx-p.fx,dy=p.ty-p.fy;
+    const px=p.fx+dx*p.t,py=p.fy+dy*p.t;
+    for(let i=1;i<=6;i++){
+      const tx=p.fx+dx*(p.t-i*0.022),ty=p.fy+dy*(p.t-i*0.022);
+      if(tx<0||tx>W||ty<0||ty>H)continue;
+      mx.beginPath();mx.arc(tx,ty,4.5-i*.6,0,Math.PI*2);
+      mx.fillStyle=p.c+Math.floor((1-i/7)*200).toString(16).padStart(2,'0');mx.fill();
+    }
+    mx.beginPath();mx.arc(px,py,6,0,Math.PI*2);mx.fillStyle=p.c;mx.fill();
+    mx.beginPath();mx.arc(px,py,10,0,Math.PI*2);mx.strokeStyle=p.c+'44';mx.lineWidth=1.2;mx.stroke();
+    if(p.lbl){mx.fillStyle=p.c;mx.font='bold 7px Share Tech Mono';mx.textAlign='center';mx.textBaseline='bottom';mx.fillText(p.lbl,px,py-12);}
+    p.t=Math.min(1,p.t+0.014);if(p.t>=1)p.done=true;
+  });
+
+  // ── TITLE BAR ──
+  mx.fillStyle='rgba(2,4,10,0.92)';mx.beginPath();mx.roundRect(12,6,W-24,20,3);mx.fill();
+  mx.strokeStyle='rgba(255,170,0,0.2)';mx.lineWidth=.5;mx.beginPath();mx.roundRect(12,6,W-24,20,3);mx.stroke();
+  mx.fillStyle='rgba(255,170,0,0.9)';mx.font='bold 9px Share Tech Mono';mx.textAlign='center';mx.textBaseline='middle';
+  mx.fillText(annots[step]||'',W/2,16);
+
+  // ── LEGEND ──
+  const lx=14,ly=H-52;
+  mx.fillStyle='rgba(2,4,10,0.88)';mx.beginPath();mx.roundRect(lx,ly,260,44,3);mx.fill();
+  mx.strokeStyle='rgba(255,170,0,0.1)';mx.lineWidth=.4;mx.beginPath();mx.roundRect(lx,ly,260,44,3);mx.stroke();
+  [{c:CO,t:'Naranja — FC local (Fibre Channel fabric)'},{c:CY,t:'Amarillo — FCIP encapsulación FC→TCP/IP'},{c:CB,t:'Azul — IP/WAN tunnel (TCP 3225)'},{c:CG,t:'Verde — ACK / respuesta confirmada'}].forEach((l,i)=>{
+    mx.beginPath();mx.arc(lx+9,ly+7+i*10,3,0,Math.PI*2);mx.fillStyle=l.c;mx.fill();
+    mx.fillStyle=l.c+'cc';mx.font='7px Share Tech Mono';mx.textAlign='left';mx.textBaseline='middle';mx.fillText(l.t,lx+17,ly+7+i*10);
+  });
+
+  requestAnimationFrame(drawScene);
+}
+
+onStep();
+setTimeout(toggleAuto,500);
+drawScene();
+</script>
