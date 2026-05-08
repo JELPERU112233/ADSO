@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador CIFS y NFS — 1INF35 PUCP</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;font-family:Arial,sans-serif;padding:12px}
+.legend-row{display:flex;gap:14px;justify-content:center;padding:8px 0 4px;flex-wrap:wrap}
+.legend-item{font-size:11px;color:#aaa;display:flex;align-items:center;gap:4px}
+.ll{width:24px;height:2px;border-radius:2px;display:inline-block}
+.hint{font-size:11px;color:#444;text-align:center;padding:5px 0}
+.mw{display:none;position:relative;background:rgba(0,0,0,.92);border:0.5px solid #2a2a2a;border-radius:12px;padding:18px;margin-top:8px}
+.mw.show{display:block}
+.mc{background:#111;border:0.5px solid #2a2a2a;border-radius:12px;padding:16px 20px;max-width:620px;margin:0 auto;position:relative}
+.mt{font-size:14px;font-weight:bold;color:#fff;margin-bottom:2px}
+.ms{font-size:11px;color:#666;margin-bottom:11px}
+.mb{font-size:12px;color:#bbb;line-height:1.7}
+.mb p{margin-bottom:8px}.mb p:last-child{margin-bottom:0}.mb b{color:#fff}
+.cl{font-family:monospace;font-size:11px;background:#151515;border:0.5px solid #2a2a2a;border-radius:4px;padding:4px 9px;margin:5px 0;color:#6ecfb0;display:block}
+.bc{background:#0c2a4a;color:#5ab4f5;font-size:10px;font-weight:bold;padding:1px 8px;border-radius:20px;border:0.5px solid #185FA5;display:inline-block;margin:2px}
+.bn{background:#04271a;color:#3fd9a0;font-size:10px;font-weight:bold;padding:1px 8px;border-radius:20px;border:0.5px solid #1D9E75;display:inline-block;margin:2px}
+.bp{background:#1a1200;color:#d4a017;font-size:10px;font-weight:bold;padding:1px 8px;border-radius:20px;border:0.5px solid #854F0B;display:inline-block;margin:2px}
+.cb{position:absolute;top:9px;right:12px;background:none;border:none;font-size:19px;cursor:pointer;color:#555;line-height:1}
+.cb:hover{color:#fff}
+.tr{margin-bottom:10px}
+.si{display:flex;gap:5px;margin-top:11px;border-top:0.5px solid #1a1a1a;padding-top:9px;align-items:center}
+.sd{width:6px;height:6px;border-radius:50%;background:#2a2a2a;display:inline-block}
+.sd.a{background:#1D9E75}
+.nb{display:flex;gap:7px;margin-top:9px;justify-content:flex-end}
+.nb button{font-size:11px;padding:4px 12px;cursor:pointer;background:#171717;border:0.5px solid #333;border-radius:6px;color:#bbb}
+.nb button:hover{background:#1e1e1e;color:#fff}
+.ng{cursor:pointer}
+.ng:hover{opacity:.82}
+</style>
+</head>
+<body>
+<div class="legend-row">
+  <span class="legend-item"><span class="ll" style="background:#29a3ff"></span>CIFS TCP 445</span>
+  <span class="legend-item"><span class="ll" style="background:#27c97a"></span>NFS TCP 2049</span>
+  <span class="legend-item"><span class="ll" style="background:#cc44aa"></span>CIFS/NFS 445/2049</span>
+  <span class="legend-item"><span class="ll" style="background:#ff4444"></span>Auth CIFS</span>
+  <span class="legend-item"><span class="ll" style="background:#ffa500"></span>NAS↔Switch</span>
+</div>
+
+<svg width="100%" viewBox="0 0 680 560" style="display:block;background:#000;border-radius:8px">
+<defs>
+  <marker id="a0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#29a3ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#27c97a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#cc44aa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#ff4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#ffa500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <path id="pw1" d="M100,110 L340,284"/>
+  <path id="pw2" d="M110,272 L340,286"/>
+  <path id="pl1" d="M524,114 L376,278"/>
+  <path id="pl2" d="M524,284 L376,286"/>
+  <path id="pm"  d="M506,440 L376,300"/>
+  <path id="pa"  d="M90,430 L340,298"/>
+  <path id="pns-down" d="M340,192 L340,268"/>
+  <path id="pns-up"   d="M340,268 L340,192"/>
+  <marker id="a4r" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M8 1L2 5L8 9" fill="none" stroke="#ffa500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+
+<!-- SWITCH -->
+<g class="ng" onclick="showModal('switch')">
+  <rect x="304" y="268" width="72" height="44" rx="6" fill="#1a1200" stroke="#ffa500" stroke-width="1"/>
+  <rect x="312" y="280" width="8" height="6" rx="1" fill="#ffa500" opacity=".8"/>
+  <rect x="324" y="280" width="8" height="6" rx="1" fill="#ffa500" opacity=".8"/>
+  <rect x="336" y="280" width="8" height="6" rx="1" fill="#ffa500" opacity=".8"/>
+  <rect x="348" y="280" width="8" height="6" rx="1" fill="#ffa500" opacity=".8"/>
+  <rect x="360" y="280" width="8" height="6" rx="1" fill="#ffa500" opacity=".8"/>
+  <rect x="312" y="290" width="56" height="3" rx="1" fill="#ffa500" opacity=".3"/>
+  <text x="340" y="306" text-anchor="middle" style="font-size:10px;fill:#ffa500;font-family:monospace">Switch</text>
+</g>
+
+<!-- NAS -->
+<g class="ng" onclick="showModal('nas')">
+  <rect x="298" y="70" width="84" height="74" rx="8" fill="#111" stroke="#ffa500" stroke-width="1.2"/>
+  <rect x="306" y="80" width="68" height="10" rx="2" fill="#222" stroke="#555" stroke-width=".5"/>
+  <rect x="306" y="93" width="68" height="10" rx="2" fill="#222" stroke="#555" stroke-width=".5"/>
+  <rect x="306" y="106" width="68" height="10" rx="2" fill="#222" stroke="#555" stroke-width=".5"/>
+  <rect x="306" y="119" width="68" height="10" rx="2" fill="#222" stroke="#555" stroke-width=".5"/>
+  <circle cx="368" cy="85" r="2" fill="#27c97a"/>
+  <circle cx="368" cy="98" r="2" fill="#27c97a"/>
+  <circle cx="368" cy="111" r="2" fill="#ffa500"/>
+  <circle cx="368" cy="124" r="2" fill="#27c97a"/>
+  <text x="340" y="158" text-anchor="middle" style="font-size:12px;font-weight:bold;fill:#fff;font-family:monospace">NAS</text>
+  <text x="340" y="173" text-anchor="middle" style="font-size:10px;fill:#ffa500;font-family:monospace">CIFS + NFS</text>
+  <text x="340" y="186" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">/datos/proyectos</text>
+</g>
+<line x1="340" y1="192" x2="340" y2="268" stroke="#ffa500" stroke-width="7" opacity=".15" stroke-linecap="round"/><line x1="340" y1="192" x2="340" y2="268" stroke="#ffa500" stroke-width="2.5" stroke-dasharray="7 3" marker-end="url(#a4)" marker-start="url(#a4r)"/>
+
+<!-- PC MARIA -->
+<g class="ng" onclick="showModal('win1')">
+  <rect x="36" y="80" width="64" height="48" rx="4" fill="#111" stroke="#29a3ff" stroke-width="1"/>
+  <rect x="48" y="88" width="10" height="10" rx="1" fill="#29a3ff" opacity=".9"/>
+  <rect x="60" y="88" width="10" height="10" rx="1" fill="#29a3ff" opacity=".7"/>
+  <rect x="48" y="100" width="10" height="10" rx="1" fill="#29a3ff" opacity=".7"/>
+  <rect x="60" y="100" width="10" height="10" rx="1" fill="#29a3ff" opacity=".9"/>
+  <rect x="61" y="128" width="6" height="8" rx="1" fill="#333"/>
+  <rect x="52" y="136" width="24" height="3" rx="1" fill="#333"/>
+  <text x="68" y="155" text-anchor="middle" style="font-size:9px;fill:#29a3ff;font-family:monospace">Usuario: maria</text>
+  <text x="68" y="166" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: CIFS</text>
+</g>
+<line x1="100" y1="110" x2="304" y2="284" stroke="#29a3ff" stroke-width="1.4" stroke-dasharray="8 4" marker-end="url(#a0)"/>
+<text x="178" y="185" text-anchor="middle" style="font-size:10px;fill:#29a3ff;font-family:monospace">TCP 445</text>
+
+<!-- LAPTOP CARLOS -->
+<g class="ng" onclick="showModal('win2')">
+  <rect x="30" y="248" width="76" height="48" rx="4" fill="#111" stroke="#29a3ff" stroke-width="1"/>
+  <rect x="36" y="254" width="64" height="38" rx="2" fill="#0d1a2a"/>
+  <rect x="54" y="264" width="8" height="8" rx="1" fill="#29a3ff" opacity=".9"/>
+  <rect x="64" y="264" width="8" height="8" rx="1" fill="#29a3ff" opacity=".7"/>
+  <rect x="54" y="274" width="8" height="8" rx="1" fill="#29a3ff" opacity=".7"/>
+  <rect x="64" y="274" width="8" height="8" rx="1" fill="#29a3ff" opacity=".9"/>
+  <rect x="26" y="296" width="84" height="6" rx="3" fill="#222" stroke="#444" stroke-width=".5"/>
+  <text x="68" y="315" text-anchor="middle" style="font-size:9px;fill:#29a3ff;font-family:monospace">Usuario: carlos</text>
+  <text x="68" y="326" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: CIFS</text>
+</g>
+<line x1="110" y1="278" x2="304" y2="285" stroke="#29a3ff" stroke-width="1.4" stroke-dasharray="8 4" marker-end="url(#a0)"/>
+<text x="196" y="272" text-anchor="middle" style="font-size:10px;fill:#29a3ff;font-family:monospace">TCP 445</text>
+
+<!-- APPSERVER LINUX -->
+<g class="ng" onclick="showModal('linuxclient')">
+  <rect x="38" y="400" width="52" height="80" rx="5" fill="#111" stroke="#27c97a" stroke-width="1"/>
+  <rect x="44" y="408" width="40" height="6" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="44" y="417" width="40" height="6" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <circle cx="80" cy="436" r="3" fill="#27c97a"/>
+  <circle cx="80" cy="448" r="3" fill="#ffa500"/>
+  <ellipse cx="64" cy="458" rx="10" ry="13" fill="#eee"/>
+  <ellipse cx="64" cy="452" rx="8" ry="9" fill="#222"/>
+  <circle cx="61" cy="450" r="2.5" fill="#ff0" opacity=".9"/>
+  <circle cx="67" cy="450" r="2.5" fill="#ff0" opacity=".9"/>
+  <ellipse cx="64" cy="458" rx="6" ry="4" fill="#f90"/>
+  <text x="64" y="492" text-anchor="middle" style="font-size:9px;fill:#27c97a;font-family:monospace">Node: appserver</text>
+  <text x="64" y="503" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: NFS</text>
+</g>
+<line x1="90" y1="430" x2="304" y2="298" stroke="#27c97a" stroke-width="1.4" stroke-dasharray="8 4" marker-end="url(#a1)"/>
+<text x="175" y="380" text-anchor="middle" style="font-size:10px;fill:#27c97a;font-family:monospace">TCP 2049</text>
+
+<!-- ACTIVE DIRECTORY -->
+<g class="ng" onclick="showModal('ad')">
+  <polygon points="210,430 240,400 270,430 240,460" fill="#0078d4" opacity=".9"/>
+  <polygon points="210,430 240,400 240,460" fill="#005a9e" opacity=".6"/>
+  <circle cx="240" cy="430" r="10" fill="none" stroke="#fff" stroke-width="1.5"/>
+  <circle cx="236" cy="430" r="2" fill="#fff"/>
+  <circle cx="244" cy="426" r="2" fill="#fff"/>
+  <circle cx="244" cy="434" r="2" fill="#fff"/>
+  <line x1="238" y1="430" x2="242" y2="428" stroke="#fff" stroke-width="1"/>
+  <line x1="238" y1="430" x2="242" y2="432" stroke="#fff" stroke-width="1"/>
+  <text x="240" y="475" text-anchor="middle" style="font-size:9px;fill:#5ab4f5;font-family:monospace;font-weight:bold">Auth: CIFS</text>
+</g>
+<line x1="270" y1="432" x2="306" y2="302" stroke="#ff4444" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+<text x="264" y="360" text-anchor="middle" style="font-size:10px;fill:#ff4444;font-family:monospace">TCP 88 /</text>
+<text x="264" y="373" text-anchor="middle" style="font-size:10px;fill:#ff4444;font-family:monospace">TCP 389</text>
+
+<!-- RPCBIND -->
+<g class="ng" onclick="showModal('rpc')">
+  <rect x="320" y="430" width="40" height="52" rx="4" fill="#111" stroke="#27c97a" stroke-width="1"/>
+  <rect x="324" y="436" width="32" height="5" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".4"/>
+  <rect x="324" y="444" width="32" height="5" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".4"/>
+  <rect x="324" y="452" width="32" height="5" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".4"/>
+  <circle cx="350" cy="464" r="2.5" fill="#27c97a"/>
+  <rect x="362" y="438" width="30" height="22" rx="2" fill="#111" stroke="#555" stroke-width=".5"/>
+  <rect x="364" y="440" width="26" height="18" rx="1" fill="#0d1a0d"/>
+  <text x="352" y="500" text-anchor="middle" style="font-size:9px;fill:#27c97a;font-family:monospace">rpcbind</text>
+  <text x="352" y="511" text-anchor="middle" style="font-size:9px;fill:#27c97a;font-family:monospace">Port 111</text>
+  <text x="352" y="522" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Auth NFS</text>
+</g>
+<line x1="340" y1="430" x2="340" y2="312" stroke="#27c97a" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#a1)"/>
+
+<!-- UBUNTU NODE-01: servidor rack + Tux pequeño superpuesto -->
+<g class="ng" onclick="showModal('linux1')">
+  <!-- Servidor rack torre principal -->
+  <rect x="524" y="70" width="52" height="88" rx="5" fill="#111" stroke="#27c97a" stroke-width="1.2"/>
+  <!-- bahías de disco -->
+  <rect x="530" y="78" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="88" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="98" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="108" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <!-- LEDs -->
+  <circle cx="564" cy="82" r="2" fill="#27c97a"/>
+  <circle cx="564" cy="92" r="2" fill="#27c97a"/>
+  <circle cx="564" cy="102" r="2" fill="#ffa500"/>
+  <circle cx="564" cy="112" r="2" fill="#27c97a"/>
+  <!-- panel frontal inferior -->
+  <rect x="530" y="120" width="40" height="30" rx="2" fill="#0d1a0d" stroke="#27c97a" stroke-width=".4"/>
+  <rect x="533" y="124" width="14" height="4" rx="1" fill="#27c97a" opacity=".4"/>
+  <circle cx="562" cy="133" r="3" fill="#27c97a" opacity=".7"/>
+
+  <!-- Tux pequeño — esquina superior derecha del servidor -->
+  <g transform="translate(574,72) scale(0.52)">
+    <ellipse cx="18" cy="24" rx="16" ry="21" fill="#ddd"/>
+    <ellipse cx="18" cy="17" rx="13" ry="15" fill="#111"/>
+    <circle cx="13" cy="13" r="4" fill="#ff0" opacity=".95"/>
+    <circle cx="23" cy="13" r="4" fill="#ff0" opacity=".95"/>
+    <circle cx="13" cy="13" r="2.2" fill="#111"/>
+    <circle cx="23" cy="13" r="2.2" fill="#111"/>
+    <circle cx="13.5" cy="12.5" r=".9" fill="#fff"/>
+    <circle cx="23.5" cy="12.5" r=".9" fill="#fff"/>
+    <polygon points="15,19 21,19 18,24" fill="#f90"/>
+    <ellipse cx="18" cy="28" rx="9" ry="11" fill="#f5f0e0"/>
+    <ellipse cx="12" cy="42" rx="4" ry="2.5" fill="#f90" transform="rotate(-15,12,42)"/>
+    <ellipse cx="24" cy="42" rx="4" ry="2.5" fill="#f90" transform="rotate(15,24,42)"/>
+  </g>
+
+  <!-- Logo Ubuntu pequeño -->
+  <circle cx="614" cy="82" r="10" fill="#e95420"/>
+  <circle cx="614" cy="76" r="3" fill="#fff"/>
+  <circle cx="609" cy="85" r="3" fill="#fff"/>
+  <circle cx="619" cy="85" r="3" fill="#fff"/>
+
+  <text x="574" y="172" text-anchor="middle" style="font-size:9px;fill:#27c97a;font-family:monospace">Cluster-node-01</text>
+  <text x="574" y="183" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: NFS</text>
+</g>
+<line x1="524" y1="114" x2="376" y2="278" stroke="#27c97a" stroke-width="1.4" stroke-dasharray="8 4" marker-end="url(#a1)"/>
+<text x="468" y="178" text-anchor="middle" style="font-size:10px;fill:#27c97a;font-family:monospace">TCP 2049</text>
+
+<!-- ROCKY LINUX NODE-02: servidor rack + Tux pequeño superpuesto -->
+<g class="ng" onclick="showModal('linux2')">
+  <!-- Servidor rack torre principal -->
+  <rect x="524" y="240" width="52" height="88" rx="5" fill="#111" stroke="#27c97a" stroke-width="1.2"/>
+  <!-- bahías de disco -->
+  <rect x="530" y="248" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="258" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="268" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <rect x="530" y="278" width="40" height="7" rx="1" fill="#1a3a2a" stroke="#27c97a" stroke-width=".5"/>
+  <!-- LEDs -->
+  <circle cx="564" cy="252" r="2" fill="#27c97a"/>
+  <circle cx="564" cy="262" r="2" fill="#ffa500"/>
+  <circle cx="564" cy="272" r="2" fill="#27c97a"/>
+  <circle cx="564" cy="282" r="2" fill="#27c97a"/>
+  <!-- panel frontal inferior -->
+  <rect x="530" y="290" width="40" height="30" rx="2" fill="#0d1a0d" stroke="#27c97a" stroke-width=".4"/>
+  <rect x="533" y="294" width="14" height="4" rx="1" fill="#27c97a" opacity=".4"/>
+  <circle cx="562" cy="303" r="3" fill="#27c97a" opacity=".7"/>
+
+  <!-- Tux pequeño — esquina superior derecha del servidor -->
+  <g transform="translate(574,242) scale(0.52)">
+    <ellipse cx="18" cy="24" rx="16" ry="21" fill="#ccc"/>
+    <ellipse cx="18" cy="17" rx="13" ry="15" fill="#111"/>
+    <circle cx="13" cy="13" r="4" fill="#ff0" opacity=".95"/>
+    <circle cx="23" cy="13" r="4" fill="#ff0" opacity=".95"/>
+    <circle cx="13" cy="13" r="2.2" fill="#111"/>
+    <circle cx="23" cy="13" r="2.2" fill="#111"/>
+    <circle cx="13.5" cy="12.5" r=".9" fill="#fff"/>
+    <circle cx="23.5" cy="12.5" r=".9" fill="#fff"/>
+    <polygon points="15,19 21,19 18,24" fill="#f90"/>
+    <ellipse cx="18" cy="28" rx="9" ry="11" fill="#f0ece0"/>
+    <ellipse cx="12" cy="42" rx="4" ry="2.5" fill="#f90" transform="rotate(-15,12,42)"/>
+    <ellipse cx="24" cy="42" rx="4" ry="2.5" fill="#f90" transform="rotate(15,24,42)"/>
+  </g>
+
+  <!-- Logo Rocky Linux pequeño -->
+  <circle cx="614" cy="252" r="10" fill="#10b981" opacity=".9"/>
+  <text x="614" y="256" text-anchor="middle" style="font-size:8px;fill:#fff;font-weight:bold;font-family:monospace">RL</text>
+
+  <text x="574" y="342" text-anchor="middle" style="font-size:9px;fill:#27c97a;font-family:monospace">Cluster-node-02</text>
+  <text x="574" y="353" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: NFS</text>
+</g>
+<line x1="524" y1="284" x2="376" y2="286" stroke="#27c97a" stroke-width="1.4" stroke-dasharray="8 4" marker-end="url(#a1)"/>
+<text x="464" y="276" text-anchor="middle" style="font-size:10px;fill:#27c97a;font-family:monospace">TCP 2049</text>
+
+<!-- MacBook ANA — Logo Apple manzana mordida real -->
+<g class="ng" onclick="showModal('mixed')">
+  <!-- tapa laptop -->
+  <rect x="504" y="394" width="100" height="66" rx="7" fill="#1c1c1e" stroke="#888" stroke-width="1.2"/>
+  <!-- pantalla -->
+  <rect x="510" y="400" width="88" height="54" rx="3" fill="#080808"/>
+  <!-- cámara -->
+  <circle cx="554" cy="404" r="2" fill="#2a2a2a"/>
+
+  <!-- Logo Apple — manzana mordida correcta, centrada en 554,430 -->
+  <!-- Traducción al centro: transform translate para centrar el path -->
+  <g transform="translate(538,413)">
+    <!-- rabito / hoja -->
+    <path d="M16,0 C16,0 20,-4 24,-2" fill="none" stroke="#b0b0b0" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- cuerpo manzana -->
+    <!-- Forma: ancho ~28, alto ~24, mordida en esquina sup-derecha -->
+    <path d="
+      M14,4
+      C14,4 10,0 5,1
+      C1,2 0,6 0,9
+      C0,14 3,20 7,23
+      C9,25 12,24 14,22.5
+      C16,24 19,25 21,23
+      C25,20 28,14 28,9
+      C28,6 27,2 23,1
+      C18,0 14,4 14,4 Z
+    " fill="#c0c0c0"/>
+    <!-- mordida: circulo blanco sobre esquina superior derecha del cuerpo -->
+    <circle cx="26" cy="3" r="6" fill="#080808"/>
+  </g>
+
+  <!-- base laptop -->
+  <rect x="497" y="460" width="114" height="7" rx="3" fill="#252525" stroke="#555" stroke-width=".5"/>
+  <rect x="530" y="467" width="48" height="3" rx="1.5" fill="#333"/>
+
+  <text x="554" y="483" text-anchor="middle" style="font-size:9px;fill:#cc44aa;font-family:monospace">Usuario: ana</text>
+  <text x="554" y="494" text-anchor="middle" style="font-size:9px;fill:#555;font-family:monospace">Protocolo: CIFS o NFS</text>
+</g>
+<line x1="504" y1="440" x2="376" y2="300" stroke="#cc44aa" stroke-width="1.4" stroke-dasharray="7 4" marker-end="url(#a2)"/>
+<text x="454" y="390" text-anchor="middle" style="font-size:10px;fill:#cc44aa;font-family:monospace">TCP 2049/445</text>
+
+<!-- Paquetes animados -->
+<circle r="4" fill="#29a3ff" opacity=".9"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0s"><mpath href="#pw1"/></animateMotion></circle>
+<circle r="4" fill="#29a3ff" opacity=".9"><animateMotion dur="2.8s" repeatCount="indefinite" begin="1s"><mpath href="#pw2"/></animateMotion></circle>
+<circle r="4" fill="#27c97a" opacity=".9"><animateMotion dur="2.6s" repeatCount="indefinite" begin="0.3s"><mpath href="#pl1"/></animateMotion></circle>
+<circle r="4" fill="#27c97a" opacity=".9"><animateMotion dur="3s" repeatCount="indefinite" begin="0.8s"><mpath href="#pl2"/></animateMotion></circle>
+<circle r="4" fill="#cc44aa" opacity=".9"><animateMotion dur="3.2s" repeatCount="indefinite" begin="1.4s"><mpath href="#pm"/></animateMotion></circle>
+<circle r="3.5" fill="#27c97a" opacity=".8"><animateMotion dur="2.2s" repeatCount="indefinite" begin="0.5s"><mpath href="#pa"/></animateMotion></circle>
+<circle r="6" fill="#ffffff" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0s"><mpath href="#pns-down"/></animateMotion></circle>
+<circle r="6" fill="#ffffff" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0.3s"><mpath href="#pns-down"/></animateMotion></circle>
+<circle r="6" fill="#ffffff" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0.6s"><mpath href="#pns-down"/></animateMotion></circle>
+<circle r="6" fill="#ffcc44" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0.15s"><mpath href="#pns-up"/></animateMotion></circle>
+<circle r="6" fill="#ffcc44" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0.45s"><mpath href="#pns-up"/></animateMotion></circle>
+<circle r="6" fill="#ffcc44" opacity="1"><animateMotion dur="0.9s" repeatCount="indefinite" begin="0.75s"><mpath href="#pns-up"/></animateMotion></circle>
+</svg>
+
+<div class="hint">Haz clic en cualquier nodo para ver la explicación interactiva paso a paso · ESC para cerrar</div>
+
+<div class="mw" id="modal">
+  <div class="mc">
+    <button class="cb" onclick="closeModal()">×</button>
+    <div class="mt" id="m-title"></div>
+    <div class="ms" id="m-subtitle"></div>
+    <div class="tr" id="m-tags"></div>
+    <div class="mb" id="m-body"></div>
+    <div class="si" id="m-steps"></div>
+    <div class="nb" id="m-nav"></div>
+  </div>
+</div>
+
+<script>
+const D={
+  nas:{title:'Servidor NAS',subtitle:'Synology / TrueNAS · CIFS + NFS simultáneos sobre el mismo RAID',tags:['bc:CIFS TCP 445','bn:NFS TCP 2049','bp:mismo volumen físico'],steps:[
+    {h:'El NAS publica dos protocolos simultáneos',b:'<p>El mismo volumen <b>/datos/proyectos</b> se expone por dos pilas independientes:</p><span class="cl">smbd --daemon   → CIFS/SMB  puerto TCP 445</span><span class="cl">nfsd --daemon   → NFS v4    puerto TCP 2049</span><p>Los LEDs del frente confirman actividad de discos. Windows ve el share CIFS; Linux ve el export NFS.</p>'},
+    {h:'Autenticación diferente por protocolo',b:'<p><b>CIFS</b>: negocia sesión SMB, autentica via Active Directory + Kerberos. El servidor mantiene token de sesión por cliente.</p><p><b>NFS</b>: sin sesión. Verifica solo la IP origen contra /etc/exports.</p><span class="cl">/etc/exports → /datos/proyectos 192.168.10.0/24(rw,sync)</span>'},
+    {h:'Gestión de bloqueos de archivo',b:'<p>CIFS aplica <b>oplocks</b> exclusivos: si Maria abre contrato.docx, Carlos recibe "archivo en uso".</p><p>NFS v4 gestiona bloqueos server-side con <b>delegaciones</b>. NFS v3 usaba lockd en puerto 4045.</p>'}
+  ]},
+  switch:{title:'Switch Ethernet L2',subtitle:'802.1Q VLAN-aware · 1 Gbps por puerto · hub de la topología',tags:['bp:MAC switching','bp:VLAN 802.1Q'],steps:[
+    {h:'El switch no distingue CIFS de NFS',b:'<p>Para el switch, un frame CIFS y uno NFS son tramas Ethernet idénticas:</p><span class="cl">Frame CIFS → destino MAC NAS → puerto 24</span><span class="cl">Frame NFS  → destino MAC NAS → puerto 24</span><p>La diferencia TCP 445 vs 2049 la procesa el servidor destino.</p>'},
+    {h:'Segmentación con VLANs recomendada',b:'<span class="cl">VLAN 10 → PCs Windows  (CIFS TCP 445)</span><span class="cl">VLAN 20 → Servidores Linux (NFS TCP 2049)</span><span class="cl">VLAN 30 → NAS storage</span><p>El firewall entre VLANs controla qué protocolo puede acceder al NAS desde cada segmento.</p>'}
+  ]},
+  win1:{title:'PC Windows — Maria (contabilidad)',subtitle:'Windows 11 Pro · SMB 3.1.1 + Kerberos · dominio AD',tags:['bc:SMB 3.1.1','bp:TCP 445','bp:Kerberos auth'],steps:[
+    {h:'Mapeo UNC y negociación SMB',b:'<p>Maria abre el Explorador y teclea:</p><span class="cl">\\\\NAS-CORP\\contabilidad</span><p>Windows envía <b>SMB NEGOTIATE</b> por TCP/445 → acuerda SMB 3.1.1 con cifrado AES-128 del tráfico completo.</p>'},
+    {h:'Autenticación Kerberos sin contraseña en red',b:'<span class="cl">TGT → Service Ticket (DC) → presentado al NAS</span><p>Nunca viaja la contraseña por la red. El servidor registra cada acceso para auditoría ISO 27001.</p>'},
+    {h:'Oplock exclusivo + Persistent Handles',b:'<span class="cl">Z:\\contabilidad\\balance_Q1.xlsx</span><p>SMB 3.x: si la red cae hasta 60s, la sesión se recupera automáticamente (Persistent Handles). Esta función no existe en NFS estándar.</p>'}
+  ]},
+  win2:{title:'Laptop Windows — Carlos (gerencia)',subtitle:'Windows 10 Enterprise · dominio AD · misma auth Kerberos',tags:['bc:CIFS/SMB','bp:TCP 445','bp:sesión persistente'],steps:[
+    {h:'Permisos por grupo Active Directory',b:'<span class="cl">Gerencia     → leer+escribir en \\contabilidad</span><span class="cl">RRHH         → sin acceso</span><p>Si Carlos intenta abrir balance_Q1.xlsx que tiene Maria abierto → recibe aviso de oplock activo, puede abrir en solo lectura.</p>'},
+    {h:'Persistent Handles SMB 3.x',b:'<p>Corte de red de 30s → SMB 3.x mantiene estado de sesión de Carlos hasta 60s. Al restablecerse: recuperación transparente sin pérdida de datos.</p><p>NFS estándar no tiene esta capacidad nativa.</p>'}
+  ]},
+  linux1:{title:'Ubuntu Server — cluster-node-01',subtitle:'Ubuntu 22.04 LTS · NFS v4 · montaje automático /etc/fstab',tags:['bn:NFS v4','bp:TCP 2049','bp:auth por IP'],steps:[
+    {h:'Montaje automático con fstab',b:'<span class="cl">192.168.10.50:/datos/proyectos /mnt/proyectos nfs4 defaults,_netdev 0 0</span><p>Al arrancar, el SO ejecuta mount. El cliente envía RPC al puerto 2049. El NAS verifica la IP en /etc/exports y concede el montaje.</p>'},
+    {h:'Sin sesión, autenticación por IP',b:'<span class="cl">ls /mnt/proyectos/</span><span class="cl">cp resultado.csv /mnt/proyectos/resultados/</span><p>NFS+Kerberos (<b>sec=krb5</b>) añade autenticación por usuario para redes no confiables.</p>'},
+    {h:'Rendimiento superior de NFS v4',b:'<span class="cl">NFS4 → COMPOUND(OPEN+READ+CLOSE) = 1 RPC</span><span class="cl">CIFS → NEGOTIATE+SESSION+TREE+CREATE+READ = 5 RTTs</span><p>Para transferencias masivas de datos de simulación: NFS v4 puede ser hasta 3x más rápido que CIFS.</p>'}
+  ]},
+  linux2:{title:'Rocky Linux — cluster-node-02',subtitle:'Rocky Linux 9 · NFS v4 · mismo export del NAS',tags:['bn:NFS v4','bp:TCP 2049','bp:rpcbind 111'],steps:[
+    {h:'Lectura simultánea de múltiples nodos',b:'<p>cluster-node-01 y cluster-node-02 montan <b>/mnt/proyectos</b> desde el mismo NAS. Lectura simultánea sin conflicto. Para escritura concurrente se requiere GlusterFS o control a nivel de aplicación.</p>'},
+    {h:'Descubrimiento de servicio con rpcbind',b:'<span class="cl">Cliente → UDP 111: ¿puerto de nfsd?</span><span class="cl">rpcbind → TCP 2049</span><span class="cl">Cliente → TCP 2049: MOUNT request</span>'}
+  ]},
+  linuxclient:{title:'Servidor de apps — Node: appserver',subtitle:'Ubuntu Server · backend Node.js · NFS transparente',tags:['bn:NFS v4','bp:TCP 2049','bp:montaje transparente'],steps:[
+    {h:'Backend Node.js leyendo archivos del NAS',b:'<span class="cl">192.168.10.50:/datos/contratos → /app/contratos (NFS)</span><p>El código usa <b>fs.readFile(\'/app/contratos/contrato_123.pdf\')</b> — completamente transparente, no distingue disco local de NAS remoto.</p>'},
+    {h:'¿Por qué NFS y no CIFS aquí?',b:'<span class="cl">NFS: cero credenciales, menor overhead, mayor rendimiento</span><span class="cl">CIFS en Linux: requiere cifs-utils + credenciales de dominio</span><p>Para miles de lecturas por hora en Linux, NFS es la elección natural.</p>'}
+  ]},
+  mixed:{title:'MacBook Pro — Ana (diseño)',subtitle:'macOS Ventura · SMB 3 nativo · NFS disponible · entorno mixto',tags:['bc:SMB nativo macOS','bn:NFS disponible','bp:entorno mixto'],steps:[
+    {h:'macOS soporta ambos protocolos nativamente',b:'<p>Finder → <b>Ir → Conectar al servidor</b>:</p><span class="cl">smb://192.168.10.50/diseno       ← CIFS/SMB</span><span class="cl">nfs://192.168.10.50/datos/diseno ← NFS</span><p>macOS Ventura usa SMB 3 por defecto para máxima interoperabilidad con NAS Synology y servidores Windows.</p>'},
+    {h:'¿CIFS o NFS para Ana?',b:'<p><b>Empresa con mayoría Windows + AD</b> → Ana autentica con SSO de dominio vía CIFS igual que los demás. Sin configuración extra.</p><p><b>Equipo exclusivo Mac/Linux</b> → NFS más eficiente para archivos grandes de diseño (PSD, AI de varios GB).</p>'}
+  ]},
+  ad:{title:'Active Directory — Auth centralizada CIFS',subtitle:'Windows Server 2022 · Domain Controller · Kerberos v5 + LDAP',tags:['bc:auth CIFS','bp:Kerberos TCP 88','bp:LDAP TCP 389'],steps:[
+    {h:'Flujo Kerberos para autenticación CIFS',b:'<span class="cl">1. Cliente solicita TGT al DC (TCP 88)</span><span class="cl">2. DC emite Service Ticket para el NAS</span><span class="cl">3. NAS valida ticket → acceso concedido</span><p>Nunca viaja la contraseña en texto por la red. Firma criptográfica del DC.</p>'},
+    {h:'Diferencia fundamental con NFS',b:'<span class="cl">NFS básico:    IP-based (riesgo IP spoofing)</span><span class="cl">NFS+Kerberos:  sec=krb5 (integrable con AD)</span><span class="cl">CIFS:          usuario+Kerberos (ISO 27001 auditable)</span>'}
+  ]},
+  rpc:{title:'rpcbind — portmapper NFS Puerto 111',subtitle:'Directorio de servicios RPC · necesario para NFS v3 y v4',tags:['bn:NFS discovery','bp:Puerto 111','bp:Puerto 2049'],steps:[
+    {h:'¿Qué hace rpcbind?',b:'<span class="cl">Cliente → UDP 111: "¿Dónde está nfsd?"</span><span class="cl">rpcbind → "nfsd en TCP 2049"</span><span class="cl">Cliente → TCP 2049: MOUNT request</span><p>En NFS v4 el puerto 2049 es fijo, pero rpcbind se mantiene por compatibilidad con v3.</p>'},
+    {h:'Puertos a abrir en el firewall para NFS',b:'<span class="cl">TCP/UDP 111  → rpcbind</span><span class="cl">TCP 2049     → nfsd (datos)</span><span class="cl">TCP/UDP 4045 → lockd (NFS v3)</span><p><b>CIFS</b> solo necesita TCP 445 — ventaja clara en entornos con firewalls estrictos.</p>'}
+  ]}
+};
+let CS=[],CI=0;
+function showModal(k){
+  const d=D[k];if(!d)return;
+  document.getElementById('m-title').textContent='▶ '+d.title;
+  document.getElementById('m-subtitle').textContent=d.subtitle;
+  document.getElementById('m-tags').innerHTML=d.tags.map(t=>{const[c,l]=t.split(':');return'<span class="'+c+'">'+l+'</span>';}).join(' ');
+  CS=d.steps;CI=0;render();
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modal').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function render(){
+  const s=CS[CI];
+  document.getElementById('m-body').innerHTML='<p style="font-weight:bold;margin-bottom:7px;color:#fff">'+s.h+'</p>'+s.b;
+  document.getElementById('m-steps').innerHTML=CS.map(function(_,i){return'<span class="sd'+(i===CI?' a':'')+'"></span>';}).join('');
+  const nav=document.getElementById('m-nav');nav.innerHTML='';
+  if(CS.length>1){
+    if(CI>0){const b=document.createElement('button');b.textContent='← Anterior';b.onclick=function(){CI--;render();};nav.appendChild(b);}
+    if(CI<CS.length-1){const b=document.createElement('button');b.textContent='Siguiente →';b.onclick=function(){CI++;render();};nav.appendChild(b);}
+  }
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+</script>
+</body>
+</html>
