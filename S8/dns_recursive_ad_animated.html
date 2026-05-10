@@ -1,0 +1,365 @@
+<h2 class="sr-only">Simulación animada paso a paso de una consulta DNS recursiva en un entorno con Active Directory, mostrando el flujo entre cliente, DNS local, DNS raíz, TLD y servidor autoritativo</h2>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.shell{padding:1rem 0 1.5rem;display:flex;flex-direction:column;gap:14px;font-family:var(--font-sans)}
+.stage-wrap{background:#0d0d0f;border-radius:var(--border-radius-lg);overflow:hidden;border:0.5px solid #2a2a2e;position:relative}
+.info-panel{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);display:grid;grid-template-columns:1fr 1fr;gap:0}
+.info-left{padding:14px 16px;border-right:0.5px solid var(--color-border-tertiary)}
+.info-right{padding:14px 16px}
+.step-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;margin-bottom:8px}
+.info-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px;line-height:1.4}
+.info-body{font-size:12.5px;color:var(--color-text-secondary);line-height:1.65}
+.code-box{font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px 10px;color:var(--color-text-primary);line-height:1.7;white-space:pre;margin-top:8px;overflow-x:auto}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pills{display:flex;gap:4px;flex:1}
+.pill{height:6px;border-radius:3px;cursor:pointer;transition:background .2s;flex:1;background:var(--color-border-tertiary)}
+.pill.done{background:#1D9E75}.pill.active{background:#7C6FF7}
+.btn-row{display:flex;gap:8px}
+.btn{padding:6px 14px;font-size:13px;cursor:pointer;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);display:flex;align-items:center;gap:5px}
+.btn:disabled{opacity:.3;cursor:default}
+.btn-play{background:#7C6FF7;border-color:#534AB7;color:#EEEDFE}
+.btn-play:hover{background:#534AB7}
+.ctr{font-size:12px;color:var(--color-text-secondary);min-width:40px;text-align:right}
+.ask-btn{font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);width:100%;margin-top:10px}
+.ask-btn:hover{background:var(--color-background-secondary)}
+
+@keyframes dash-move{to{stroke-dashoffset:-20}}
+@keyframes pkg-go{0%{opacity:1;offset-distance:0%}85%{opacity:1}100%{opacity:0;offset-distance:100%}}
+@keyframes pulse-ring{0%,100%{r:18;opacity:.6}50%{r:22;opacity:.2}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+</style>
+
+<div class="shell">
+
+<div class="stage-wrap">
+<svg id="stage" width="100%" viewBox="0 0 680 320" role="img">
+  <title>Consulta DNS recursiva en Active Directory</title>
+  <desc>Animación del flujo de una consulta DNS desde un cliente Windows hasta el servidor autoritativo, pasando por el DNS local con AD DS, root servers, TLD y dominio empresa.pe</desc>
+  <defs>
+    <marker id="aw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <path id="p-c-to-dns" d="M148,190 Q220,130 290,170"/>
+    <path id="p-dns-to-root" d="M360,140 Q420,80 460,110"/>
+    <path id="p-root-to-tld" d="M510,130 Q540,100 560,130"/>
+    <path id="p-tld-to-auth" d="M590,170 Q600,220 570,250"/>
+    <path id="p-auth-to-dns" d="M500,270 Q400,290 360,220"/>
+    <path id="p-dns-to-c" d="M290,200 Q220,240 148,210"/>
+  </defs>
+
+  <rect width="680" height="320" fill="#0d0d0f"/>
+
+  <line x1="0" y1="280" x2="680" y2="280" stroke="#1a1a1e" stroke-width="1"/>
+  <text x="340" y="296" text-anchor="middle" font-size="10" fill="#333" font-family="var(--font-sans)">Active Directory Domain: empresa.pe  ·  DNS integrado en AD DS</text>
+
+  <line id="ln-c-dns"    x1="148" y1="190" x2="290"  y2="170" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+  <line id="ln-dns-root" x1="360" y1="140" x2="460"  y2="110" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+  <line id="ln-root-tld" x1="510" y1="130" x2="560"  y2="130" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+  <line id="ln-tld-auth" x1="590" y1="170" x2="570"  y2="250" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+  <line id="ln-auth-dns" x1="500" y1="270" x2="360"  y2="220" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+  <line id="ln-dns-c"    x1="290" y1="200" x2="148"  y2="210" stroke="#2a2a2e" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <g id="pkt1" style="display:none"><circle r="7" fill="#7C6FF7"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#EEEDFE" font-family="var(--font-sans)">Q</text></g>
+  <g id="pkt2" style="display:none"><circle r="7" fill="#7C6FF7"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#EEEDFE" font-family="var(--font-sans)">Q</text></g>
+  <g id="pkt3" style="display:none"><circle r="7" fill="#7C6FF7"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#EEEDFE" font-family="var(--font-sans)">Q</text></g>
+  <g id="pkt4" style="display:none"><circle r="7" fill="#7C6FF7"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#EEEDFE" font-family="var(--font-sans)">Q</text></g>
+  <g id="pkt5" style="display:none"><circle r="7" fill="#1D9E75"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#E1F5EE" font-family="var(--font-sans)">R</text></g>
+  <g id="pkt6" style="display:none"><circle r="7" fill="#1D9E75"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#E1F5EE" font-family="var(--font-sans)">R</text></g>
+
+  <g id="actor-client">
+    <ellipse cx="100" cy="215" rx="42" ry="14" fill="#1a1035" stroke="#534AB7" stroke-width="0.8" stroke-opacity="0.6"/>
+    <rect x="80" y="170" width="40" height="30" rx="3" fill="#1a1035" stroke="#534AB7" stroke-width="0.8"/>
+    <rect x="84" y="173" width="32" height="20" rx="1" fill="#2a2060"/>
+    <rect x="84" y="173" width="32" height="20" rx="1" fill="none" stroke="#7C6FF7" stroke-width="0.5"/>
+    <line x1="96" y1="200" x2="104" y2="200" stroke="#534AB7" stroke-width="1.5"/>
+    <rect x="88" y="200" width="24" height="4" rx="1" fill="#1a1035" stroke="#534AB7" stroke-width="0.8"/>
+    <text x="100" y="228" text-anchor="middle" font-size="10" font-weight="500" fill="#AFA9EC" font-family="var(--font-sans)">Computer1</text>
+    <text x="100" y="240" text-anchor="middle" font-size="9" fill="#534AB7" font-family="var(--font-sans)">10.40.10.5</text>
+    <circle id="ring-client" cx="100" cy="193" r="18" fill="none" stroke="#7C6FF7" stroke-width="1.5" opacity="0"/>
+  </g>
+
+  <g id="actor-dns">
+    <rect x="295" y="128" width="70" height="72" rx="4" fill="#082818" stroke="#0F6E56" stroke-width="0.8"/>
+    <rect x="299" y="132" width="62" height="6" rx="1" fill="#0F6E56" opacity="0.6"/>
+    <rect x="299" y="141" width="62" height="4" rx="1" fill="#1D9E75" opacity="0.4"/>
+    <rect x="299" y="148" width="62" height="4" rx="1" fill="#1D9E75" opacity="0.4"/>
+    <rect x="299" y="155" width="62" height="4" rx="1" fill="#1D9E75" opacity="0.4"/>
+    <rect x="299" y="162" width="62" height="4" rx="1" fill="#1D9E75" opacity="0.3"/>
+    <rect x="309" y="172" width="42" height="24" rx="3" fill="#051808" stroke="#085041" stroke-width="0.8"/>
+    <text x="330" y="179" text-anchor="middle" font-size="7.5" fill="#5DCAA5" font-family="var(--font-mono)">NTDS.DIT</text>
+    <text x="330" y="189" text-anchor="middle" font-size="7" fill="#1D9E75" font-family="var(--font-mono)">AD DS</text>
+    <text x="330" y="215" text-anchor="middle" font-size="10" font-weight="500" fill="#9FE1CB" font-family="var(--font-sans)">DNS local</text>
+    <text x="330" y="226" text-anchor="middle" font-size="9" fill="#0F6E56" font-family="var(--font-sans)">10.40.10.2 · DC</text>
+    <circle id="ring-dns" cx="330" cy="164" r="18" fill="none" stroke="#1D9E75" stroke-width="1.5" opacity="0"/>
+  </g>
+
+  <g id="actor-root">
+    <ellipse cx="485" cy="120" rx="28" ry="9" fill="#1a1008" stroke="#BA7517" stroke-width="0.8" stroke-opacity="0.7"/>
+    <rect x="467" y="82" width="36" height="38" rx="3" fill="#1a1008" stroke="#BA7517" stroke-width="0.8"/>
+    <rect x="471" y="86" width="28" height="5" rx="1" fill="#EF9F27" opacity="0.5"/>
+    <rect x="471" y="94" width="28" height="3" rx="1" fill="#BA7517" opacity="0.4"/>
+    <rect x="471" y="100" width="28" height="3" rx="1" fill="#BA7517" opacity="0.4"/>
+    <rect x="471" y="106" width="28" height="3" rx="1" fill="#BA7517" opacity="0.3"/>
+    <text x="485" y="135" text-anchor="middle" font-size="9.5" font-weight="500" fill="#FAC775" font-family="var(--font-sans)">Root server</text>
+    <text x="485" y="146" text-anchor="middle" font-size="8.5" fill="#854F0B" font-family="var(--font-sans)">a.root-servers.net</text>
+    <circle id="ring-root" cx="485" cy="101" r="14" fill="none" stroke="#EF9F27" stroke-width="1.5" opacity="0"/>
+  </g>
+
+  <g id="actor-tld">
+    <ellipse cx="575" cy="148" rx="22" ry="8" fill="#1a0a18" stroke="#D4537E" stroke-width="0.8" stroke-opacity="0.7"/>
+    <rect x="558" y="115" width="34" height="33" rx="3" fill="#1a0a18" stroke="#D4537E" stroke-width="0.8"/>
+    <rect x="562" y="119" width="26" height="5" rx="1" fill="#ED93B1" opacity="0.5"/>
+    <rect x="562" y="127" width="26" height="3" rx="1" fill="#993556" opacity="0.4"/>
+    <rect x="562" y="133" width="26" height="3" rx="1" fill="#993556" opacity="0.3"/>
+    <text x="575" y="162" text-anchor="middle" font-size="9.5" font-weight="500" fill="#F4C0D1" font-family="var(--font-sans)">TLD .pe</text>
+    <text x="575" y="173" text-anchor="middle" font-size="8.5" fill="#72243E" font-family="var(--font-sans)">NIC.pe</text>
+    <circle id="ring-tld" cx="575" cy="131" r="13" fill="none" stroke="#D4537E" stroke-width="1.5" opacity="0"/>
+  </g>
+
+  <g id="actor-auth">
+    <ellipse cx="535" cy="270" rx="30" ry="10" fill="#100a1a" stroke="#7F77DD" stroke-width="0.8" stroke-opacity="0.7"/>
+    <rect x="516" y="228" width="38" height="42" rx="3" fill="#100a1a" stroke="#7F77DD" stroke-width="0.8"/>
+    <rect x="520" y="232" width="30" height="5" rx="1" fill="#AFA9EC" opacity="0.5"/>
+    <rect x="520" y="240" width="30" height="3" rx="1" fill="#534AB7" opacity="0.4"/>
+    <rect x="520" y="246" width="30" height="3" rx="1" fill="#534AB7" opacity="0.4"/>
+    <rect x="520" y="252" width="30" height="3" rx="1" fill="#534AB7" opacity="0.3"/>
+    <rect x="524" y="258" width="22" height="10" rx="2" fill="#0d0a20" stroke="#3C3489" stroke-width="0.5"/>
+    <text x="535" y="264" text-anchor="middle" font-size="7" fill="#7C6FF7" font-family="var(--font-mono)">DNS</text>
+    <text x="535" y="283" text-anchor="middle" font-size="9.5" font-weight="500" fill="#CECBF6" font-family="var(--font-sans)">Autoritativo</text>
+    <text x="535" y="294" text-anchor="middle" font-size="8.5" fill="#3C3489" font-family="var(--font-sans)">ns1.empresa.pe</text>
+    <circle id="ring-auth" cx="535" cy="249" r="14" fill="none" stroke="#7F77DD" stroke-width="1.5" opacity="0"/>
+  </g>
+
+  <g id="msg-overlay" opacity="0">
+    <rect id="msg-bg" x="200" y="46" width="280" height="34" rx="6"/>
+    <text id="msg-txt" x="340" y="66" text-anchor="middle" font-size="11" font-weight="500" fill="#fff" font-family="var(--font-sans)"></text>
+  </g>
+</svg>
+</div>
+
+<div class="info-panel">
+  <div class="info-left">
+    <div class="step-badge" id="sbadge"></div>
+    <div class="info-title" id="ititle"></div>
+    <div class="info-body" id="ibody"></div>
+    <button class="ask-btn" id="askbtn" onclick="doAsk()"></button>
+  </div>
+  <div class="info-right">
+    <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Mensaje DNS en este paso</div>
+    <div class="code-box" id="cbox"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="pills" id="pills"></div>
+  <span class="ctr" id="ctr">1/7</span>
+  <div class="btn-row">
+    <button class="btn" id="pbtn" onclick="go(-1)" disabled><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+    <button class="btn btn-play" id="playbtn" onclick="togglePlay()"><i class="ti ti-player-play" id="play-icon" aria-hidden="true"></i> Auto</button>
+    <button class="btn" id="nbtn" onclick="go(1)"><i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+</div>
+
+<script>
+const STEPS = [
+  {
+    badge:"Inicio", bc:"#534AB7", bb:"#EEEDFE",
+    title:"Computer1 genera una consulta DNS recursiva",
+    body:"El usuario intenta acceder a mail1.empresa.pe. El sistema operativo (Windows 10) consulta primero su caché local DNS — está vacía. Entonces genera un mensaje DNS tipo A (dirección IPv4) y lo envía al servidor DNS configurado: el DC local en 10.40.10.2. Le pide una respuesta completa (flag RD=1: Recursion Desired).",
+    code:";; QUERY enviada por Computer1\n;; Flags: qr rd  (Recursion Desired)\n;; QUESTION SECTION:\nmail1.empresa.pe.  IN  A\n\n;; Servidor DNS: 10.40.10.2 (DC local)",
+    ask:"¿Qué es el flag RD en DNS y qué diferencia a una consulta recursiva de una iterativa?",
+    anim:"query-to-dns",
+    rings:["ring-client"],
+    lines:["ln-c-dns"],
+    msg:{fill:"#534AB7",text:"Consulta: mail1.empresa.pe? (RD=1)"},
+    pkt:"pkt1", ppath:"p-c-to-dns"
+  },
+  {
+    badge:"Paso 1", bc:"#085041", bb:"#E1F5EE",
+    title:"DNS local consulta su zona AD DS integrada",
+    body:"El servidor DNS (10.40.10.2) está integrado con AD DS. Primero consulta la zona 'empresa.pe' almacenada en NTDS.DIT. La zona es AD-Integrated: los registros se replican automáticamente con todos los DCs. Si mail1.empresa.pe está registrado en AD (registro A creado por DHCP dinámico seguro), responde directamente sin salir a Internet.",
+    code:"; Zona AD-Integrated en NTDS.DIT\nempresa.pe.  IN  SOA  dc1.empresa.pe. ...\nmail1.empresa.pe.  IN  A  ???\n\n; → No encontrado en zona local\n; → Iniciar resolución recursiva externa",
+    ask:"¿Cómo funciona la replicación de zonas DNS integradas en AD DS entre controladores de dominio?",
+    anim:"dns-think",
+    rings:["ring-dns"],
+    lines:["ln-c-dns"],
+    msg:{fill:"#085041",text:"Buscando en zona AD-Integrated empresa.pe…"},
+    pkt:null
+  },
+  {
+    badge:"Paso 2", bc:"#633806", bb:"#FAEEDA",
+    title:"DNS local consulta a un Root Server",
+    body:"El registro no está en la caché ni en las zonas locales. El DNS local inicia resolución iterativa en nombre del cliente (por eso se llama 'recursiva' desde el punto de vista del cliente). Consulta al root server más cercano (a.root-servers.net, 198.41.0.4) preguntando por 'mail1.empresa.pe'. El root server no conoce el dominio, pero sí sabe quién gestiona el TLD .pe.",
+    code:";; DNS local → Root Server 198.41.0.4\n;; Flags: rd (iterativa desde DNS local)\nmail1.empresa.pe.  IN  A\n\n;; Respuesta del Root Server:\n;; AUTHORITY SECTION:\npe.  172800  IN  NS  a.lactld.org.\n;; (no AA flag — referencia, no autoridad)",
+    ask:"¿Por qué la consulta del DNS local a los root servers es iterativa y no recursiva?",
+    anim:"dns-to-root",
+    rings:["ring-dns","ring-root"],
+    lines:["ln-dns-root"],
+    msg:{fill:"#854F0B",text:"DNS local → Root: ¿quién sabe de .pe?"},
+    pkt:"pkt2", ppath:"p-dns-to-root"
+  },
+  {
+    badge:"Paso 3", bc:"#72243E", bb:"#FBEAF0",
+    title:"Root Server delega al TLD .pe (NIC.pe)",
+    body:"El root server responde con una referencia (RCODE=0, sin AA flag): 'Yo no sé, pero el TLD .pe lo gestiona a.lactld.org'. El DNS local recibe los NS del TLD y los contacta. NIC.pe tiene registrado 'empresa.pe' con su NS autoritativo. Responde: 'para empresa.pe habla con ns1.empresa.pe (10.40.10.2)'.",
+    code:";; DNS local → TLD .pe (a.lactld.org)\nmail1.empresa.pe.  IN  A\n\n;; Respuesta TLD .pe:\n;; AUTHORITY SECTION:\nempresa.pe.  86400  IN  NS  ns1.empresa.pe.\n;; ADDITIONAL SECTION (glue):\nns1.empresa.pe.  3600  IN  A  10.40.10.2",
+    ask:"¿Qué es el glue record en DNS y por qué es necesario para ns1.empresa.pe?",
+    anim:"root-to-tld",
+    rings:["ring-root","ring-tld"],
+    lines:["ln-root-tld"],
+    msg:{fill:"#993556",text:"TLD .pe → delegando a ns1.empresa.pe"},
+    pkt:"pkt3", ppath:"p-root-to-tld"
+  },
+  {
+    badge:"Paso 4", bc:"#26215C", bb:"#EEEDFE",
+    title:"TLD delega al servidor autoritativo de empresa.pe",
+    body:"El DNS local contacta ahora directamente a ns1.empresa.pe (que resulta ser ¡el mismo DC: 10.40.10.2!). Este servidor es el NS autoritativo para empresa.pe. Ahora busca el registro A de 'mail1.empresa.pe' en su zona y lo encuentra. Responde con el flag AA=1 (Authoritative Answer): la respuesta es definitiva.",
+    code:";; DNS local → ns1.empresa.pe (10.40.10.2)\nmail1.empresa.pe.  IN  A\n\n;; Respuesta AUTORITATIVA (AA=1):\n;; ANSWER SECTION:\nmail1.empresa.pe.  300  IN  A  10.40.10.25\n;; Flags: qr aa rd ra\n;; SERVER: 10.40.10.2 (ns1.empresa.pe)",
+    ask:"¿Qué significa el flag AA en una respuesta DNS y por qué garantiza que la respuesta es definitiva?",
+    anim:"tld-to-auth",
+    rings:["ring-tld","ring-auth"],
+    lines:["ln-tld-auth"],
+    msg:{fill:"#3C3489",text:"Autoritativo: mail1.empresa.pe = 10.40.10.25 (AA=1)"},
+    pkt:"pkt4", ppath:"p-tld-to-auth"
+  },
+  {
+    badge:"Paso 5", bc:"#085041", bb:"#E1F5EE",
+    title:"El DNS local recibe la respuesta y guarda en caché",
+    body:"El servidor DNS local recibe la IP final (10.40.10.25) con TTL=300 segundos. Guarda el resultado en caché durante ese tiempo: cualquier otra máquina del dominio que pregunte por mail1.empresa.pe recibirá respuesta instantánea durante 5 minutos. El DNS local ahora actúa como intermediario final.",
+    code:";; DNS local → guarda en caché\nmail1.empresa.pe.  300  IN  A  10.40.10.25\n\n;; Caché local (vigente 300s):\n; TTL expira en: t+300s\n; Próxima consulta: respuesta inmediata\n\n;; Ahora responde al cliente original…",
+    ask:"¿Cómo afecta el TTL a la propagación de cambios DNS en un dominio de Active Directory?",
+    anim:"auth-to-dns",
+    rings:["ring-dns"],
+    lines:["ln-auth-dns"],
+    msg:{fill:"#0F6E56",text:"DNS local guarda caché: TTL 300s"},
+    pkt:"pkt5", ppath:"p-auth-to-dns"
+  },
+  {
+    badge:"Respuesta final", bc:"#534AB7", bb:"#EEEDFE",
+    title:"Computer1 recibe la IP → conexión establecida",
+    body:"El DNS local envía la respuesta final a Computer1: mail1.empresa.pe = 10.40.10.25. El flag RA=1 (Recursion Available) confirma que el servidor completó la resolución completa. El cliente almacena el resultado en su caché local y abre inmediatamente la conexión TCP al servidor de correo. Toda la resolución tomó tipicamente menos de 50ms.",
+    code:";; DNS local → Computer1\n;; Flags: qr rd ra  ← RA=1 Recursion Available\n;; QUESTION:\nmail1.empresa.pe.  IN  A\n;; ANSWER:\nmail1.empresa.pe.  300  IN  A  10.40.10.25\n\n;; Computer1 abre TCP → 10.40.10.25:25",
+    ask:"¿Qué diferencia hay entre el flag RD (Recursion Desired) y el flag RA (Recursion Available) en DNS?",
+    anim:"dns-to-client",
+    rings:["ring-client"],
+    lines:["ln-dns-c"],
+    msg:{fill:"#534AB7",text:"Respuesta: mail1.empresa.pe = 10.40.10.25 ✓"},
+    pkt:"pkt6", ppath:"p-dns-to-c"
+  }
+];
+
+let cur=0, playing=false, timer=null, animTimer=null;
+
+const ALL_LINES=["ln-c-dns","ln-dns-root","ln-root-tld","ln-tld-auth","ln-auth-dns","ln-dns-c"];
+const ALL_RINGS=["ring-client","ring-dns","ring-root","ring-tld","ring-auth"];
+
+function setLine(id,active){
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(active){el.setAttribute("stroke","#7C6FF7");el.style.strokeOpacity="1";el.setAttribute("stroke-width","1.5");}
+  else{el.setAttribute("stroke","#2a2a2e");el.style.strokeOpacity="0.6";el.setAttribute("stroke-width","1");}
+}
+function setRing(id,active){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.style.opacity=active?"1":"0";
+  if(active) el.style.animation="pulse-ring 1.2s ease-in-out infinite";
+  else el.style.animation="none";
+}
+function animatePkt(pktId,pathId,duration,cb){
+  if(!pktId||!pathId)return cb&&cb();
+  const pkt=document.getElementById(pktId);
+  const path=document.getElementById(pathId);
+  if(!pkt||!path)return cb&&cb();
+  pkt.style.display="block";
+  const len=path.getTotalLength();
+  let start=null;
+  function step(ts){
+    if(!start)start=ts;
+    const prog=Math.min((ts-start)/duration,1);
+    const pt=path.getPointAtLength(prog*len);
+    pkt.setAttribute("transform",`translate(${pt.x},${pt.y})`);
+    pkt.style.opacity=prog>0.85?(1-((prog-0.85)/0.15)):1;
+    if(prog<1)requestAnimationFrame(step);
+    else{pkt.style.display="none";cb&&cb();}
+  }
+  requestAnimationFrame(step);
+}
+function showMsg(step){
+  const m=step.msg;
+  const bg=document.getElementById("msg-bg");
+  const txt=document.getElementById("msg-txt");
+  const ov=document.getElementById("msg-overlay");
+  bg.setAttribute("fill",m.fill);
+  txt.textContent=m.text;
+  ov.style.opacity="1";
+  ov.style.animation="fade-in 0.4s ease";
+}
+function hideMsg(){document.getElementById("msg-overlay").style.opacity="0";}
+
+function render(){
+  const s=STEPS[cur];
+  ALL_LINES.forEach(id=>setLine(id,s.lines.includes(id)));
+  ALL_RINGS.forEach(id=>setRing(id,s.rings.includes(id)));
+  hideMsg();
+  if(s.pkt&&s.ppath){
+    if(animTimer)clearTimeout(animTimer);
+    animTimer=setTimeout(()=>{
+      showMsg(s);
+      animatePkt(s.pkt,s.ppath,900,null);
+    },300);
+  } else {
+    if(s.msg)showMsg(s);
+  }
+  const bdg=document.getElementById("sbadge");
+  bdg.textContent=s.badge;
+  bdg.style.background=s.bb; bdg.style.color=s.bc;
+  document.getElementById("ititle").textContent=s.title;
+  document.getElementById("ibody").textContent=s.body;
+  document.getElementById("cbox").textContent=s.code;
+  document.getElementById("askbtn").textContent="Profundizar: "+s.ask+" ↗";
+  document.getElementById("pbtn").disabled=cur===0;
+  document.getElementById("nbtn").disabled=cur===STEPS.length-1;
+  document.getElementById("ctr").textContent=(cur+1)+"/"+STEPS.length;
+  document.querySelectorAll(".pill").forEach((p,i)=>{
+    p.classList.toggle("active",i===cur);
+    p.classList.toggle("done",i<cur);
+  });
+}
+
+function go(d){
+  cur=Math.max(0,Math.min(STEPS.length-1,cur+d));
+  render();
+}
+function doAsk(){sendPrompt(STEPS[cur].ask);}
+
+function togglePlay(){
+  playing=!playing;
+  const ic=document.getElementById("play-icon");
+  if(playing){
+    ic.className="ti ti-player-pause";
+    function advance(){
+      if(!playing)return;
+      if(cur<STEPS.length-1){cur++;render();timer=setTimeout(advance,3500);}
+      else{playing=false;ic.className="ti ti-player-play";}
+    }
+    timer=setTimeout(advance,3500);
+  } else {
+    ic.className="ti ti-player-play";
+    clearTimeout(timer);
+  }
+}
+
+const pe=document.getElementById("pills");
+STEPS.forEach((_,i)=>{
+  const p=document.createElement("div");
+  p.className="pill"; p.title="Paso "+(i+1);
+  p.onclick=()=>{cur=i;render();};
+  pe.appendChild(p);
+});
+render();
+</script>
