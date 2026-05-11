@@ -1,0 +1,294 @@
+
+<style>
+* { box-sizing: border-box; }
+@keyframes neonPulse { 0%,100%{opacity:1} 50%{opacity:.75} }
+@keyframes modalIn { from{opacity:0;transform:scale(.94) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes globeSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes globePulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+@keyframes meridianScroll { from{stroke-dashoffset:0} to{stroke-dashoffset:-120} }
+
+.wrap { background:#050d1a; border-radius:14px; padding:10px 8px 14px; position:relative; }
+.step-bar { display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-bottom:10px; padding:0 4px; }
+.sbtn { cursor:pointer; padding:4px 10px; font-size:11px; border-radius:5px; border:1px solid #1a4a6e; background:#071525; color:#4db8ff; transition:all .15s; font-family:monospace; }
+.sbtn:hover { background:#0d2540; border-color:#4db8ff; }
+.sbtn.active { background:#0a2a4a; border-color:#00d4ff; color:#00d4ff; box-shadow:0 0 8px #00d4ff66; }
+.hint-txt { font-size:11px; font-family:monospace; color:#3a7a9c; text-align:center; margin-bottom:6px; }
+
+.globe-outer { animation: globePulse 2.5s ease-in-out infinite; }
+.globe-spin-group { transform-origin: 578px 68px; animation: globeSpin 6s linear infinite; }
+.meridian-line { stroke-dasharray: 8 5; animation: meridianScroll 3s linear infinite; }
+
+.modal-overlay { display:none; min-height:300px; background:rgba(0,5,15,.88); border-radius:14px; align-items:center; justify-content:center; margin-top:8px; }
+.modal-overlay.open { display:flex; }
+.modal-card { background:#071828; border:1px solid #00d4ff; border-radius:12px; padding:20px 22px; max-width:560px; width:94%; box-shadow:0 0 24px #00d4ff44,0 0 60px #00d4ff18; animation:modalIn .22s ease; position:relative; }
+.modal-title { font-size:15px; font-weight:600; color:#00d4ff; font-family:monospace; margin:0 0 10px; text-shadow:0 0 8px #00d4ffaa; }
+.modal-body { font-size:13px; color:#a8d4ec; line-height:1.65; font-family:monospace; margin:0 0 12px; }
+.modal-example { background:#030d1a; border:1px solid #1a4a6e; border-radius:8px; padding:10px 12px; font-size:12px; color:#4db8ff; font-family:monospace; line-height:1.6; }
+.modal-example strong { color:#00ffcc; }
+.modal-close { position:absolute; top:10px; right:12px; cursor:pointer; color:#3a7a9c; font-size:18px; background:none; border:none; line-height:1; transition:color .15s; }
+.modal-close:hover { color:#00d4ff; }
+.info-strip { font-size:11px; font-family:monospace; color:#2a6a8c; background:#030d1a; border-radius:6px; padding:7px 10px; margin-top:8px; line-height:1.5; border:1px solid #0d2540; min-height:36px; }
+.info-strip span { color:#00d4ff; }
+.nnode { cursor:pointer; }
+.nnode:hover rect, .nnode:hover ellipse { filter:brightness(1.25); }
+</style>
+
+<div class="wrap">
+  <div class="step-bar">
+    <span style="font-size:11px;color:#3a7a9c;font-family:monospace">Paso:</span>
+    <button class="sbtn active" id="b0" onclick="go(0)">0·Inicio</button>
+    <button class="sbtn" id="b1" onclick="go(1)">1·PC1→DNS</button>
+    <button class="sbtn" id="b2" onclick="go(2)">2·DNS↔Clúster</button>
+    <button class="sbtn" id="b3" onclick="go(3)">3·Root hints</button>
+    <button class="sbtn" id="b4" onclick="go(4)">4·Raíz→TLD</button>
+    <button class="sbtn" id="b5" onclick="go(5)">5·Resolución</button>
+  </div>
+  <div class="hint-txt">Haz clic sobre cualquier componente para ver su explicación</div>
+
+  <svg id="ns" viewBox="0 0 680 420" width="100%" role="img">
+    <title>DNS con sugerencias de raíz — globo animado neón</title>
+    <desc>Diagrama DNS interactivo con globo terráqueo animado en neón celeste</desc>
+    <defs>
+      <marker id="arn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <filter id="glow-b"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="glow-c"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="glow-g"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="glow-globe"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <clipPath id="globe-clip"><circle cx="578" cy="68" r="33"/></clipPath>
+    </defs>
+
+    <!-- ═══ ZONA LOCAL ═══ -->
+    <rect x="10" y="28" width="370" height="378" rx="12" fill="none" stroke="#0d3a5c" stroke-width="1" stroke-dasharray="7 4"/>
+    <text x="22" y="22" font-size="11" font-family="monospace" fill="#1a5a7c">Red local</text>
+
+    <!-- CLÚSTER DNS LOCAL -->
+    <g class="nnode" onclick="showModal('cluster')">
+      <rect x="22" y="148" width="112" height="162" rx="10" fill="#030d1a" stroke="#00aaff" stroke-width="1.5" filter="url(#glow-b)"/>
+      <text x="78" y="168" font-size="10" font-family="monospace" fill="#00aaff" text-anchor="middle" style="animation:neonPulse 2.5s ease-in-out infinite">Clúster DNS</text>
+      <text x="78" y="180" font-size="10" font-family="monospace" fill="#0077cc" text-anchor="middle">local</text>
+      <rect x="34" y="188" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width="0.8"/>
+      <text x="78" y="203" font-size="10" font-family="monospace" fill="#4db8ff" text-anchor="middle">DNS-1</text>
+      <rect x="34" y="216" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width="0.8"/>
+      <text x="78" y="231" font-size="10" font-family="monospace" fill="#4db8ff" text-anchor="middle">DNS-2</text>
+      <rect x="34" y="244" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width="0.8"/>
+      <text x="78" y="259" font-size="10" font-family="monospace" fill="#4db8ff" text-anchor="middle">DNS-3</text>
+      <text x="78" y="296" font-size="9" font-family="monospace" fill="#1a6a9c" text-anchor="middle">alta disponibilidad</text>
+    </g>
+
+    <!-- SERVIDOR DNS PRINCIPAL -->
+    <g class="nnode" onclick="showModal('sdns')">
+      <rect x="160" y="240" width="120" height="68" rx="8" fill="#030d1a" stroke="#00ccff" stroke-width="1.5" filter="url(#glow-b)"/>
+      <rect x="172" y="252" width="96" height="7" rx="2" fill="none" stroke="#0066aa" stroke-width="1"/>
+      <rect x="172" y="263" width="96" height="7" rx="2" fill="none" stroke="#0066aa" stroke-width="1"/>
+      <rect x="172" y="274" width="96" height="7" rx="2" fill="none" stroke="#0066aa" stroke-width="1"/>
+      <text x="220" y="320" font-size="10" font-family="monospace" fill="#00ccff" text-anchor="middle">Servidor DNS</text>
+    </g>
+
+    <!-- ROOT HINTS -->
+    <g class="nnode" onclick="showModal('roothints')">
+      <rect x="166" y="192" width="108" height="38" rx="7" fill="#030d1a" stroke="#ffaa00" stroke-width="1.5" filter="url(#glow-c)"/>
+      <text x="220" y="208" font-size="10" font-family="monospace" fill="#ffaa00" text-anchor="middle" font-weight="600">Root hints</text>
+      <text x="220" y="221" font-size="9" font-family="monospace" fill="#cc8800" text-anchor="middle">almacenadas</text>
+    </g>
+
+    <!-- PC1 -->
+    <g class="nnode" onclick="showModal('pc1')">
+      <rect x="26" y="334" width="96" height="56" rx="8" fill="#030d1a" stroke="#00ffcc" stroke-width="1.5" filter="url(#glow-g)"/>
+      <rect x="42" y="342" width="64" height="34" rx="3" fill="none" stroke="#006644" stroke-width="1"/>
+      <rect x="60" y="376" width="28" height="5" rx="1" fill="#006644"/>
+      <text x="74" y="402" font-size="10" font-family="monospace" fill="#00ffcc" text-anchor="middle">PC1</text>
+    </g>
+
+    <!-- ═══ GLOBO TERRÁQUEO ANIMADO EN NEÓN CELESTE ═══ -->
+    <g class="nnode" onclick="showModal('internet')">
+      <!-- Halo exterior pulsante -->
+      <circle cx="578" cy="68" r="40" fill="none" stroke="#00ccff" stroke-width="0.5" opacity="0.3" class="globe-outer"/>
+      <circle cx="578" cy="68" r="36" fill="none" stroke="#00ccff" stroke-width="0.8" opacity="0.5" class="globe-outer"/>
+
+      <!-- Fondo del globo -->
+      <circle cx="578" cy="68" r="33" fill="#030d1a" stroke="#00ccff" stroke-width="2" filter="url(#glow-globe)"/>
+
+      <!-- Meridianos y paralelos que giran -->
+      <g class="globe-spin-group" clip-path="url(#globe-clip)">
+        <!-- Meridiano vertical 1 -->
+        <ellipse cx="578" cy="68" rx="10" ry="33" fill="none" stroke="#00ccff" stroke-width="0.8" opacity="0.7" class="meridian-line"/>
+        <!-- Meridiano vertical 2 -->
+        <ellipse cx="578" cy="68" rx="22" ry="33" fill="none" stroke="#00ccff" stroke-width="0.6" opacity="0.5" class="meridian-line"/>
+        <!-- Meridiano vertical 3 -->
+        <ellipse cx="578" cy="68" rx="33" ry="33" fill="none" stroke="#00ccff" stroke-width="0.5" opacity="0.35"/>
+      </g>
+
+      <!-- Paralelos fijos (ecuador y trópicos) -->
+      <g clip-path="url(#globe-clip)">
+        <line x1="545" y1="68" x2="611" y2="68" stroke="#00ccff" stroke-width="0.9" opacity="0.7"/>
+        <line x1="547" y1="52" x2="609" y2="52" stroke="#00ccff" stroke-width="0.6" opacity="0.45"/>
+        <line x1="547" y1="84" x2="609" y2="84" stroke="#00ccff" stroke-width="0.6" opacity="0.45"/>
+        <line x1="554" y1="38" x2="602" y2="38" stroke="#00ccff" stroke-width="0.5" opacity="0.28"/>
+        <line x1="554" y1="98" x2="602" y2="98" stroke="#00ccff" stroke-width="0.5" opacity="0.28"/>
+      </g>
+
+      <!-- Borde del globo con neón -->
+      <circle cx="578" cy="68" r="33" fill="none" stroke="#00ccff" stroke-width="1.8" filter="url(#glow-globe)" opacity="0.9" class="globe-outer"/>
+
+      <!-- Etiqueta -->
+      <text x="578" y="116" font-size="10" font-family="monospace" fill="#00ccff" text-anchor="middle" filter="url(#glow-c)">Internet</text>
+    </g>
+
+    <!-- CLÚSTER RAÍZ -->
+    <g class="nnode" onclick="showModal('root')">
+      <rect x="476" y="136" width="140" height="66" rx="8" fill="#030d1a" stroke="#cc44ff" stroke-width="1.5" filter="url(#glow-b)"/>
+      <rect x="490" y="148" width="112" height="7" rx="2" fill="none" stroke="#6600aa" stroke-width="1"/>
+      <rect x="490" y="159" width="112" height="7" rx="2" fill="none" stroke="#6600aa" stroke-width="1"/>
+      <rect x="490" y="170" width="112" height="7" rx="2" fill="none" stroke="#6600aa" stroke-width="1"/>
+      <text x="546" y="214" font-size="10" font-family="monospace" fill="#cc44ff" text-anchor="middle">Clúster raíz (.)</text>
+    </g>
+
+    <!-- TLD .com -->
+    <g class="nnode" onclick="showModal('tld')">
+      <rect x="476" y="278" width="70" height="38" rx="7" fill="#030d1a" stroke="#ffaa00" stroke-width="1.5" filter="url(#glow-c)"/>
+      <text x="511" y="302" font-size="13" font-family="monospace" fill="#ffaa00" text-anchor="middle" font-weight="700">.com</text>
+    </g>
+
+    <!-- microsoft -->
+    <g class="nnode" onclick="showModal('microsoft')">
+      <rect x="566" y="278" width="100" height="38" rx="7" fill="#030d1a" stroke="#00ff88" stroke-width="1.5" filter="url(#glow-g)"/>
+      <text x="616" y="302" font-size="11" font-family="monospace" fill="#00ff88" text-anchor="middle" font-weight="600">microsoft</text>
+    </g>
+
+    <!-- FLECHAS ESTÁTICAS -->
+    <path d="M122 362 L160 290" fill="none" stroke="#0d3050" stroke-width="1" marker-end="url(#arn)" opacity=".5"/>
+    <line x1="134" y1="230" x2="160" y2="274" stroke="#0d3050" stroke-width="1" marker-end="url(#arn)" opacity=".5"/>
+    <line x1="134" y1="250" x2="160" y2="300" stroke="#0d3050" stroke-width=".8" stroke-dasharray="3 3" opacity=".3"/>
+    <path d="M280 274 L476 168" fill="none" stroke="#0d3050" stroke-width="1" marker-end="url(#arn)" opacity=".5"/>
+    <line x1="511" y1="202" x2="511" y2="276" stroke="#0d3050" stroke-width="1" marker-end="url(#arn)" opacity=".5"/>
+    <line x1="546" y1="297" x2="564" y2="297" stroke="#0d3050" stroke-width="1" marker-end="url(#arn)" opacity=".5"/>
+
+    <!-- FLECHAS ACTIVAS -->
+    <path id="ha1" d="M122 362 L160 290" fill="none" stroke="#00ffcc" stroke-width="2" marker-end="url(#arn)" opacity="0"/>
+    <line id="ha2f" x1="134" y1="230" x2="160" y2="274" stroke="#00aaff" stroke-width="2" marker-end="url(#arn)" opacity="0"/>
+    <line id="ha2r" x1="134" y1="258" x2="160" y2="302" stroke="#00ffcc" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arn)" opacity="0"/>
+    <path id="ha3" d="M280 274 L476 168" fill="none" stroke="#ffaa00" stroke-width="2.5" marker-end="url(#arn)" opacity="0"/>
+    <line id="ha4" x1="511" y1="202" x2="511" y2="276" stroke="#00ff88" stroke-width="2" marker-end="url(#arn)" opacity="0"/>
+    <line id="ha5" x1="546" y1="297" x2="564" y2="297" stroke="#00ff88" stroke-width="2" marker-end="url(#arn)" opacity="0"/>
+
+    <!-- ETIQUETAS ACTIVAS -->
+    <text id="lq"   x="128" y="348" font-size="9" font-family="monospace" fill="#00ffcc" opacity="0">¿microsoft.com?</text>
+    <text id="lrh"  x="340" y="248" font-size="9" font-family="monospace" fill="#ffaa00" text-anchor="middle" opacity="0">root hints →</text>
+    <text id="ltld" x="524" y="244" font-size="9" font-family="monospace" fill="#00ff88" opacity="0">→ .com</text>
+    <text id="lips" x="548" y="314" font-size="9" font-family="monospace" fill="#00ff88" opacity="0">→ IP!</text>
+
+    <!-- PAQUETE ANIMADO -->
+    <circle id="pkt" cx="0" cy="0" r="5" fill="#00ffcc" opacity="0" filter="url(#glow-g)"/>
+  </svg>
+
+  <div id="info-strip" class="info-strip">
+    <span>Sistema listo.</span> Usa los botones de paso o haz clic en cualquier componente del diagrama.
+  </div>
+</div>
+
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal()" aria-label="Cerrar">×</button>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-example" id="modal-example"></div>
+  </div>
+</div>
+
+<script>
+const MODALS = {
+  pc1: {
+    title:'🖥  PC1 — Cliente DNS',
+    body:'PC1 es el equipo del usuario final que genera la consulta DNS. Cuando escribes una URL en el navegador, el sistema operativo llama al resolver local, que reenvía la pregunta al servidor DNS configurado (generalmente por DHCP). PC1 no sabe nada de raíces ni TLDs — solo pregunta y espera la IP de respuesta.',
+    example:'<strong>Ejemplo:</strong> El usuario escribe microsoft.com en Chrome.\n→ Windows llama a WSA (Winsock) → consulta al 192.168.1.1\n→ Espera la respuesta con la IP: <strong>20.112.52.29</strong>'
+  },
+  cluster: {
+    title:'🗄  Clúster DNS local',
+    body:'Un clúster de servidores DNS locales agrupa dos o más instancias para garantizar alta disponibilidad y balanceo de carga. Si DNS-1 falla, DNS-2 o DNS-3 siguen respondiendo. En Windows Server se implementa con zonas primaria/secundaria o con DNS integrado en Active Directory.',
+    example:'<strong>Ejemplo en Windows Server AD:</strong>\nDNS-1 (DC primario): 10.0.0.1\nDNS-2 (DC secundario): 10.0.0.2\nDNS-3 (sitio remoto): 10.0.1.1\n→ Si cae DNS-1, los clientes con DNS-2 como alternativo siguen resolviendo sin interrupción.'
+  },
+  sdns: {
+    title:'⚙  Servidor DNS local',
+    body:'El servidor DNS local es el resolvedor recursivo de la organización. Recibe consultas de los clientes, revisa su caché, y si no tiene la respuesta inicia la resolución iterativa usando las root hints. Actúa como intermediario entre los equipos internos e Internet.',
+    example:'<strong>Ejemplo en BIND9:</strong>\n$ dig @localhost microsoft.com\n→ DNS local revisa caché: MISS\n→ Consulta root hint 198.41.0.4\n→ Recibe delegación a .com TLD\n→ Retorna: microsoft.com. IN A 20.112.52.29'
+  },
+  roothints: {
+    title:'📋  Sugerencias de raíz (Root Hints)',
+    body:'Las root hints contienen los nombres y las IPs de los 13 clústeres de servidores raíz mundiales (A a M). Son el punto de partida para cualquier consulta que el servidor DNS no pueda resolver con su caché. Sin este archivo, el DNS no sabría a quién preguntar.',
+    example:'<strong>Extracto de named.root (IANA):</strong>\n.  3600000  IN  NS  A.ROOT-SERVERS.NET.\nA.ROOT-SERVERS.NET.  A   198.41.0.4\nA.ROOT-SERVERS.NET.  AAAA 2001:503:ba3e::2:30\n...\nM.ROOT-SERVERS.NET.  A   202.12.27.33\n\n<strong>Windows Server:</strong> DNS Manager → Propiedades → "Sugerencias de raíz"'
+  },
+  internet: {
+    title:'🌐  Internet — Red global',
+    body:'Internet es la infraestructura de red global que interconecta millones de redes. En el contexto DNS, es el medio por el cual el servidor DNS local alcanza los servidores raíz y TLD. Usa el protocolo IP con ruteo anycast para seleccionar automáticamente el servidor raíz más cercano geográficamente.',
+    example:'<strong>¿Cómo llega la consulta al servidor raíz?</strong>\nEl paquete UDP sale por el gateway de la red local\n→ Atraviesa el ISP (Claro, Telefónica, etc.)\n→ Ruteo BGP en Internet\n→ Llega al clúster raíz más cercano (anycast)\n\n<strong>Puerto DNS:</strong> UDP/TCP 53\n<strong>Latencia típica:</strong> 5–30 ms hacia servidores raíz'
+  },
+  root: {
+    title:'🌐  Clúster de servidores raíz (.)',
+    body:'Los 13 clústeres raíz (A–M) son la cima de la jerarquía DNS. No resuelven nombres directamente, sino que delegan a los servidores TLD. Cada letra representa un clúster operado por una organización diferente (ICANN, Verisign, RIPE NCC, NASA). Físicamente son cientos de servidores en todo el mundo vía anycast.',
+    example:'<strong>Operadores principales:</strong>\nA → Verisign (198.41.0.4)\nB → USC-ISI (199.9.14.201)\nC → Cogent (192.33.4.12)\nK → RIPE NCC (193.0.14.129)\nM → WIDE Project, Japón (202.12.27.33)\n\n$ dig . NS @198.41.0.4\n→ Lista los 13 servidores raíz'
+  },
+  tld: {
+    title:'📂  Servidor TLD — .com',
+    body:'Los servidores TLD (Top Level Domain) gestionan los dominios de primer nivel: .com, .net, .org, .pe, etc. El TLD .com está operado por Verisign. Recibe la consulta del resolvedor y devuelve la dirección del servidor autoritativo responsable del dominio específico.',
+    example:'<strong>Delegación desde el TLD:</strong>\n$ dig microsoft.com @a.gtld-servers.net\n→ TLD .com no resuelve directamente\n→ Devuelve: "Pregunta a ns1.msft.net"\n\n<strong>Otros TLDs:</strong>\n.pe → NIC Perú\n.edu → EDUCAUSE\n.gov → US GSA'
+  },
+  microsoft: {
+    title:'✅  Servidor autoritativo — microsoft.com',
+    body:'El servidor autoritativo tiene la respuesta definitiva para el dominio. Es mantenido directamente por el propietario. Devuelve el registro A (IPv4) o AAAA (IPv6) con la IP real. El DNS local cachea la respuesta por el tiempo indicado en el TTL.',
+    example:'<strong>Respuesta autoritativa real:</strong>\n$ dig microsoft.com @ns1.msft.net\n;; ANSWER SECTION:\nmicrosoft.com. 3600 IN A 20.112.52.29\nmicrosoft.com. 3600 IN A 20.81.111.85\n\n<strong>TTL = 3600</strong> → caché por 1 hora antes de re-consultar.'
+  }
+};
+
+const ALL_A = ['ha1','ha2f','ha2r','ha3','ha4','ha5'];
+const ALL_L = ['lq','lrh','ltld','lips'];
+
+const STEPS = [
+  { a:[], l:[], pkt:null, info:'<span>Sistema listo.</span> Vista general. Haz clic en cualquier componente para explorar su función.' },
+  { a:['ha1'], l:['lq'], pkt:{from:{x:74,y:362},to:{x:160,y:290},c:'#00ffcc'}, info:'<span>Paso 1:</span> PC1 envía la consulta DNS al servidor local. Pregunta: ¿cuál es la IP de microsoft.com?' },
+  { a:['ha1','ha2f','ha2r'], l:['lq'], pkt:{from:{x:134,y:230},to:{x:162,y:274},c:'#00aaff'}, info:'<span>Paso 2:</span> El servidor DNS consulta al clúster DNS local. El clúster no tiene la respuesta en caché.' },
+  { a:['ha1','ha3'], l:['lq','lrh'], pkt:{from:{x:280,y:274},to:{x:476,y:168},c:'#ffaa00'}, info:'<span>Paso 3:</span> El servidor DNS usa las <span>root hints</span> para contactar un servidor raíz vía Internet.' },
+  { a:['ha1','ha3','ha4'], l:['lq','lrh','ltld'], pkt:{from:{x:511,y:202},to:{x:511,y:276},c:'#cc44ff'}, info:'<span>Paso 4:</span> El servidor raíz delega al TLD <span>.com</span>. No conoce la IP pero sabe quién la tiene.' },
+  { a:['ha1','ha3','ha4','ha5'], l:['lq','lrh','ltld','lips'], pkt:{from:{x:546,y:297},to:{x:566,y:297},c:'#00ff88'}, info:'<span>Paso 5:</span> El TLD .com apunta al servidor autoritativo de <span>microsoft.com</span>, que devuelve la IP. ¡Resolución completa!' }
+];
+
+let animT = null;
+
+function go(n) {
+  const s = STEPS[n];
+  ALL_A.forEach(id => { const e=document.getElementById(id); if(e) e.setAttribute('opacity','0'); });
+  ALL_L.forEach(id => { const e=document.getElementById(id); if(e) e.setAttribute('opacity','0'); });
+  s.a.forEach(id => { const e=document.getElementById(id); if(e) e.setAttribute('opacity','1'); });
+  s.l.forEach(id => { const e=document.getElementById(id); if(e) e.setAttribute('opacity','1'); });
+  document.getElementById('info-strip').innerHTML = s.info;
+  for(let i=0;i<6;i++) { const b=document.getElementById('b'+i); if(b) b.classList.toggle('active',i===n); }
+  const pkt=document.getElementById('pkt');
+  if(animT){ clearInterval(animT); animT=null; }
+  pkt.setAttribute('opacity','0');
+  if(s.pkt){
+    const {from,to,c}=s.pkt;
+    pkt.setAttribute('fill',c);
+    let step=0, total=35;
+    pkt.setAttribute('cx',from.x); pkt.setAttribute('cy',from.y); pkt.setAttribute('opacity','1');
+    animT=setInterval(()=>{
+      step++;
+      const t=step/total;
+      pkt.setAttribute('cx', from.x+(to.x-from.x)*t);
+      pkt.setAttribute('cy', from.y+(to.y-from.y)*t);
+      if(step>=total){ clearInterval(animT); animT=null; pkt.setAttribute('opacity','0'); }
+    }, 600/total);
+  }
+}
+
+function showModal(key) {
+  const m=MODALS[key]; if(!m) return;
+  document.getElementById('modal-title').textContent=m.title;
+  document.getElementById('modal-body').textContent=m.body;
+  document.getElementById('modal-example').innerHTML=m.example;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+</script>
