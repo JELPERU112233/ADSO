@@ -1,1 +1,475 @@
 
+<h2 class="sr-only">Quiz interactivo estilo Kahoot con efecto neón sobre Active Directory — 10 preguntas con retroalimentación y puntaje vigesimal</h2>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050d1a}
+
+.kh-wrap{
+  font-family:var(--font-sans);
+  background:#050d1a;
+  border-radius:14px;
+  padding:14px;
+  max-width:680px;
+  margin:0 auto;
+}
+
+.kh-header{
+  background:#071828;
+  border:1.5px solid #00ccff;
+  box-shadow:0 0 12px #00ccff55, inset 0 0 20px #00ccff11;
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.kh-title{font-size:15px;font-weight:500;color:#00ccff;text-shadow:0 0 8px #00ccff99}
+.kh-meta{font-size:12px;color:#3a7a9c;margin-top:2px}
+.kh-score-badge{
+  background:#030d1a;
+  border:1px solid #00ffcc;
+  box-shadow:0 0 8px #00ffcc55;
+  border-radius:8px;
+  padding:6px 14px;
+  text-align:center;
+}
+.kh-score-badge .num{font-size:22px;font-weight:500;color:#00ffcc;text-shadow:0 0 10px #00ffcc}
+.kh-score-badge .lbl{font-size:11px;color:#3a7a9c}
+
+.kh-progress-bar{
+  height:5px;
+  background:#071828;
+  border:0.5px solid #0d3050;
+  border-radius:99px;
+  margin-bottom:12px;
+  overflow:hidden;
+}
+.kh-progress-fill{height:100%;background:#00ccff;box-shadow:0 0 8px #00ccff;border-radius:99px;transition:width .4s ease}
+
+.kh-q-card{
+  background:#071828;
+  border:1.5px solid #cc44ff;
+  box-shadow:0 0 18px #cc44ff44, inset 0 0 30px #cc44ff08;
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:12px;
+}
+.kh-q-num{font-size:11px;color:#8844cc;font-family:monospace;margin-bottom:6px}
+.kh-q-text{font-size:14px;font-weight:500;color:#e8d8ff;line-height:1.55;margin-bottom:14px}
+
+.kh-timer-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.kh-timer-bar{flex:1;height:5px;background:#030d1a;border-radius:99px;overflow:hidden;border:0.5px solid #0d3050}
+.kh-timer-fill{height:100%;border-radius:99px;transition:width .1s linear}
+.kh-timer-num{font-size:12px;font-family:monospace;min-width:22px;text-align:right;color:#00ccff}
+
+.kh-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.kh-opt{
+  border:1.5px solid;
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  background:#030d1a;
+  transition:box-shadow .15s, opacity .15s;
+}
+.kh-opt:hover:not(:disabled){opacity:.85}
+.kh-opt:disabled{cursor:default}
+
+.opt-a{border-color:#00ccff;color:#a0e8ff;box-shadow:0 0 8px #00ccff44}
+.opt-b{border-color:#ffaa00;color:#ffe0a0;box-shadow:0 0 8px #ffaa0044}
+.opt-c{border-color:#cc44ff;color:#e8aaff;box-shadow:0 0 8px #cc44ff44}
+.opt-d{border-color:#00ff88;color:#a0ffcc;box-shadow:0 0 8px #00ff8844}
+
+.kh-opt-icon{
+  width:26px;height:26px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:500;flex-shrink:0;font-family:monospace;
+}
+.icon-a{background:#00ccff22;color:#00ccff;border:0.5px solid #00ccff55}
+.icon-b{background:#ffaa0022;color:#ffaa00;border:0.5px solid #ffaa0055}
+.icon-c{background:#cc44ff22;color:#cc44ff;border:0.5px solid #cc44ff55}
+.icon-d{background:#00ff8822;color:#00ff88;border:0.5px solid #00ff8855}
+
+.kh-opt.correct{
+  border-color:#00ff88!important;
+  background:#001a0a!important;
+  box-shadow:0 0 18px #00ff8888!important;
+  color:#00ff88!important;
+}
+.kh-opt.wrong{
+  border-color:#ff4444!important;
+  background:#1a0000!important;
+  box-shadow:0 0 18px #ff444488!important;
+  color:#ff8888!important;
+  opacity:.7;
+}
+.kh-opt.reveal-correct{
+  border-color:#00ff88!important;
+  background:#001a0a!important;
+  box-shadow:0 0 18px #00ff8888!important;
+  color:#00ff88!important;
+}
+
+.kh-feedback{
+  border-radius:10px;
+  padding:12px 14px;
+  margin-top:10px;
+  font-size:12px;
+  line-height:1.65;
+  display:none;
+  font-family:monospace;
+}
+.kh-feedback.show{display:block}
+.kh-feedback.ok{
+  background:#001a0a;
+  border:1px solid #00ff88;
+  box-shadow:0 0 12px #00ff8833;
+  color:#a0ffcc;
+}
+.kh-feedback.err{
+  background:#1a0000;
+  border:1px solid #ff4444;
+  box-shadow:0 0 12px #ff444433;
+  color:#ffaaaa;
+}
+.kh-fb-title{font-size:13px;font-weight:500;margin-bottom:5px}
+.kh-feedback.ok .kh-fb-title{color:#00ff88;text-shadow:0 0 6px #00ff88}
+.kh-feedback.err .kh-fb-title{color:#ff4444;text-shadow:0 0 6px #ff4444}
+
+.kh-next{
+  margin-top:10px;width:100%;padding:10px;
+  background:#030d1a;
+  border:1.5px solid #00ccff;
+  box-shadow:0 0 10px #00ccff44;
+  border-radius:10px;
+  font-size:13px;font-weight:500;
+  color:#00ccff;cursor:pointer;display:none;
+  font-family:monospace;
+  transition:box-shadow .15s;
+}
+.kh-next.show{display:block}
+.kh-next:hover{box-shadow:0 0 20px #00ccff88}
+
+.kh-score-card{
+  background:#071828;
+  border:1.5px solid #00ffcc;
+  box-shadow:0 0 24px #00ffcc44, inset 0 0 40px #00ffcc08;
+  border-radius:12px;
+  padding:2rem 1.5rem;
+  text-align:center;
+  display:none;
+}
+.kh-score-card.show{display:block}
+
+.final-nota{
+  font-size:72px;font-weight:500;
+  color:#00ffcc;
+  text-shadow:0 0 20px #00ffcc, 0 0 40px #00ffcc88;
+  line-height:1;
+}
+.final-de20{font-size:13px;color:#3a7a9c;font-family:monospace;margin-top:4px}
+.final-grade{
+  font-size:16px;font-weight:500;margin:12px 0 4px;
+  color:#cc44ff;text-shadow:0 0 8px #cc44ff88;
+}
+.final-detail{font-size:12px;color:#3a7a9c;margin-bottom:1.25rem;font-family:monospace}
+
+.kh-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:1rem 0}
+.kh-stat{
+  background:#030d1a;
+  border-radius:10px;
+  padding:10px;
+  text-align:center;
+}
+.kh-stat-n{font-size:24px;font-weight:500}
+.kh-stat-l{font-size:11px;color:#3a7a9c;font-family:monospace}
+
+.kh-restart{
+  padding:10px 2rem;
+  background:#030d1a;
+  border:1.5px solid #cc44ff;
+  box-shadow:0 0 10px #cc44ff44;
+  border-radius:10px;
+  font-size:13px;font-weight:500;
+  color:#cc44ff;cursor:pointer;
+  font-family:monospace;
+  transition:box-shadow .15s;
+}
+.kh-restart:hover{box-shadow:0 0 20px #cc44ff88}
+</style>
+
+<div class="kh-wrap">
+
+  <div class="kh-header">
+    <div>
+      <div class="kh-title">⬡ Quiz — Active Directory Domain Services</div>
+      <div class="kh-meta">Administración de Sistemas Operativos · 1INF35 · PUCP</div>
+    </div>
+    <div class="kh-score-badge">
+      <div class="num" id="score-disp">0</div>
+      <div class="lbl">puntos</div>
+    </div>
+  </div>
+
+  <div class="kh-progress-bar">
+    <div class="kh-progress-fill" id="progress" style="width:0%"></div>
+  </div>
+
+  <div id="q-card" class="kh-q-card">
+    <div class="kh-q-num" id="q-num"></div>
+    <div class="kh-q-text" id="q-text"></div>
+
+    <div class="kh-timer-row">
+      <span style="font-size:12px;color:#3a7a9c;font-family:monospace">⏱</span>
+      <div class="kh-timer-bar">
+        <div class="kh-timer-fill" id="t-fill" style="width:100%;background:#00ccff;box-shadow:0 0 8px #00ccff"></div>
+      </div>
+      <span class="kh-timer-num" id="t-num">20</span>
+    </div>
+
+    <div class="kh-opts" id="opts"></div>
+
+    <div class="kh-feedback" id="feedback">
+      <div class="kh-fb-title" id="fb-title"></div>
+      <div id="fb-body"></div>
+    </div>
+
+    <button class="kh-next" id="btn-next">Siguiente pregunta →</button>
+  </div>
+
+  <div class="kh-score-card" id="score-card">
+    <div style="font-size:12px;color:#3a7a9c;font-family:monospace;margin-bottom:8px">── resultado final ──</div>
+    <div class="final-nota" id="final-score">0</div>
+    <div class="final-de20">/ 20 puntos</div>
+    <div class="final-grade" id="final-grade"></div>
+    <div class="final-detail" id="final-detail"></div>
+    <div class="kh-stats">
+      <div class="kh-stat">
+        <div class="kh-stat-n" id="st-correct" style="color:#00ff88;text-shadow:0 0 8px #00ff8888">0</div>
+        <div class="kh-stat-l">correctas</div>
+      </div>
+      <div class="kh-stat">
+        <div class="kh-stat-n" id="st-wrong" style="color:#ff4444;text-shadow:0 0 8px #ff444488">0</div>
+        <div class="kh-stat-l">incorrectas</div>
+      </div>
+      <div class="kh-stat">
+        <div class="kh-stat-n" id="st-pct" style="color:#ffaa00;text-shadow:0 0 8px #ffaa0088">0%</div>
+        <div class="kh-stat-l">precisión</div>
+      </div>
+    </div>
+    <button class="kh-restart" onclick="restart()">↺ Reiniciar quiz</button>
+  </div>
+
+</div>
+
+<script>
+const QS=[
+  {
+    q:"¿Cuál es el protocolo de autenticación principal que usa AD DS e implementa Single Sign-On (SSO)?",
+    opts:["NTLM v2","Kerberos v5","LDAP sobre TLS","RADIUS"],
+    ans:1,
+    ok:"Kerberos v5 es el protocolo principal. Emite tickets de sesión (TGT / Service Ticket) a través del KDC en el DC, permitiendo autenticarse una sola vez y acceder a múltiples recursos sin re-ingresar credenciales.",
+    err:"La respuesta es Kerberos v5. NTLM es el protocolo legado aún soportado. LDAP es el protocolo de acceso al directorio, no de autenticación. RADIUS se usa en acceso remoto/VPN."
+  },
+  {
+    q:"¿En qué base de datos ESE se almacena toda la información de AD (usuarios, grupos, OUs, GPOs, esquema)?",
+    opts:["SAM.hive","SYSVOL\\policies","NTDS.DIT","registry.pol"],
+    ans:2,
+    ok:"NTDS.DIT es la base de datos ESE (Extensible Storage Engine) del directorio. Reside en %SystemRoot%\\NTDS\\ y se replica automáticamente entre todos los DCs del mismo dominio mediante replicación multimaestro.",
+    err:"Es NTDS.DIT. SAM.hive almacena cuentas locales del equipo; SYSVOL replica scripts y GPOs entre DCs; registry.pol contiene configuraciones de políticas aplicadas al registro."
+  },
+  {
+    q:"¿Qué rol de Active Directory emite y gestiona certificados digitales para VPN, HTTPS interno y firma digital?",
+    opts:["AD DS — Domain Services","AD LDS — Lightweight Directory","AD FS — Federation Services","AD CS — Certificate Services"],
+    ans:3,
+    ok:"AD CS (Active Directory Certificate Services) es la implementación PKI integrada de Microsoft. Actúa como Autoridad Certificadora (CA) raíz o subordinada y emite certificados X.509 para usuarios, equipos y servicios.",
+    err:"AD CS es el correcto. AD DS gestiona el dominio; AD LDS ofrece un directorio LDAP independiente para aplicaciones; AD FS habilita acceso federado entre organizaciones diferentes."
+  },
+  {
+    q:"¿En qué puerto opera LDAP de forma estándar (sin cifrar) para exponer el directorio de AD DS?",
+    opts:["Puerto 88 (Kerberos)","Puerto 389 (LDAP)","Puerto 445 (SMB)","Puerto 636 (LDAPS)"],
+    ans:1,
+    ok:"LDAP opera en el puerto 389. Para LDAP sobre TLS (LDAPS) se usa el puerto 636. AD DS expone el directorio en LDAP para que clientes y aplicaciones puedan consultar y modificar objetos.",
+    err:"La respuesta es puerto 389 (LDAP). Puerto 88 es Kerberos, 445 es SMB para compartición de archivos, y 636 es LDAPS (LDAP cifrado con TLS)."
+  },
+  {
+    q:"¿Cómo se forma el FQDN de un equipo llamado 'DC1' en el dominio DNS 'empresa.pe'?",
+    opts:["EMPRESA\\DC1 (UPN format)","DC1.empresa.pe","CN=DC1,DC=empresa,DC=pe","DC1#empresa.pe"],
+    ans:1,
+    ok:"FQDN (Fully Qualified Domain Name) = hostname + nombre DNS del dominio, separados por punto. DC1.empresa.pe identifica de forma única al equipo en el espacio de nombres jerárquico DNS del bosque AD.",
+    err:"El FQDN es DC1.empresa.pe. EMPRESA\\DC1 es el formato NetBIOS (SAM Account Name). CN=DC1,DC=empresa,DC=pe es el Distinguished Name (DN) de LDAP. El # no es un separador DNS válido."
+  },
+  {
+    q:"¿Por qué AD DS no puede funcionar sin DNS correctamente configurado?",
+    opts:["DNS cifra los tickets Kerberos con DNSSEC","Los clientes usan registros SRV en DNS para localizar los DCs","DNS almacena la réplica de NTDS.DIT","LDAP usa DNS para el handshake TLS"],
+    ans:1,
+    ok:"Los clientes Windows consultan registros SRV (_ldap._tcp.domain, _kerberos._tcp.domain) en el servidor DNS para descubrir qué DC está disponible. Sin registros SRV no hay localización de DCs y el inicio de sesión falla.",
+    err:"DNS es indispensable por los registros SRV. Kerberos requiere DNS para resolver SPNs (Service Principal Names). Sin DNS el cliente no sabe a qué IP dirigirse para autenticarse en el dominio."
+  },
+  {
+    q:"¿Qué herramienta de Windows Server verifica la configuración DNS del DC, incluyendo registros SRV y zonas integradas?",
+    opts:["ipconfig /flushdns","nbtstat -n / -c","dcdiag /test:DNS","repadmin /replsummary"],
+    ans:2,
+    ok:"'dcdiag /test:DNS' ejecuta una batería de pruebas DNS específicas del DC: verifica que los registros SRV estén correctamente registrados, que las zonas integradas en AD estén accesibles y que los reenviadores respondan.",
+    err:"Es dcdiag /test:DNS. ipconfig /flushdns limpia la caché DNS local del cliente; nbtstat muestra la caché NetBIOS; repadmin /replsummary analiza el estado de replicación AD entre controladores de dominio."
+  },
+  {
+    q:"En la estructura lógica de AD, ¿qué representa un Bosque (Forest)?",
+    opts:["Un único dominio raíz con sus OUs","Múltiples árboles con relaciones de confianza transitivas bidireccionales","Solo las GPOs del dominio raíz replicadas","El conjunto de registros DNS de todos los dominios"],
+    ans:1,
+    ok:"El Bosque es el límite de seguridad más alto de AD. Contiene uno o más árboles de dominios unidos por Forest-wide Trust transitivo bidireccional. El esquema (schema) y el catálogo global se comparten en todo el bosque.",
+    err:"Un bosque contiene árboles de dominios con trust transitivos. El dominio es la unidad de replicación y límite administrativo; el árbol comparte espacio de nombres DNS contiguo; el bosque es el perímetro de seguridad."
+  },
+  {
+    q:"¿Cuál es la función del Reenvío DNS (Forwarding) en una infraestructura AD?",
+    opts:["Replicar zonas DNS entre DCs del dominio","Delegar a otro DNS la resolución iterativa de nombres externos, centralizando el caché","Registrar automáticamente clientes DHCP en la zona DNS","Sincronizar registros SRV con los root servers"],
+    ans:1,
+    ok:"El Forwarder recibe la consulta del DNS local y realiza por él la resolución iterativa completa (raíz → TLD → autoritativo). Centraliza el caché y el tráfico hacia Internet, mejorando performance y seguridad.",
+    err:"El forwarding delega resolución externa a un DNS que actúa como cliente. No confundir con zonas secundarias (replicación), actualizaciones dinámicas DHCP-DNS, ni con las root hints que son del forwarder mismo."
+  },
+  {
+    q:"¿Cuál es el flujo canónico de diagnóstico DNS/AD que resuelve el 90% de los problemas?",
+    opts:["repadmin → dcdiag → dig → ping","ping → nslookup SRV → dcdiag /test:DNS → repadmin /replsummary","klist → gpresult → dcdiag → nbtstat","nbtstat → ipconfig → nltest → dig"],
+    ans:1,
+    ok:"El orden correcto va de lo más básico a lo más específico: 1) ping (conectividad IP), 2) nslookup tipo SRV (localización de DCs), 3) dcdiag /test:DNS (validación completa DNS del DC), 4) repadmin /replsummary (estado de replicación).",
+    err:"El flujo canónico es ping → nslookup SRV → dcdiag /test:DNS → repadmin /replsummary. Este orden diagnóstico en capas cubre la mayoría de fallas: red → resolución de nombres → DNS del DC → replicación AD."
+  }
+];
+
+const TIME=20;
+const COLS=["a","b","c","d"];
+const ICLS=["icon-a","icon-b","icon-c","icon-d"];
+const OCLS=["opt-a","opt-b","opt-c","opt-d"];
+const LETS=["A","B","C","D"];
+
+let cur=0,score=0,correct=0,wrong=0,timer=null,answered=false;
+
+function startTimer(){
+  let rem=TIME;
+  const fill=document.getElementById("t-fill");
+  const num=document.getElementById("t-num");
+  fill.style.width="100%";
+  fill.style.background="#00ccff";
+  fill.style.boxShadow="0 0 8px #00ccff";
+  num.textContent=rem;
+  num.style.color="#00ccff";
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    rem--;
+    num.textContent=rem;
+    const pct=(rem/TIME*100);
+    fill.style.width=pct+"%";
+    if(rem<=5){fill.style.background="#ff4444";fill.style.boxShadow="0 0 10px #ff4444";num.style.color="#ff4444";}
+    else if(rem<=10){fill.style.background="#ffaa00";fill.style.boxShadow="0 0 8px #ffaa00";num.style.color="#ffaa00";}
+    if(rem<=0){clearInterval(timer);if(!answered)timeOut();}
+  },1000);
+}
+
+function timeOut(){
+  answered=true;
+  document.querySelectorAll(".kh-opt").forEach((b,i)=>{
+    b.disabled=true;
+    if(i===QS[cur].ans)b.classList.add("reveal-correct");
+  });
+  showFeedback(false);
+  wrong++;
+  document.getElementById("btn-next").classList.add("show");
+}
+
+function render(){
+  answered=false;
+  const q=QS[cur];
+  document.getElementById("q-num").textContent="pregunta "+(cur+1)+" / "+QS.length;
+  document.getElementById("q-text").textContent=q.q;
+  document.getElementById("progress").style.width=(cur/QS.length*100)+"%";
+  document.getElementById("score-disp").textContent=score;
+  const op=document.getElementById("opts");
+  op.innerHTML="";
+  q.opts.forEach((txt,i)=>{
+    const b=document.createElement("button");
+    b.className="kh-opt "+OCLS[i];
+    b.innerHTML=`<span class="kh-opt-icon ${ICLS[i]}">${LETS[i]}</span><span style="line-height:1.4">${txt}</span>`;
+    b.onclick=()=>pick(i,b);
+    op.appendChild(b);
+  });
+  const fb=document.getElementById("feedback");
+  fb.className="kh-feedback";
+  document.getElementById("btn-next").className="kh-next";
+  startTimer();
+}
+
+function pick(i,el){
+  if(answered)return;
+  answered=true;
+  clearInterval(timer);
+  const q=QS[cur];
+  document.querySelectorAll(".kh-opt").forEach(b=>b.disabled=true);
+  if(i===q.ans){
+    el.classList.add("correct");
+    score+=2;
+    correct++;
+    showFeedback(true);
+  } else {
+    el.classList.add("wrong");
+    document.querySelectorAll(".kh-opt")[q.ans].classList.add("reveal-correct");
+    wrong++;
+    showFeedback(false);
+  }
+  document.getElementById("score-disp").textContent=score;
+  document.getElementById("btn-next").classList.add("show");
+}
+
+function showFeedback(ok){
+  const q=QS[cur];
+  const fb=document.getElementById("feedback");
+  fb.className="kh-feedback show "+(ok?"ok":"err");
+  document.getElementById("fb-title").textContent=ok?"✓  Correcto":"✗  Incorrecto";
+  document.getElementById("fb-body").textContent=ok?q.ok:q.err;
+}
+
+function next(){
+  cur++;
+  if(cur>=QS.length){finish();return;}
+  render();
+}
+
+function finish(){
+  clearInterval(timer);
+  document.getElementById("q-card").style.display="none";
+  document.getElementById("progress").style.width="100%";
+  const sc=document.getElementById("score-card");
+  sc.className="kh-score-card show";
+  document.getElementById("final-score").textContent=score;
+  document.getElementById("st-correct").textContent=correct;
+  document.getElementById("st-wrong").textContent=wrong;
+  document.getElementById("st-pct").textContent=Math.round(correct/QS.length*100)+"%";
+  let grade="";
+  if(score>=18)grade="◈ Sobresaliente — Excelente dominio de AD DS";
+  else if(score>=15)grade="◈ Bueno — Sólidos conocimientos de AD";
+  else if(score>=11)grade="◈ Aprobado — Conceptos básicos comprendidos";
+  else grade="◈ Desaprobado — Repasar el material de la sesión";
+  document.getElementById("final-grade").textContent=grade;
+  document.getElementById("final-detail").textContent=correct+" correctas  ·  "+wrong+" incorrectas  ·  "+QS.length+" preguntas";
+  document.getElementById("score-disp").textContent=score;
+}
+
+function restart(){
+  cur=0;score=0;correct=0;wrong=0;answered=false;
+  clearInterval(timer);
+  document.getElementById("q-card").style.display="";
+  document.getElementById("score-card").className="kh-score-card";
+  render();
+}
+
+document.getElementById("btn-next").addEventListener("click",next);
+render();
+</script>
+
