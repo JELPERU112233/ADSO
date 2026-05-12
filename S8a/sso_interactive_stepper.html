@@ -1,0 +1,356 @@
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#050808;font-family:'Courier New',monospace;color:#ccc}
+
+  @keyframes pulse-green{0%,100%{box-shadow:0 0 6px #00ff88,0 0 14px #00ff8844}50%{box-shadow:0 0 14px #00ff88,0 0 30px #00ff8866}}
+  @keyframes pulse-purple{0%,100%{box-shadow:0 0 6px #bf00ff,0 0 14px #bf00ff44}50%{box-shadow:0 0 14px #bf00ff,0 0 30px #bf00ff66}}
+  @keyframes pulse-amber{0%,100%{box-shadow:0 0 6px #ffaa00,0 0 14px #ffaa0044}50%{box-shadow:0 0 14px #ffaa00,0 0 30px #ffaa0066}}
+  @keyframes pulse-cyan{0%,100%{box-shadow:0 0 6px #00eeff,0 0 14px #00eeff44}50%{box-shadow:0 0 14px #00eeff,0 0 30px #00eeff66}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes dash-move{to{stroke-dashoffset:-24}}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scanline{0%{top:-10%}100%{top:110%}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes packet-travel{0%{opacity:0;offset-distance:0%}10%{opacity:1}90%{opacity:1}100%{opacity:0;offset-distance:100%}}
+
+  .wrap{padding:14px;max-width:860px;margin:0 auto}
+  .header{text-align:center;margin-bottom:14px}
+  .title{font-size:18px;font-weight:700;color:#00ff88;letter-spacing:3px;text-shadow:0 0 10px #00ff8888}
+  .sub{font-size:10px;color:#00ff8833;letter-spacing:4px;margin-top:3px}
+
+  .diagram-area{position:relative;background:#030606;border:1px solid #00ff8822;border-radius:10px;padding:14px;margin-bottom:12px;overflow:hidden}
+  .diagram-area::after{content:'';position:absolute;left:0;width:100%;height:6%;background:linear-gradient(to bottom,transparent,#00ff8806,transparent);animation:scanline 5s linear infinite;pointer-events:none}
+
+  .actors{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+  .actor{border-radius:8px;padding:10px 6px;text-align:center;border:1px solid transparent;transition:all 0.3s;cursor:default;position:relative}
+  .actor .icon{font-size:24px;display:block;margin-bottom:4px;animation:float 3s ease-in-out infinite}
+  .actor .name{font-size:10px;font-weight:700;letter-spacing:1px}
+  .actor .role{font-size:9px;opacity:0.5;margin-top:2px;line-height:1.3}
+
+  .actor-green{border-color:#00ff8844;background:#00ff880a}.actor-green .name{color:#00ff88}
+  .actor-amber{border-color:#ffaa0044;background:#ffaa000a}.actor-amber .name{color:#ffaa00}
+  .actor-purple{border-color:#bf00ff44;background:#bf00ff0a}.actor-purple .name{color:#bf00ff}
+  .actor-cyan{border-color:#00eeff44;background:#00eeff0a}.actor-cyan .name{color:#00eeff}
+
+  .actor.active-green{animation:pulse-green 1.2s ease-in-out infinite;border-color:#00ff88}
+  .actor.active-amber{animation:pulse-amber 1.2s ease-in-out infinite;border-color:#ffaa00}
+  .actor.active-purple{animation:pulse-purple 1.2s ease-in-out infinite;border-color:#bf00ff}
+  .actor.active-cyan{animation:pulse-cyan 1.2s ease-in-out infinite;border-color:#00eeff}
+
+  .flow-svg{width:100%;display:block}
+
+  .info-card{border-radius:10px;padding:14px 16px;border:1px solid transparent;margin-bottom:12px;min-height:140px;animation:fadein 0.3s ease-out;position:relative;overflow:hidden}
+  .info-card::after{content:'';position:absolute;left:0;top:0;right:0;bottom:0;border-radius:10px;opacity:0.04;pointer-events:none}
+  .info-card-green{border-color:#00ff8855;background:#00ff880d}.info-card-green .step-tag{color:#00ff88;border-color:#00ff8855}
+  .info-card-amber{border-color:#ffaa0055;background:#ffaa000d}.info-card-amber .step-tag{color:#ffaa00;border-color:#ffaa0055}
+  .info-card-purple{border-color:#bf00ff55;background:#bf00ff0d}.info-card-purple .step-tag{color:#bf00ff;border-color:#bf00ff55}
+  .info-card-cyan{border-color:#00eeff55;background:#00eeff0d}.info-card-cyan .step-tag{color:#00eeff;border-color:#00eeff55}
+
+  .step-tag{font-size:10px;letter-spacing:2px;border:1px solid;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px}
+  .info-title{font-size:14px;font-weight:700;color:#eee;margin-bottom:6px;letter-spacing:0.5px}
+  .info-body{font-size:12px;color:#888;line-height:1.65}
+  .info-body strong{color:#bbb}
+
+  .tech-box{margin-top:10px;background:#ffffff08;border-radius:6px;padding:8px 10px;font-size:10px;color:#555;font-family:'Courier New',monospace;border-left:2px solid}
+  .tech-box-green{border-color:#00ff8844;color:#00ff8866}
+  .tech-box-amber{border-color:#ffaa0044;color:#ffaa0066}
+  .tech-box-purple{border-color:#bf00ff44;color:#bf00ff66}
+  .tech-box-cyan{border-color:#00eeff44;color:#00eeff66}
+
+  .security-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:2px 7px;border-radius:4px;margin-top:8px;margin-right:4px;background:#00ff880d;border:1px solid #00ff8833;color:#00ff8866}
+
+  .controls{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap}
+  .btn{border:1px solid #00ff8833;background:transparent;color:#00ff8866;font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;padding:7px 16px;border-radius:6px;cursor:pointer;transition:all 0.2s}
+  .btn:hover{border-color:#00ff88;color:#00ff88;background:#00ff880d}
+  .btn:active{transform:scale(0.97)}
+  .btn-primary{border-color:#00ff8866;color:#00ff8888}
+
+  .step-dots{display:flex;gap:6px;align-items:center}
+  .dot{width:8px;height:8px;border-radius:50%;border:1px solid #333;background:transparent;transition:all 0.3s;cursor:pointer}
+  .dot.done{background:#00ff8844;border-color:#00ff8866}
+  .dot.current{background:#00ff88;border-color:#00ff88;box-shadow:0 0 6px #00ff88}
+
+  .step-counter{font-size:10px;color:#00ff8844;letter-spacing:1px;animation:blink 2s ease-in-out infinite}
+
+  .arrow-label{font-size:9px;font-family:'Courier New',monospace;fill-opacity:0.7}
+</style>
+
+<div class="wrap">
+  <div class="header">
+    <div class="title">◈ SINGLE SIGN-ON — PROTOCOLO INTERACTIVO</div>
+    <div class="sub">▸ HAZ CLICK EN LOS PASOS O USA LOS BOTONES ▸</div>
+  </div>
+
+  <div class="diagram-area">
+    <div class="actors">
+      <div class="actor actor-green" id="ac-user">
+        <span class="icon">👤</span>
+        <div class="name">USER</div>
+        <div class="role">Cliente final</div>
+      </div>
+      <div class="actor actor-amber" id="ac-web">
+        <span class="icon">🌐</span>
+        <div class="name">WEBSITE</div>
+        <div class="role">Portal / App</div>
+      </div>
+      <div class="actor actor-purple" id="ac-sso">
+        <span class="icon">🔐</span>
+        <div class="name">SSO SERVER</div>
+        <div class="role">Identity Provider</div>
+      </div>
+      <div class="actor actor-cyan" id="ac-auth">
+        <span class="icon">🗄️</span>
+        <div class="name">AUTH SERVER</div>
+        <div class="role">LDAP / AD / IDP</div>
+      </div>
+    </div>
+
+    <svg class="flow-svg" id="flow-svg" viewBox="0 0 820 90" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#00ff88" stroke-width="1.5"/></marker>
+        <marker id="aa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#ffaa00" stroke-width="1.5"/></marker>
+        <marker id="ap" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#bf00ff" stroke-width="1.5"/></marker>
+        <marker id="ac2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#00eeff" stroke-width="1.5"/></marker>
+      </defs>
+
+      <line x1="30" y1="45" x2="820" y2="45" stroke="#ffffff08" stroke-width="0.5" stroke-dasharray="4 4"/>
+
+      <circle cx="100" cy="45" r="6" fill="#00ff8822" stroke="#00ff88" stroke-width="1" id="node-user"/>
+      <text x="100" y="72" text-anchor="middle" font-family="Courier New" font-size="9" fill="#00ff8844">USER</text>
+
+      <circle cx="300" cy="45" r="6" fill="#ffaa0022" stroke="#ffaa00" stroke-width="1" id="node-web"/>
+      <text x="300" y="72" text-anchor="middle" font-family="Courier New" font-size="9" fill="#ffaa0044">WEBSITE</text>
+
+      <circle cx="520" cy="45" r="6" fill="#bf00ff22" stroke="#bf00ff" stroke-width="1" id="node-sso"/>
+      <text x="520" y="72" text-anchor="middle" font-family="Courier New" font-size="9" fill="#bf00ff44">SSO</text>
+
+      <circle cx="730" cy="45" r="6" fill="#00eeff22" stroke="#00eeff" stroke-width="1" id="node-auth"/>
+      <text x="730" y="72" text-anchor="middle" font-family="Courier New" font-size="9" fill="#00eeff44">AUTH</text>
+
+      <g id="arrows-group"></g>
+      <circle id="packet" r="5" opacity="0" fill="#00ff88"/>
+    </svg>
+  </div>
+
+  <div id="info-card" class="info-card info-card-green">
+    <div class="step-tag">PASO 0 / 7</div>
+    <div class="info-title">Haz click en un paso para comenzar</div>
+    <div class="info-body">Usa los botones de abajo o haz click en cualquier paso para ver en detalle qué ocurre en cada etapa del protocolo SSO.</div>
+  </div>
+
+  <div class="controls" style="margin-bottom:10px">
+    <button class="btn" onclick="prevStep()">◂ ANTERIOR</button>
+    <div class="step-dots" id="dots"></div>
+    <button class="btn btn-primary" onclick="nextStep()">SIGUIENTE ▸</button>
+  </div>
+  <div style="text-align:center;margin-bottom:10px">
+    <span class="step-counter" id="step-counter">PASO 0 DE 7</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;margin-top:6px" id="quick-btns"></div>
+</div>
+
+<script>
+const STEPS = [
+  {
+    tag:"PASO 1 / 7",
+    color:"amber",
+    title:"SSO Login Page — Redirección inicial",
+    body:`El usuario intenta acceder a un <strong>recurso protegido</strong> del website (ej: panel de control, intranet). El website detecta que no hay sesión activa y en lugar de mostrar su propio formulario de login, <strong>redirige al usuario a la página de login centralizada del SSO</strong>.<br><br>Esta redirección incluye parámetros como el <strong>Service URL</strong> (la URL a la que volver tras autenticar) y el <strong>realm</strong> (dominio/organización).`,
+    tech:`HTTP 302 Redirect → https://sso.empresa.com/login\n?service=https://app.empresa.com/dashboard\n&realm=corporativo`,
+    badges:["TLS 1.3","HTTPS Only","No credentials exposed"],
+    actors:["user","web"],
+    arrow:{from:300,to:100,color:"amber",label:"① redirect →",y:28,reverse:true}
+  },
+  {
+    tag:"PASO 2 / 7",
+    color:"green",
+    title:"Enter Credentials — El usuario se autentica",
+    body:`El usuario ve el formulario de login del SSO (no del website). Ingresa su <strong>usuario y contraseña</strong>. Las credenciales <strong>nunca llegan al website de destino</strong> — solo al servidor SSO, que es el único que las procesa. Esto elimina el riesgo de que cada aplicación maneje credenciales sensibles.`,
+    tech:`POST https://sso.empresa.com/login\nContent-Type: application/x-www-form-urlencoded\nbody: username=jose&password=****&_csrf=abc123`,
+    badges:["Credenciales cifradas","Sin exposición al website","Anti-CSRF token"],
+    actors:["user","sso"],
+    arrow:{from:100,to:520,color:"green",label:"② POST creds →",y:28}
+  },
+  {
+    tag:"PASO 3 / 7",
+    color:"amber",
+    title:"Send to SSO — Reenvío de identidad",
+    body:`El website recibe del SSO un <strong>ticket/assertion temporal</strong> (no la contraseña) y lo reenvía al servidor SSO para su validación. El SSO verifica que el ticket sea válido, no haya expirado y pertenezca a este service provider.<br><br>En arquitecturas <strong>SAML 2.0</strong> esto se llama <em>AuthnRequest</em>; en <strong>OIDC</strong> es el intercambio del <em>Authorization Code</em>.`,
+    tech:`POST https://sso.empresa.com/validate\nticket=ST-12345-abcdef&service=app.empresa.com\n[SAML: AuthnRequest XML firmado digitalmente]`,
+    badges:["Ticket efímero","Sin contraseña en tránsito","Firma digital"],
+    actors:["web","sso"],
+    arrow:{from:300,to:520,color:"amber",label:"③ ticket →",y:28}
+  },
+  {
+    tag:"PASO 4 / 7",
+    color:"purple",
+    title:"Request Authentication — SSO consulta al Auth Server",
+    body:`El SSO necesita verificar que las credenciales son correctas. Para ello consulta al <strong>servidor de autenticación backend</strong> (LDAP, Active Directory, base de datos de usuarios, u otro IDP). Este proceso es interno y el usuario no lo ve.<br><br>El SSO envía el <strong>hash de la contraseña</strong> (nunca el texto plano) y recibe los <strong>atributos del usuario</strong>: roles, grupos, permisos, departamento, email.`,
+    tech:`LDAP: bind cn=jose,dc=empresa,dc=com\nAD: Kerberos TGT request / NTLM challenge\nDB: SELECT * FROM users WHERE hash=SHA256(pwd)`,
+    badges:["Hash only","LDAP / AD / Kerberos","Atributos de usuario"],
+    actors:["sso","auth"],
+    arrow:{from:520,to:730,color:"purple",label:"④ verify →",y:28}
+  },
+  {
+    tag:"PASO 5 / 7",
+    color:"cyan",
+    title:"Auth Response — Resultado de validación",
+    body:`El Auth Server responde al SSO con el resultado de la validación:<br><br><strong>✓ OK:</strong> Las credenciales son correctas. Retorna los atributos del usuario (nombre, roles, grupos, email).<br><strong>✗ DENY:</strong> Credenciales incorrectas, cuenta bloqueada, password expirado, acceso no autorizado.<br><br>Si la respuesta es OK, el SSO procede a emitir el token de sesión.`,
+    tech:`LDAP Response: 0 = Success / 49 = Invalid creds\nAtributos: {uid, cn, mail, memberOf, department}\nKerberos: TGT ticket granted / KDC_ERR_C_PRINCIPAL_UNKNOWN`,
+    badges:["200 OK / 401 Unauthorized","Atributos incluidos","Política de intentos"],
+    actors:["auth","sso"],
+    arrow:{from:730,to:520,color:"cyan",label:"⑤ OK/DENY ←",y:62,reverse:true}
+  },
+  {
+    tag:"PASO 6 / 7",
+    color:"purple",
+    title:"Issue Token — El SSO emite el token de sesión",
+    body:`Verificadas las credenciales, el SSO genera un <strong>token de sesión firmado digitalmente</strong>. Este token es la prueba de identidad que el usuario presentará a todas las aplicaciones.<br><br><strong>JWT (JSON Web Token):</strong> Header.Payload.Signature — incluye subject, roles, expiración.<br><strong>SAML Assertion:</strong> XML firmado con X.509.<br><br>El token se envía al website vía redirect seguro. Una sola autenticación vale para <em>todos</em> los servicios del ecosistema.`,
+    tech:`JWT: eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJqb3NlIiwicm9sZXMiOlsiYWRtaW4iXSwiZXhwIjoxNzE2MDAwMH0.signature\nExpiry: 8h  |  Refresh: 24h  |  Algo: RS256`,
+    badges:["JWT / SAML","Firma RS256","Single session"],
+    actors:["sso","web"],
+    arrow:{from:520,to:300,color:"purple",label:"⑥ JWT token ←",y:62,reverse:true}
+  },
+  {
+    tag:"PASO 7 / 7",
+    color:"green",
+    title:"Access Granted — Sesión establecida",
+    body:`El website valida la firma del token usando la <strong>clave pública del SSO</strong> (sin contactar nuevamente al servidor). Si la firma es válida y el token no expiró, <strong>otorga acceso al recurso solicitado</strong>.<br><br>A partir de aquí, el usuario puede navegar a <em>cualquier otra aplicación</em> del ecosistema sin volver a hacer login — eso es el <strong>Single Sign-On</strong>. El token viaja en cada request en la cabecera <code>Authorization: Bearer &lt;token&gt;</code>.`,
+    tech:`GET /dashboard  HTTP/1.1\nAuthorization: Bearer eyJhbGciOiJSUzI1NiJ9...\n→ 200 OK — Bienvenido, José Espinoza`,
+    badges:["Token validado localmente","Sin round-trip al SSO","SSO activo en todo el dominio"],
+    actors:["user","web"],
+    arrow:{from:300,to:100,color:"green",label:"⑦ ACCESS ✓ ←",y:62,reverse:true}
+  }
+];
+
+let current = -1;
+
+const colorMap = {
+  green:{hex:"#00ff88",actor:"active-green"},
+  amber:{hex:"#ffaa00",actor:"active-amber"},
+  purple:{hex:"#bf00ff",actor:"active-purple"},
+  cyan:{hex:"#00eeff",actor:"active-cyan"}
+};
+
+const actorMap = {
+  user:"ac-user", web:"ac-web", sso:"ac-sso", auth:"ac-auth"
+};
+
+function buildDots(){
+  const d = document.getElementById('dots');
+  d.innerHTML = '';
+  for(let i=0;i<STEPS.length;i++){
+    const dot = document.createElement('div');
+    dot.className='dot';
+    dot.onclick=()=>goStep(i);
+    d.appendChild(dot);
+  }
+}
+
+function updateDots(){
+  const dots = document.querySelectorAll('.dot');
+  dots.forEach((d,i)=>{
+    d.className='dot';
+    if(i<current) d.classList.add('done');
+    if(i===current) d.classList.add('current');
+  });
+}
+
+function buildQuickBtns(){
+  const c = document.getElementById('quick-btns');
+  STEPS.forEach((s,i)=>{
+    const b = document.createElement('button');
+    b.className='btn';
+    b.style.fontSize='9px';
+    b.style.padding='5px 4px';
+    b.style.letterSpacing='0px';
+    b.style.borderColor = colorMap[s.color].hex+'55';
+    b.style.color = colorMap[s.color].hex+'88';
+    b.textContent = `${i+1}. ${s.title.split('—')[0].trim()}`;
+    b.onclick=()=>goStep(i);
+    c.appendChild(b);
+  });
+}
+
+function clearActors(){
+  Object.values(actorMap).forEach(id=>{
+    const el = document.getElementById(id);
+    el.className = el.className.replace(/active-\w+/g,'').trim();
+  });
+}
+
+function activateActors(actors, colorKey){
+  actors.forEach(a=>{
+    const el = document.getElementById(actorMap[a]);
+    if(el) el.classList.add(colorMap[colorKey].actor);
+  });
+}
+
+function drawArrow(step){
+  const g = document.getElementById('arrows-group');
+  g.innerHTML='';
+  if(!step.arrow) return;
+  const {from,to,color,label,y,reverse} = step.arrow;
+  const hex = colorMap[color].hex;
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  const x1 = reverse? to+8 : from+8;
+  const x2 = reverse? from-8 : to-8;
+  line.setAttribute('x1',x1);line.setAttribute('y1',y);
+  line.setAttribute('x2',x2);line.setAttribute('y2',y);
+  line.setAttribute('stroke',hex);
+  line.setAttribute('stroke-width','1.5');
+  line.setAttribute('stroke-dasharray','6 3');
+  line.setAttribute('marker-end',`url(#a${color[0]}${color==='cyan'?'c2':''})`);
+  const midX = (x1+x2)/2;
+  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+  txt.setAttribute('x',midX);txt.setAttribute('y',y-5);
+  txt.setAttribute('text-anchor','middle');
+  txt.setAttribute('font-family','Courier New');
+  txt.setAttribute('font-size','8');
+  txt.setAttribute('fill',hex);txt.setAttribute('fill-opacity','0.8');
+  txt.textContent=label;
+  const anim = document.createElementNS('http://www.w3.org/2000/svg','animate');
+  anim.setAttribute('attributeName','stroke-dashoffset');
+  anim.setAttribute('from','0');anim.setAttribute('to','-18');
+  anim.setAttribute('dur','0.5s');anim.setAttribute('repeatCount','indefinite');
+  line.appendChild(anim);
+  g.appendChild(line);g.appendChild(txt);
+}
+
+function renderCard(idx){
+  const s = STEPS[idx];
+  const c = colorMap[s.color].hex;
+  const card = document.getElementById('info-card');
+  card.className=`info-card info-card-${s.color}`;
+  card.style.animation='none';
+  card.offsetHeight;
+  card.style.animation='fadein 0.3s ease-out';
+  card.innerHTML = `
+    <div class="step-tag">${s.tag}</div>
+    <div class="info-title">${s.title}</div>
+    <div class="info-body">${s.body}</div>
+    <div class="tech-box tech-box-${s.color}">▸ TECH DETAIL<br>${s.tech.replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:10px">${s.badges.map(b=>`<span class="security-badge" style="background:${c}0d;border-color:${c}33;color:${c}88">◈ ${b}</span>`).join('')}</div>
+  `;
+}
+
+function goStep(i){
+  if(i<0||i>=STEPS.length) return;
+  current=i;
+  clearActors();
+  activateActors(STEPS[i].actors, STEPS[i].color);
+  drawArrow(STEPS[i]);
+  renderCard(i);
+  updateDots();
+  document.getElementById('step-counter').textContent=`PASO ${i+1} DE ${STEPS.length}`;
+}
+
+function nextStep(){ goStep(Math.min(current+1, STEPS.length-1)); }
+function prevStep(){ goStep(Math.max(current-1, 0)); }
+
+buildDots();
+buildQuickBtns();
+goStep(0);
+</script>
