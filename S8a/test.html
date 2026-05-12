@@ -1,1 +1,357 @@
 
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#030508;font-family:'Courier New',monospace;color:#ddd;min-height:100vh}
+
+@keyframes pulse-title{0%,100%{text-shadow:0 0 8px #bf00ff,0 0 20px #bf00ff55}50%{text-shadow:0 0 18px #bf00ff,0 0 40px #bf00ff88,0 0 60px #bf00ff44}}
+@keyframes glow-green{0%,100%{box-shadow:0 0 6px #00ff88,0 0 14px #00ff8844}50%{box-shadow:0 0 14px #00ff88,0 0 30px #00ff8866}}
+@keyframes glow-red{0%,100%{box-shadow:0 0 6px #ff4466,0 0 14px #ff446644}50%{box-shadow:0 0 14px #ff4466,0 0 30px #ff446666}}
+@keyframes glow-amber{0%,100%{box-shadow:0 0 6px #ffaa00,0 0 14px #ffaa0044}50%{box-shadow:0 0 14px #ffaa00,0 0 30px #ffaa0066}}
+@keyframes glow-purple{0%,100%{box-shadow:0 0 6px #bf00ff,0 0 14px #bf00ff44}50%{box-shadow:0 0 14px #bf00ff,0 0 30px #bf00ff66}}
+@keyframes glow-cyan{0%,100%{box-shadow:0 0 6px #00eeff,0 0 14px #00eeff44}50%{box-shadow:0 0 14px #00eeff,0 0 30px #00eeff66}}
+@keyframes fadein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes timer-shrink{from{width:100%}to{width:0%}}
+@keyframes scanline{0%{top:-8%}100%{top:108%}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+@keyframes celebrate{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+.wrap{padding:14px;max-width:820px;margin:0 auto}
+
+.header{text-align:center;padding:14px 0 10px;border-bottom:1px solid #bf00ff22;margin-bottom:14px}
+.hdr-title{font-size:17px;font-weight:700;color:#bf00ff;letter-spacing:3px;animation:pulse-title 2s ease-in-out infinite}
+.hdr-sub{font-size:9px;color:#bf00ff44;letter-spacing:4px;margin-top:3px}
+
+.scorebar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.score-pill{background:#030508;border:1px solid #bf00ff44;border-radius:8px;padding:6px 14px;font-size:11px;color:#bf00ff88;letter-spacing:1px}
+.score-val{font-size:16px;font-weight:700;color:#bf00ff;letter-spacing:0}
+.progress-bar-wrap{flex:1;background:#ffffff08;border-radius:4px;height:6px;overflow:hidden;border:1px solid #ffffff0a}
+.progress-bar{height:100%;background:#bf00ff;border-radius:4px;transition:width 0.4s ease}
+
+.question-card{background:#030508;border:1px solid #bf00ff44;border-radius:12px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden;animation:fadein 0.35s ease-out}
+.question-card::after{content:'';position:absolute;left:0;width:100%;height:6%;background:linear-gradient(to bottom,transparent,#bf00ff06,transparent);animation:scanline 4s linear infinite;pointer-events:none}
+
+.q-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.q-num{min-width:30px;height:30px;border-radius:50%;background:#bf00ff22;border:1px solid #bf00ff55;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#bf00ff}
+.q-cat{font-size:9px;color:#bf00ff66;letter-spacing:2px;border:1px solid #bf00ff22;border-radius:4px;padding:2px 7px}
+.q-pts{margin-left:auto;font-size:9px;color:#ffaa0088;border:1px solid #ffaa0022;border-radius:4px;padding:2px 7px}
+
+.q-text{font-size:13px;color:#ddd;line-height:1.6;margin-bottom:14px;font-family:'Courier New',monospace}
+
+.timer-bar{height:4px;background:#bf00ff22;border-radius:2px;margin-bottom:14px;overflow:hidden}
+.timer-fill{height:100%;background:#bf00ff;border-radius:2px;transition:width 0.1s linear}
+
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.opt-btn{background:#030508;border:1px solid #333;border-radius:9px;padding:10px 12px;font-family:'Courier New',monospace;font-size:11px;color:#aaa;cursor:pointer;text-align:left;transition:all 0.2s;line-height:1.4;position:relative;overflow:hidden}
+.opt-btn:hover:not(:disabled){border-color:#bf00ff66;color:#bf00ff;background:#bf00ff08}
+.opt-btn:active:not(:disabled){transform:scale(0.98)}
+.opt-btn.opt-a{border-left:3px solid #00eeff55}.opt-btn.opt-a:hover:not(:disabled){border-left-color:#00eeff}
+.opt-btn.opt-b{border-left:3px solid #ffaa0055}.opt-btn.opt-b:hover:not(:disabled){border-left-color:#ffaa00}
+.opt-btn.opt-c{border-left:3px solid #00ff8855}.opt-btn.opt-c:hover:not(:disabled){border-left-color:#00ff88}
+.opt-btn.opt-d{border-left:3px solid #ff446655}.opt-btn.opt-d:hover:not(:disabled){border-left-color:#ff4466}
+
+.opt-btn.correct{background:#00ff8812;border-color:#00ff88;color:#00ff88;animation:glow-green 1s ease-in-out infinite}
+.opt-btn.wrong{background:#ff446612;border-color:#ff4466;color:#ff4466;animation:glow-red 1s ease-in-out infinite}
+.opt-btn.reveal{background:#00ff8808;border-color:#00ff8844;color:#00ff8877}
+.opt-btn:disabled{cursor:not-allowed;opacity:0.7}
+
+.opt-label{font-size:9px;font-weight:700;display:block;margin-bottom:4px;opacity:0.5;letter-spacing:1px}
+
+.feedback-box{border-radius:10px;padding:12px 14px;margin-bottom:10px;animation:fadein 0.3s ease-out;border:1px solid transparent}
+.fb-correct{background:#00ff8810;border-color:#00ff8844;color:#00ff88}
+.fb-wrong{background:#ff446610;border-color:#ff446644;color:#ff4466}
+.fb-title{font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:5px}
+.fb-body{font-size:11px;line-height:1.6;color:#999}
+.fb-body strong{color:#ccc}
+
+.action-row{display:flex;gap:8px;justify-content:center;margin-top:8px}
+.neon-btn{background:transparent;border:1px solid #bf00ff55;color:#bf00ff88;font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;padding:8px 20px;border-radius:7px;cursor:pointer;transition:all 0.2s}
+.neon-btn:hover{border-color:#bf00ff;color:#bf00ff;background:#bf00ff0d;box-shadow:0 0 10px #bf00ff33}
+.neon-btn:active{transform:scale(0.97)}
+.neon-btn-green{border-color:#00ff8855;color:#00ff8888}
+.neon-btn-green:hover{border-color:#00ff88;color:#00ff88;background:#00ff880d;box-shadow:0 0 10px #00ff8833}
+
+.results-card{background:#030508;border:1px solid #bf00ff55;border-radius:12px;padding:20px;text-align:center;animation:fadein 0.4s ease-out;position:relative;overflow:hidden}
+.results-card::after{content:'';position:absolute;left:0;width:100%;height:6%;background:linear-gradient(to bottom,transparent,#bf00ff06,transparent);animation:scanline 3s linear infinite;pointer-events:none}
+.result-score{font-size:42px;font-weight:700;color:#bf00ff;letter-spacing:2px;text-shadow:0 0 20px #bf00ff88;animation:celebrate 1.5s ease-in-out infinite}
+.result-label{font-size:10px;color:#bf00ff66;letter-spacing:3px;margin-bottom:16px}
+.result-grade{font-size:14px;color:#ffaa00;margin-bottom:6px;letter-spacing:1px}
+.result-msg{font-size:11px;color:#666;line-height:1.6;margin-bottom:16px}
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+.stat-box{background:#ffffff05;border:1px solid #ffffff0a;border-radius:8px;padding:10px;text-align:center}
+.stat-num{font-size:18px;font-weight:700;margin-bottom:3px}
+.stat-lbl{font-size:9px;color:#555;letter-spacing:1px}
+.review-list{text-align:left;margin-top:14px;border-top:1px solid #ffffff08;padding-top:14px}
+.review-item{padding:8px 0;border-bottom:1px solid #ffffff05;font-size:10px;color:#666;line-height:1.5}
+.review-item .ri-q{color:#888;margin-bottom:3px}
+.review-item .ri-ok{color:#00ff88}.review-item .ri-bad{color:#ff4466}
+.blinking{animation:blink 1.2s ease-in-out infinite}
+</style>
+
+<div class="wrap">
+  <div class="header">
+    <div class="hdr-title">◈ AUTOEVALUACIÓN 1INF35 ◈</div>
+    <div class="hdr-sub">▸ PUCP · ADMINISTRACIÓN DE SISTEMAS OPERATIVOS · ESCALA 0–20 ▸</div>
+  </div>
+
+  <div class="scorebar">
+    <div class="score-pill">PUNTAJE <span class="score-val" id="score-display">0</span>/20</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+    <div class="score-pill blinking" id="q-counter">PREGUNTA 1/10</div>
+  </div>
+
+  <div id="quiz-area"></div>
+</div>
+
+<script>
+const QS = [
+  {
+    cat:"VISOR DE EVENTOS",pts:2,
+    q:"¿Cuál es el comando de consola para abrir el Visor de Eventos en Windows?",
+    opts:["eventvwr.msc","eventmgr.exe","logviewer.msc","winevent.exe"],
+    ans:0,
+    fb_ok:"Correcto. <strong>eventvwr.msc</strong> es el snap-in de MMC que abre el Visor de Eventos. También puedes ejecutarlo desde Win+R o desde el símbolo del sistema.",
+    fb_bad:"La respuesta correcta es <strong>eventvwr.msc</strong>. Es el Microsoft Management Console snap-in del Visor de Eventos. Se puede ejecutar con Win+R."
+  },
+  {
+    cat:"WINDOWS LOGS",pts:2,
+    q:"¿Cuántos registros principales contiene la categoría 'Windows Logs' del Visor de Eventos?",
+    opts:["3 registros","4 registros","5 registros","6 registros"],
+    ans:2,
+    fb_ok:"Exacto. Son 5: <strong>Application, Security, Setup, System y Forwarded Events</strong>. Los primeros tres existían desde versiones anteriores; Setup y Forwarded Events son más recientes.",
+    fb_bad:"Son <strong>5 registros</strong>: Application, Security, Setup, System y Forwarded Events. Setup y Forwarded Events se añadieron en versiones modernas de Windows."
+  },
+  {
+    cat:"EVENT IDs",pts:2,
+    q:"Un administrador detecta múltiples intentos fallidos de inicio de sesión. ¿Qué Event ID debe filtrar en el registro de Seguridad?",
+    opts:["ID 4624","ID 4625","ID 4672","ID 4688"],
+    ans:1,
+    fb_ok:"Correcto. El <strong>Event ID 4625</strong> registra cada intento fallido de inicio de sesión (An account failed to log on). Es el indicador clave de ataques de fuerza bruta.",
+    fb_bad:"El correcto es <strong>ID 4625</strong> (Logon fallido). El 4624 es logon exitoso, el 4672 es asignación de privilegios especiales, y el 4688 es creación de proceso."
+  },
+  {
+    cat:"EVENT IDs",pts:2,
+    q:"El Event ID 4672 en el registro de Seguridad indica:",
+    opts:["Un usuario fue creado en el sistema","Un proceso nuevo fue creado","Se asignaron privilegios especiales a un logon","Un archivo fue eliminado"],
+    ans:2,
+    fb_ok:"Correcto. El <strong>ID 4672</strong> (Special privileges assigned to new logon) se genera cuando una cuenta inicia sesión con privilegios administrativos o derechos especiales. Es un indicador de riesgo importante.",
+    fb_bad:"El ID 4672 registra <strong>asignación de privilegios especiales</strong> (Special Logon). Aparece cuando alguien inicia sesión con derechos de administrador o privilegios de seguridad elevados."
+  },
+  {
+    cat:"WINDOWS LOGS",pts:2,
+    q:"¿Qué registro de Windows almacena eventos de equipos remotos recopilados mediante suscripciones?",
+    opts:["Application Log","System Log","Security Log","Forwarded Events"],
+    ans:3,
+    fb_ok:"Exacto. <strong>Forwarded Events</strong> almacena eventos recopilados de equipos remotos a través de suscripciones de eventos de Windows (WEF - Windows Event Forwarding).",
+    fb_bad:"La respuesta es <strong>Forwarded Events</strong>. Este registro especial recibe eventos de otros equipos de la red mediante el mecanismo de suscripciones de Windows Event Forwarding (WEF)."
+  },
+  {
+    cat:"SSO",pts:2,
+    q:"¿Cuál es la principal ventaja de seguridad del Single Sign-On frente a múltiples credenciales independientes?",
+    opts:["Elimina completamente el uso de contraseñas","Reduce la superficie de ataque al centralizar la autenticación","Permite compartir contraseñas entre usuarios","Desactiva el cifrado para mayor velocidad"],
+    ans:1,
+    fb_ok:"Correcto. El SSO <strong>reduce la superficie de ataque</strong> porque hay un único punto de autenticación seguro, se pueden aplicar políticas fuertes (MFA, complejidad) en un solo lugar, y se eliminan las contraseñas débiles repetidas.",
+    fb_bad:"La clave es que SSO <strong>reduce la superficie de ataque</strong>. Al centralizar la autenticación, es posible aplicar MFA y políticas robustas en un solo IDP en lugar de gestionar seguridad en decenas de sistemas."
+  },
+  {
+    cat:"SSO FLOW",pts:2,
+    q:"En el flujo básico de SSO, después de que el usuario ingresa credenciales en el website (paso 2), ¿cuál es el paso 3?",
+    opts:["El Auth Server valida directamente","El website envía las credenciales al SSO","El SSO genera el token JWT","El usuario recibe acceso inmediato"],
+    ans:1,
+    fb_ok:"Correcto. En el paso 3, el <strong>website reenvía las credenciales al servidor SSO</strong>. Las credenciales nunca son procesadas por el website destino; el SSO es el único que las maneja, lo que protege al website.",
+    fb_bad:"El paso 3 es que el <strong>website envía las credenciales al SSO</strong>. Esta separación es fundamental: el website no toca ni almacena las credenciales; todo pasa por el Identity Provider."
+  },
+  {
+    cat:"SSO DESVENTAJAS",pts:2,
+    q:"¿Cuál es el riesgo más crítico de implementar SSO con un único proveedor de identidad (IdP)?",
+    opts:["Mayor consumo de ancho de banda","Punto de fallo único que puede dejar sin acceso a todos los sistemas","Incompatibilidad con Active Directory","Requiere más contraseñas por usuario"],
+    ans:1,
+    fb_ok:"Exacto. El <strong>punto de fallo único (Single Point of Failure)</strong> es la desventaja más crítica del SSO. Si el IdP cae, todos los sistemas que dependen de él quedan inaccesibles. La mitigación es implementar alta disponibilidad y un IdP secundario.",
+    fb_bad:"El riesgo más crítico es el <strong>punto de fallo único</strong>. Si el proveedor de identidad falla (como le ocurriría con Microsoft Entra ID), todos los sistemas del ecosistema SSO quedan inaccesibles simultáneamente."
+  },
+  {
+    cat:"GESTOR DE CONF.",pts:2,
+    q:"¿Cuál de los siguientes gestores de configuración para Unix/Linux está implementado en Python y NO requiere agente (agentless)?",
+    opts:["Puppet","Chef","Ansible","Salt (modo daemon)"],
+    ans:2,
+    fb_ok:"Correcto. <strong>Ansible</strong> está implementado en Python, usa YAML para la configuración, Jinja2 para templates, y no requiere ningún agente instalado en los nodos gestionados. Ahora es parte de Red Hat.",
+    fb_bad:"La respuesta es <strong>Ansible</strong>. A diferencia de Puppet y Chef (que pueden requerir agentes), Ansible es completamente agentless: se conecta por SSH y ejecuta tareas sin instalar nada permanente en el nodo destino."
+  },
+  {
+    cat:"GESTOR DE CONF.",pts:2,
+    q:"¿Cuál de estas NO es una operación básica que puede realizar un gestor de configuración?",
+    opts:["Crear o eliminar cuentas de usuario","Reiniciar servicios del sistema","Agregar tareas cron o temporizadores systemd","Monitorear en tiempo real el tráfico de red con análisis forense"],
+    ans:3,
+    fb_ok:"Correcto. El <strong>análisis forense de tráfico de red en tiempo real</strong> es una función de herramientas SIEM/IDS/IPS (como Wireshark, Zeek, Suricata). Los gestores de configuración se enfocan en el estado deseado de sistemas: usuarios, archivos, servicios, paquetes.",
+    fb_bad:"<strong>El monitoreo forense de red en tiempo real</strong> no es función de los gestores de configuración. Ansible, Puppet, Chef y Salt gestionan el estado de los sistemas (usuarios, servicios, archivos, paquetes), no el análisis de tráfico."
+  }
+];
+
+let cur=0, score=0, answered=false, userAnswers=[];
+const qa = document.getElementById('quiz-area');
+
+function render(){
+  if(cur>=QS.length){showResults();return;}
+  const q=QS[cur];
+  answered=false;
+  document.getElementById('q-counter').textContent=`PREGUNTA ${cur+1}/10`;
+  document.getElementById('prog-bar').style.width=`${cur*10}%`;
+
+  const colors=['opt-a','opt-b','opt-c','opt-d'];
+  const labels=['A','B','C','D'];
+  qa.innerHTML=`
+    <div class="question-card" id="qcard">
+      <div class="q-header">
+        <div class="q-num">${cur+1}</div>
+        <span class="q-cat">${q.cat}</span>
+        <span class="q-pts">${q.pts} pts</span>
+      </div>
+      <div class="timer-bar"><div class="timer-fill" id="tfill"></div></div>
+      <div class="q-text">${q.q}</div>
+      <div class="options-grid" id="opts">
+        ${q.opts.map((o,i)=>`
+          <button class="opt-btn ${colors[i]}" onclick="choose(${i})" id="opt${i}">
+            <span class="opt-label">${labels[i]}</span>${o}
+          </button>`).join('')}
+      </div>
+      <div id="feedback-area"></div>
+      <div class="action-row" id="action-row" style="display:none">
+        <button class="neon-btn neon-btn-green" onclick="next()">
+          ${cur<QS.length-1?'SIGUIENTE PREGUNTA ▸':'VER RESULTADOS ▸'}
+        </button>
+      </div>
+    </div>`;
+
+  startTimer();
+}
+
+let timerInt=null;
+function startTimer(){
+  clearInterval(timerInt);
+  const fill=document.getElementById('tfill');
+  if(!fill) return;
+  let pct=100;
+  fill.style.width='100%';
+  timerInt=setInterval(()=>{
+    if(answered){clearInterval(timerInt);return;}
+    pct-=0.5;
+    if(fill) fill.style.width=pct+'%';
+    if(pct<=0){clearInterval(timerInt);if(!answered)timeOut();}
+  },100);
+}
+
+function timeOut(){
+  answered=true;
+  userAnswers.push({q:cur,chosen:-1,correct:false});
+  revealAll();
+  showFeedback(false);
+  document.getElementById('action-row').style.display='flex';
+}
+
+function choose(i){
+  if(answered) return;
+  answered=true;
+  clearInterval(timerInt);
+  const q=QS[cur];
+  const ok=(i===q.ans);
+  if(ok) score+=q.pts;
+  userAnswers.push({q:cur,chosen:i,correct:ok});
+  document.getElementById('score-display').textContent=score;
+
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach((b,idx)=>{
+    b.disabled=true;
+    if(idx===q.ans) b.classList.add('correct');
+    else if(idx===i && !ok) b.classList.add('wrong');
+    else b.classList.add('reveal');
+  });
+
+  showFeedback(ok);
+  document.getElementById('action-row').style.display='flex';
+}
+
+function revealAll(){
+  const q=QS[cur];
+  document.querySelectorAll('.opt-btn').forEach((b,idx)=>{
+    b.disabled=true;
+    if(idx===q.ans) b.classList.add('correct');
+    else b.classList.add('reveal');
+  });
+}
+
+function showFeedback(ok){
+  const q=QS[cur];
+  const fa=document.getElementById('feedback-area');
+  fa.innerHTML=`
+    <div class="feedback-box ${ok?'fb-correct':'fb-wrong'}">
+      <div class="fb-title">${ok?'✓ CORRECTO':'✗ INCORRECTO'}</div>
+      <div class="fb-body">${ok?q.fb_ok:q.fb_bad}</div>
+    </div>`;
+}
+
+function next(){
+  cur++;
+  render();
+}
+
+function showResults(){
+  clearInterval(timerInt);
+  document.getElementById('prog-bar').style.width='100%';
+  document.getElementById('q-counter').textContent='COMPLETADO';
+
+  const pct=Math.round((score/20)*100);
+  let grade='',msg='',gcol='';
+  if(score>=18){grade='SOBRESALIENTE';msg='Dominio excepcional de Visor de Eventos, SSO y Gestión de Configuración. Nivel administrador senior.';gcol='#00ff88'}
+  else if(score>=16){grade='MUY BUENO';msg='Comprensión sólida de los temas. Refuerza los detalles técnicos de Event IDs y flujos SSO.';gcol='#00eeff'}
+  else if(score>=14){grade='BUENO';msg='Conocimiento aceptable. Revisa especialmente los Event IDs críticos y el flujo completo de SSO.';gcol='#ffaa00'}
+  else if(score>=11){grade='APROBADO';msg='Nivel básico alcanzado. Necesitas repasar Visor de Eventos, SSO y gestores de configuración con más profundidad.';gcol='#ffaa00'}
+  else{grade='DESAPROBADO';msg='Es necesario reforzar los conceptos de la sesión. Revisa el material de Visor de Eventos, SSO y Ansible/Puppet.';gcol='#ff4466'}
+
+  const correct=userAnswers.filter(a=>a.correct).length;
+  const wrong=userAnswers.filter(a=>!a.correct).length;
+  const skipped=userAnswers.filter(a=>a.chosen===-1).length;
+
+  const reviewHTML=userAnswers.map((a,i)=>{
+    const q=QS[a.q];
+    const badge=a.correct?'<span class="ri-ok">✓ CORRECTO</span>':'<span class="ri-bad">✗ '+( a.chosen===-1?'SIN RESPUESTA':'INCORRECTO')+'</span>';
+    return `<div class="review-item">
+      <div class="ri-q">${i+1}. ${q.q.substring(0,70)}...</div>
+      <div>${badge} — Respuesta correcta: <span style="color:#aaa">${q.opts[q.ans]}</span></div>
+    </div>`;
+  }).join('');
+
+  qa.innerHTML=`
+    <div class="results-card">
+      <div class="result-score">${score}</div>
+      <div class="result-label">PUNTOS OBTENIDOS DE 20</div>
+      <div class="result-grade" style="color:${gcol}">${grade} — ${pct}%</div>
+      <div class="result-msg">${msg}</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num" style="color:#00ff88">${correct}</div>
+          <div class="stat-lbl">CORRECTAS</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" style="color:#ff4466">${wrong}</div>
+          <div class="stat-lbl">INCORRECTAS</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" style="color:#ffaa00">${skipped}</div>
+          <div class="stat-lbl">SIN RESP.</div>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="neon-btn" onclick="restart()">↺ REINTENTAR</button>
+      </div>
+      <div class="review-list">${reviewHTML}</div>
+    </div>`;
+}
+
+function restart(){
+  cur=0;score=0;answered=false;userAnswers=[];
+  document.getElementById('score-display').textContent='0';
+  render();
+}
+
+render();
+</script>
