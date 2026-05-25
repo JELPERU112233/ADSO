@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent;color:var(--color-text-primary)}
+.wrap{position:relative;width:100%}
+.tooltip{position:absolute;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--color-text-primary);max-width:230px;pointer-events:none;opacity:0;transition:opacity .18s;z-index:20;line-height:1.55}
+.tooltip.show{opacity:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;margin:10px 0 0;font-size:11px;color:var(--color-text-secondary)}
+.leg{display:flex;align-items:center;gap:5px}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.btns{display:flex;gap:7px;margin:10px 0 4px;flex-wrap:wrap}
+button{font-size:11px;padding:4px 10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:transparent;color:var(--color-text-primary);cursor:pointer}
+button.on{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+button:hover{background:var(--color-background-secondary)}
+</style>
+</head>
+<body>
+<div class="btns">
+  <button class="on" id="b-all" onclick="fl('all')">Todo</button>
+  <button id="b-sync" onclick="fl('sync')">Syncthing</button>
+  <button id="b-plex" onclick="fl('plex')">Plex</button>
+  <button id="b-tail" onclick="fl('tail')">Tailscale</button>
+  <button id="b-bkp" onclick="fl('bkp')">Backup rsync</button>
+</div>
+<div class="wrap">
+<svg width="100%" viewBox="0 0 680 640" role="img">
+<title>Topología completa con todos los dispositivos ilustrados</title>
+<desc>Red con TerraMaster, Switch 1GbE, Proxmox/LXCs y los 4 dispositivos finales dibujados como iconos físicos.</desc>
+<defs>
+  <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- ══ SWITCH 1GbE ══ -->
+<g id="nd-sw" style="cursor:pointer" onclick="tip(event,'sw')">
+  <rect x="248" y="14" width="184" height="52" rx="5" fill="#2C2C2A" stroke="#5F5E5A" stroke-width="1"/>
+  <rect x="248" y="14" width="184" height="8" rx="5" fill="#383836" stroke="none"/>
+  <rect x="248" y="18" width="184" height="4" fill="#383836" stroke="none"/>
+  <rect x="396" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="400" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="404" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="408" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="412" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="416" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <rect x="420" y="20" width="2" height="38" rx="1" fill="#444441"/>
+  <circle cx="389" cy="24" r="2.5" fill="#639922"/>
+  <circle cx="382" cy="24" r="2.5" fill="#639922"/>
+  <circle cx="375" cy="24" r="2.5" fill="#EF9F27"/>
+  <circle cx="368" cy="24" r="2.5" fill="#639922"/>
+  <rect x="256" y="22" width="104" height="14" rx="2" fill="#1a1a18" stroke="none"/>
+  <rect x="258" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="271" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="284" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="297" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="310" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="323" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="336" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="349" y="24" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="261" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="274" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="287" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="300" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="313" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="326" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="339" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="352" y="33" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="256" y="40" width="104" height="14" rx="2" fill="#1a1a18" stroke="none"/>
+  <rect x="258" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="271" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="284" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="297" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="310" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="323" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="336" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="349" y="42" width="10" height="10" rx="1" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.4"/>
+  <rect x="261" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="274" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="287" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="300" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="313" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="326" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="339" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <rect x="352" y="51" width="4" height="2" rx="0.5" fill="#5F5E5A"/>
+  <text x="340" y="74" font-size="9" fill="#888780" font-weight="500" text-anchor="middle">Switch 1GbE · 16 puertos</text>
+</g>
+
+<!-- ══ TERRAMASTER F2-210 ══ -->
+<g id="nd-terra" style="cursor:pointer" onclick="tip(event,'terra')">
+  <rect x="18" y="12" width="110" height="130" rx="8" fill="#2C2C2A" stroke="#5F5E5A" stroke-width="1"/>
+  <rect x="18" y="12" width="110" height="22" rx="8" fill="#444441" stroke="none"/>
+  <rect x="18" y="26" width="110" height="8" fill="#444441" stroke="none"/>
+  <text x="73" y="27" font-size="8" fill="#97C459" font-weight="500" text-anchor="middle" dominant-baseline="central">TerraMaster</text>
+  <rect x="26" y="40" width="94" height="44" rx="4" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.5"/>
+  <rect x="30" y="44" width="86" height="36" rx="3" fill="#1a1a18" stroke="none"/>
+  <circle cx="34" cy="62" r="3" fill="#639922"/>
+  <text x="73" y="53" font-size="7" fill="#97C459" text-anchor="middle" dominant-baseline="central">① HDD 500GB</text>
+  <rect x="26" y="80" width="94" height="4" rx="2" fill="#5F5E5A"/>
+  <rect x="26" y="88" width="94" height="44" rx="4" fill="#3d3d3a" stroke="#5F5E5A" stroke-width="0.5"/>
+  <rect x="30" y="92" width="86" height="36" rx="3" fill="#1a1a18" stroke="none"/>
+  <circle cx="34" cy="110" r="3" fill="#639922"/>
+  <text x="73" y="101" font-size="7" fill="#97C459" text-anchor="middle" dominant-baseline="central">② HDD 1TB</text>
+  <rect x="26" y="128" width="94" height="4" rx="2" fill="#5F5E5A"/>
+  <rect x="18" y="132" width="110" height="10" rx="4" fill="#383836"/>
+  <circle cx="30" cy="137" r="3" fill="#639922" opacity="0.9"/>
+  <text x="73" y="155" font-size="9" fill="#639922" font-weight="500" text-anchor="middle">F2-210</text>
+  <text x="73" y="166" font-size="8" fill="#888780" text-anchor="middle">backup rsync nocturno</text>
+</g>
+<g id="gr-bkp">
+  <path d="M128 58 Q180 40 248 36" fill="none" stroke="#639922" stroke-width="1.1" stroke-dasharray="5 3" marker-end="url(#ar)" opacity="0.85"/>
+  <text x="188" y="34" font-size="8" fill="#639922" text-anchor="middle">rsync nocturno</text>
+</g>
+
+<!-- ══ PROXMOX HOST ══ -->
+<rect x="200" y="95" width="340" height="330" rx="14" fill="none" stroke="#7F77DD" stroke-width="1.1" stroke-dasharray="6 4"/>
+<text x="370" y="89" font-size="10" fill="#7F77DD" font-weight="500" text-anchor="middle">Dell OptiPlex 3060 · Proxmox 8.4 · 32GB RAM</text>
+<text x="370" y="112" font-size="9" fill="#9F9AE0" text-anchor="middle">① M.2 SATA  ② NVMe 1TB  ③ IronWolf 8TB → TrueNAS</text>
+<g id="nd-tnas" style="cursor:pointer" onclick="tip(event,'tnas')">
+  <rect x="212" y="120" width="316" height="38" rx="7" fill="#0C447C22" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="370" y="135" font-size="11" fill="#185FA5" font-weight="500" text-anchor="middle" dominant-baseline="central">TrueNAS VM — pool ZFS IronWolf 8TB</text>
+  <text x="370" y="149" font-size="9" fill="#378ADD" text-anchor="middle" dominant-baseline="central">tank/general · tank/backups · tank/trabajo</text>
+</g>
+<g id="nd-sct" style="cursor:pointer" onclick="tip(event,'sct')">
+  <rect x="212" y="172" width="148" height="58" rx="7" fill="#0F6E5622" stroke="#1D9E75" stroke-width="0.8"/>
+  <text x="286" y="191" font-size="11" fill="#1D9E75" font-weight="500" text-anchor="middle" dominant-baseline="central">LXC Syncthing</text>
+  <text x="286" y="207" font-size="9" fill="#5DCAA5" text-anchor="middle" dominant-baseline="central">hub · Ubuntu 22.04</text>
+  <text x="286" y="221" font-size="9" fill="#5DCAA5" text-anchor="middle" dominant-baseline="central">más reciente prevalece</text>
+</g>
+<g id="nd-plex" style="cursor:pointer" onclick="tip(event,'plex')">
+  <rect x="380" y="172" width="148" height="58" rx="7" fill="#A32D2D22" stroke="#E24B4A" stroke-width="0.8"/>
+  <text x="454" y="191" font-size="11" fill="#E24B4A" font-weight="500" text-anchor="middle" dominant-baseline="central">LXC Plex</text>
+  <text x="454" y="207" font-size="9" fill="#F09595" text-anchor="middle" dominant-baseline="central">Media Server</text>
+  <text x="454" y="221" font-size="9" fill="#F09595" text-anchor="middle" dominant-baseline="central">Quick Sync · iGPU</text>
+</g>
+<g id="nd-tsn" style="cursor:pointer" onclick="tip(event,'tsn')">
+  <rect x="212" y="244" width="148" height="46" rx="7" fill="#53188722" stroke="#7F77DD" stroke-width="0.8"/>
+  <text x="286" y="263" font-size="11" fill="#7F77DD" font-weight="500" text-anchor="middle" dominant-baseline="central">LXC Tailscale</text>
+  <text x="286" y="279" font-size="9" fill="#AFA9EC" text-anchor="middle" dominant-baseline="central">exit node · VPN</text>
+</g>
+<g id="nd-ha" style="cursor:pointer" onclick="tip(event,'ha')">
+  <rect x="380" y="244" width="148" height="46" rx="7" fill="#854F0B22" stroke="#BA7517" stroke-width="0.8"/>
+  <text x="454" y="263" font-size="11" fill="#BA7517" font-weight="500" text-anchor="middle" dominant-baseline="central">LXC Home Asst.</text>
+  <text x="454" y="279" font-size="9" fill="#EF9F27" text-anchor="middle" dominant-baseline="central">Zigbee · Tuya · Alexa</text>
+</g>
+<g id="nd-stor" style="cursor:pointer" onclick="tip(event,'stor')">
+  <rect x="212" y="304" width="316" height="36" rx="7" fill="#3C3489" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="370" y="318" font-size="11" fill="#EEEDFE" font-weight="500" text-anchor="middle" dominant-baseline="central">bind mount /mnt/tank → todos los LXC</text>
+  <text x="370" y="332" font-size="9" fill="#CECBF6" text-anchor="middle" dominant-baseline="central">acceso directo ZFS sin copia intermedia</text>
+</g>
+<line x1="370" y1="95" x2="370" y2="66" stroke="#888780" stroke-width="0.8" marker-end="url(#ar)" opacity="0.5"/>
+<line id="lk-sct-st" x1="286" y1="230" x2="286" y2="304" stroke="#1D9E75" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.7"/>
+<line id="lk-plex-st" x1="454" y1="230" x2="454" y2="304" stroke="#E24B4A" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.7"/>
+<line x1="370" y1="158" x2="370" y2="304" stroke="#534AB7" stroke-width="0.7" stroke-dasharray="3 3" marker-end="url(#ar)" opacity="0.4"/>
+
+<!-- ══ DELL LATITUDE — Windows laptop ══ -->
+<g id="nd-dell" style="cursor:pointer" onclick="tip(event,'dell')">
+  <path d="M14 555 Q14 572 22 575 L112 575 Q120 572 120 555 Z" fill="#1a3a5c" stroke="#0e2a45" stroke-width="0.8"/>
+  <rect x="54" y="561" width="28" height="8" rx="3" fill="#142d47" stroke="#0e2a45" stroke-width="0.5"/>
+  <rect x="20" y="552" width="98" height="4" rx="2" fill="#0e2a45"/>
+  <path d="M22 552 L22 498 Q22 490 30 490 L108 490 Q116 490 116 498 L116 552 Z" fill="#1a3a5c" stroke="#0e2a45" stroke-width="0.8"/>
+  <rect x="27" y="494" width="84" height="54" rx="3" fill="#f0f4f8"/>
+  <rect x="52" y="509" width="10" height="10" rx="1" fill="#1a5fa8" transform="skewX(-5)"/>
+  <rect x="64" y="508" width="11" height="10" rx="1" fill="#3b8fdd" transform="skewX(-5)"/>
+  <rect x="53" y="521" width="10" height="11" rx="1" fill="#3b8fdd" transform="skewX(-5)"/>
+  <rect x="65" y="520" width="11" height="11" rx="1" fill="#5aaaf0" transform="skewX(-5)"/>
+  <rect x="62" y="507" width="2" height="26" fill="#f0f4f8"/>
+  <rect x="51" y="519" width="27" height="2" fill="#f0f4f8"/>
+  <text x="67" y="590" font-size="9" fill="#1D9E75" font-weight="500" text-anchor="middle">Dell Latitude 5431</text>
+  <text x="67" y="601" font-size="8" fill="#888780" text-anchor="middle">Tailscale · Syncthing</text>
+</g>
+
+<!-- ══ THINKPAD T14 — laptop negro minimalista ══ -->
+<g id="nd-tp" style="cursor:pointer" onclick="tip(event,'tp')">
+  <!-- Base -->
+  <path d="M158 560 Q158 576 166 578 L256 578 Q264 575 264 560 Z" fill="#1a1a18" stroke="#2C2C2A" stroke-width="0.8"/>
+  <!-- Touchpad -->
+  <rect x="196" y="565" width="28" height="7" rx="2" fill="#2C2C2A" stroke="#444441" stroke-width="0.5"/>
+  <!-- Bisagra -->
+  <rect x="163" y="557" width="98" height="4" rx="2" fill="#2C2C2A"/>
+  <!-- Tapa -->
+  <path d="M165 557 L165 500 Q165 492 173 492 L251 492 Q259 492 259 500 L259 557 Z" fill="#1a1a18" stroke="#2C2C2A" stroke-width="0.8"/>
+  <!-- Pantalla -->
+  <rect x="170" y="496" width="84" height="57" rx="2" fill="#2d2d2b"/>
+  <!-- Reflejo pantalla (dos líneas diagonales) -->
+  <line x1="178" y1="500" x2="186" y2="510" stroke="#444441" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="183" y1="500" x2="188" y2="507" stroke="#444441" stroke-width="1" stroke-linecap="round"/>
+  <!-- Punto rojo TrackPoint -->
+  <circle cx="212" cy="530" r="3" fill="#cc0000"/>
+  <!-- Label -->
+  <text x="211" y="593" font-size="9" fill="#1D9E75" font-weight="500" text-anchor="middle">ThinkPad T14 G4</text>
+  <text x="211" y="604" font-size="8" fill="#888780" text-anchor="middle">Tailscale · Syncthing</text>
+</g>
+
+<!-- ══ MACBOOK AIR M1 — laptop Apple ══ -->
+<g id="nd-mac" style="cursor:pointer" onclick="tip(event,'mac')">
+  <!-- Base más delgada -->
+  <path d="M302 566 Q302 578 310 580 L400 580 Q408 578 408 566 Z" fill="#2C2C2A" stroke="#1a1a18" stroke-width="0.8"/>
+  <!-- Notch centro base -->
+  <rect x="346" y="568" width="20" height="6" rx="3" fill="#1a1a18" stroke="#444441" stroke-width="0.5"/>
+  <!-- Bisagra muy delgada -->
+  <rect x="306" y="563" width="100" height="3" rx="1" fill="#1a1a18"/>
+  <!-- Tapa más delgada (MacBook) -->
+  <path d="M308 563 L308 500 Q308 493 315 493 L397 493 Q404 493 404 500 L404 563 Z" fill="#2C2C2A" stroke="#1a1a18" stroke-width="0.8"/>
+  <!-- Pantalla negra -->
+  <rect x="313" y="497" width="86" height="62" rx="3" fill="#1a1a18"/>
+  <!-- Logo Apple (manzana simplificada) -->
+  <!-- Círculo base de la manzana -->
+  <ellipse cx="356" cy="526" rx="10" ry="11" fill="#2C2C2A"/>
+  <!-- Mordisco derecho -->
+  <ellipse cx="364" cy="520" rx="5" ry="5" fill="#1a1a18"/>
+  <!-- Hoja -->
+  <ellipse cx="360" cy="516" rx="3" ry="4" fill="#2C2C2A" transform="rotate(-30 360 516)"/>
+  <!-- Recorte interior para forma de manzana -->
+  <ellipse cx="356" cy="526" rx="8" ry="9" fill="#444441"/>
+  <ellipse cx="364" cy="521" rx="4" ry="4" fill="#1a1a18"/>
+  <!-- Label -->
+  <text x="356" y="595" font-size="9" fill="#1D9E75" font-weight="500" text-anchor="middle">MacBook Air M1</text>
+  <text x="356" y="606" font-size="8" fill="#888780" text-anchor="middle">Tailscale · Time Machine</text>
+</g>
+
+<!-- ══ SAMSUNG TAB 10FE — tablet con manos ══ -->
+<g id="nd-tab" style="cursor:pointer" onclick="tip(event,'tab')">
+  <!-- Cuerpo tablet horizontal -->
+  <rect x="462" y="496" width="116" height="78" rx="6" fill="#1a3a5c" stroke="#0e2a45" stroke-width="1"/>
+  <!-- Pantalla -->
+  <rect x="468" y="501" width="104" height="62" rx="3" fill="#0a1a2e"/>
+  <!-- Líneas de contenido azul (menú) -->
+  <rect x="476" y="510" width="70" height="4" rx="2" fill="#378ADD" opacity="0.9"/>
+  <rect x="476" y="519" width="70" height="4" rx="2" fill="#378ADD" opacity="0.8"/>
+  <rect x="476" y="528" width="70" height="4" rx="2" fill="#378ADD" opacity="0.7"/>
+  <!-- Puntos inferiores -->
+  <rect x="482" y="538" width="10" height="5" rx="2" fill="#378ADD" opacity="0.9"/>
+  <rect x="498" y="538" width="10" height="5" rx="2" fill="#378ADD" opacity="0.9"/>
+  <rect x="514" y="538" width="10" height="5" rx="2" fill="#378ADD" opacity="0.9"/>
+  <!-- Botón lateral derecho -->
+  <rect x="577" y="512" width="3" height="12" rx="1" fill="#0e2a45"/>
+  <!-- Mano izquierda (simplificada) -->
+  <path d="M462 548 Q456 542 458 534 Q460 528 466 530 Q468 524 472 526 L472 550 Z" fill="#1a3a5c" opacity="0.8"/>
+  <!-- Dedo táctil derecho (simplificado) -->
+  <path d="M530 560 Q536 552 534 544 Q532 538 528 540 L524 548 L520 558 Z" fill="#1a3a5c" opacity="0.8"/>
+  <!-- Label -->
+  <text x="520" y="592" font-size="9" fill="#1D9E75" font-weight="500" text-anchor="middle">Samsung Tab 10FE</text>
+  <text x="520" y="603" font-size="8" fill="#888780" text-anchor="middle">Tailscale · FolderSync</text>
+</g>
+
+<!-- Cables LAN → switch -->
+<line x1="67" y1="552" x2="300" y2="66" stroke="#888780" stroke-width="0.6" opacity="0.3"/>
+<line x1="211" y1="557" x2="322" y2="66" stroke="#888780" stroke-width="0.6" opacity="0.3"/>
+<!-- WiFi -->
+<path d="M356 563 Q360 300 362 66" fill="none" stroke="#888780" stroke-width="0.6" stroke-dasharray="3 4" opacity="0.3"/>
+<path d="M520 496 Q480 300 400 66" fill="none" stroke="#888780" stroke-width="0.6" stroke-dasharray="3 4" opacity="0.3"/>
+
+<!-- Syncthing flows -->
+<g id="gr-sync">
+  <path d="M67 552 Q67 390 286 230" fill="none" stroke="#1D9E75" stroke-width="1.1" marker-end="url(#ar)" opacity="0.7"/>
+  <path d="M211 557 Q211 380 286 230" fill="none" stroke="#1D9E75" stroke-width="1.1" marker-end="url(#ar)" opacity="0.7"/>
+  <path d="M356 563 Q340 380 286 230" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#ar)" opacity="0.6"/>
+  <path d="M500 496 Q420 360 286 230" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#ar)" opacity="0.55"/>
+</g>
+
+<!-- Tailscale flows -->
+<g id="gr-tail">
+  <path d="M356 563 Q430 400 454 290" fill="none" stroke="#7F77DD" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.6"/>
+  <path d="M500 496 Q510 390 454 290" fill="none" stroke="#7F77DD" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.6"/>
+  <path d="M67 552 Q65 410 286 290" fill="none" stroke="#7F77DD" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.5"/>
+  <path d="M211 557 Q220 390 286 290" fill="none" stroke="#7F77DD" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#ar)" opacity="0.5"/>
+</g>
+
+<!-- Plex flows -->
+<g id="gr-plex">
+  <path d="M356 563 Q450 400 454 230" fill="none" stroke="#E24B4A" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#ar)" opacity="0.65"/>
+  <path d="M500 496 Q520 360 454 230" fill="none" stroke="#E24B4A" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#ar)" opacity="0.6"/>
+</g>
+
+<text x="148" y="455" font-size="8" fill="#888780" text-anchor="middle">LAN</text>
+<text x="450" y="455" font-size="8" fill="#888780" text-anchor="middle" font-style="italic">WiFi</text>
+
+</svg>
+<div class="tooltip" id="tip-box"></div>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="dot" style="background:#1D9E75"></div>Syncthing</div>
+  <div class="leg"><div class="dot" style="background:#E24B4A"></div>Plex</div>
+  <div class="leg"><div class="dot" style="background:#7F77DD"></div>Tailscale VPN</div>
+  <div class="leg"><div class="dot" style="background:#639922"></div>rsync nocturno → TerraMaster</div>
+  <div class="leg"><div class="dot" style="background:#534AB7"></div>bind mount ZFS</div>
+  <div class="leg"><div class="dot" style="background:#888780"></div>LAN / WiFi</div>
+  <div class="leg" style="margin-left:auto;font-style:italic">Click en cualquier nodo</div>
+</div>
+
+<script>
+const DATA={
+  sw:   {t:'Switch 1GbE · 16 puertos',d:'Hub LAN. Dell Latitude y ThinkPad por cable. MacBook y Samsung Tab por WiFi.'},
+  terra:{t:'TerraMaster F2-210',d:'Backup 3-2-1. ① SATA HDD 500GB ② SATA HDD 1TB. rsync nocturno desde TrueNAS.'},
+  tnas: {t:'TrueNAS VM',d:'Pool ZFS IronWolf 8TB. Datasets: tank/general, tank/backups, tank/trabajo.'},
+  sct:  {t:'LXC Syncthing — hub',d:'Ubuntu 22.04. Conflictos resueltos por timestamp. Escribe en /mnt/tank vía bind mount.'},
+  plex: {t:'LXC Plex Media Server',d:'Quick Sync con iGPU UHD 630. Lee desde tank/general/PLEX SERVER.'},
+  tsn:  {t:'LXC Tailscale',d:'Exit node VPN. Todos los dispositivos acceden como si estuvieran en LAN.'},
+  ha:   {t:'LXC Home Assistant',d:'Zigbee, Tuya, Alexa. Automatización del hogar.'},
+  stor: {t:'bind mount /mnt/tank',d:'Acceso directo al ZFS desde todos los LXC. Sin copias intermedias.'},
+  dell: {t:'Dell Latitude 5431 · Windows',d:'Cable LAN. Syncthing + Tailscale en Windows 11.'},
+  tp:   {t:'ThinkPad T14 Gen 4',d:'Equipo principal. Cable LAN. Syncthing + Tailscale. TrackPoint rojo característico.'},
+  mac:  {t:'MacBook Air M1',d:'WiFi. Syncthing + Time Machine via SMB + Tailscale para acceso remoto.'},
+  tab:  {t:'Samsung Galaxy Tab 10FE',d:'WiFi + Tailscale Android. FolderSync Pro sincroniza via SMB.'},
+};
+const box=document.getElementById('tip-box');
+let hide;
+function tip(e,k){
+  clearTimeout(hide);
+  const d=DATA[k]; if(!d) return;
+  box.innerHTML='<strong style="font-size:12px;display:block;margin-bottom:3px">'+d.t+'</strong>'+d.d;
+  const wrap=document.querySelector('.wrap').getBoundingClientRect();
+  box.style.left=Math.min(e.clientX-wrap.left+10,wrap.width-240)+'px';
+  box.style.top=(e.clientY-wrap.top+10)+'px';
+  box.classList.add('show');
+  hide=setTimeout(()=>box.classList.remove('show'),5000);
+}
+document.addEventListener('click',e=>{if(!e.target.closest('[onclick]'))box.classList.remove('show');});
+const FLOWS={sync:['gr-sync','lk-sct-st'],plex:['gr-plex','lk-plex-st'],tail:['gr-tail'],bkp:['gr-bkp'],all:['gr-sync','gr-plex','gr-tail','gr-bkp','lk-sct-st','lk-plex-st']};
+const ALL=['gr-sync','gr-plex','gr-tail','gr-bkp','lk-sct-st','lk-plex-st'];
+function fl(mode){
+  document.querySelectorAll('.btns button').forEach(b=>b.classList.remove('on'));
+  document.getElementById('b-'+mode).classList.add('on');
+  const show=FLOWS[mode]||ALL;
+  ALL.forEach(id=>{const el=document.getElementById(id);if(el)el.style.opacity=show.includes(id)?'1':'0.05';});
+}
+</script>
+</body>
+</html>
