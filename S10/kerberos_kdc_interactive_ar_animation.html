@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060910; font-family: 'Arial', sans-serif; overflow-x: hidden; }
+  
+  :root {
+    --cyan: #00ecff;
+    --magenta: #ff007c;
+    --green: #39ff14;
+    --orange: #ffb700;
+    --purple: #bf5fff;
+    --dark: #060910;
+    --panel-bg: rgba(8, 12, 22, 0.95);
+  }
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+  @keyframes pulse-glow { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+  @keyframes data-flow { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
+  @keyframes data-flow-back { from { stroke-dashoffset: -600; } to { stroke-dashoffset: 0; } }
+  @keyframes float-up { 0% { opacity: 0; transform: translateY(20px) scale(0.8); } 20% { opacity: 1; transform: translateY(0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px); } }
+  @keyframes packet-move { 0% { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes step-pulse { 0%,100% { box-shadow: 0 0 8px currentColor; } 50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; } }
+  @keyframes scan-line { 0% { top: 0%; } 100% { top: 100%; } }
+  @keyframes radar-sweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+  @keyframes slide-in { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes pop-in { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+  .stage-area {
+    position: relative;
+    background: #060910;
+    min-height: 100vh;
+    padding: 10px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 12px 0 8px;
+    border-bottom: 1px solid rgba(0,236,255,0.2);
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-size: 18px;
+    color: var(--cyan);
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px var(--cyan);
+    text-transform: uppercase;
+  }
+  .header p { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 2px; margin-top: 4px; }
+
+  /* Main scene SVG */
+  #main-scene { width: 100%; display: block; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.6);
+    border-top: 1px solid rgba(0,236,255,0.15);
+    border-bottom: 1px solid rgba(0,236,255,0.15);
+  }
+  .btn {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 4px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    font-family: Arial, sans-serif;
+  }
+  .btn:hover { background: rgba(0,236,255,0.15); box-shadow: 0 0 10px var(--cyan); }
+  .btn.active { background: rgba(0,236,255,0.25); box-shadow: 0 0 15px var(--cyan); }
+  .btn.magenta { border-color: var(--magenta); color: var(--magenta); }
+  .btn.magenta:hover { background: rgba(255,0,124,0.15); box-shadow: 0 0 10px var(--magenta); }
+  .btn.green { border-color: var(--green); color: var(--green); }
+  .btn.green:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 10px var(--green); }
+  .btn.orange { border-color: var(--orange); color: var(--orange); }
+  .btn.orange:hover { background: rgba(255,183,0,0.15); box-shadow: 0 0 10px var(--orange); }
+  .btn.purple { border-color: var(--purple); color: var(--purple); }
+  .btn.purple:hover { background: rgba(191,95,255,0.15); box-shadow: 0 0 10px var(--purple); }
+
+  /* Step panel */
+  .step-panel {
+    background: rgba(8,12,22,0.98);
+    border: 1px solid rgba(0,236,255,0.3);
+    border-radius: 8px;
+    margin: 10px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .step-panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    animation: shimmer 2s linear infinite;
+    background-size: 200% 100%;
+  }
+  .step-title {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+  .step-content { font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.7; }
+  .step-content b { color: var(--cyan); }
+  .step-content .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin: 2px;
+  }
+  .tag-tgt { background: rgba(0,236,255,0.2); border: 1px solid var(--cyan); color: var(--cyan); }
+  .tag-st { background: rgba(255,0,124,0.2); border: 1px solid var(--magenta); color: var(--magenta); }
+  .tag-sk1 { background: rgba(57,255,20,0.2); border: 1px solid var(--green); color: var(--green); }
+  .tag-sk2 { background: rgba(255,183,0,0.2); border: 1px solid var(--orange); color: var(--orange); }
+  .tag-enc { background: rgba(191,95,255,0.2); border: 1px solid var(--purple); color: var(--purple); }
+
+  /* KDC Internal Panel */
+  .kdc-internal {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 10px;
+  }
+  .kdc-box {
+    background: rgba(8,12,22,0.98);
+    border-radius: 8px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kdc-box.as-box { border: 1px solid rgba(0,236,255,0.4); }
+  .kdc-box.tgs-box { border: 1px solid rgba(255,0,124,0.4); }
+  .kdc-box-title {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kdc-step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: all 0.4s;
+    opacity: 0.35;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .kdc-step-item.active {
+    opacity: 1;
+    background: rgba(255,255,255,0.05);
+  }
+  .kdc-step-item.as-active { border-left: 2px solid var(--cyan); }
+  .kdc-step-item.tgs-active { border-left: 2px solid var(--magenta); }
+  .kdc-step-num {
+    min-width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: bold;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .as-num { background: rgba(0,236,255,0.2); border: 1px solid var(--cyan); color: var(--cyan); }
+  .tgs-num { background: rgba(255,0,124,0.2); border: 1px solid var(--magenta); color: var(--magenta); }
+
+  /* Progress bar */
+  .progress-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 10px;
+    align-items: center;
+  }
+  .progress-step {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    transition: background 0.4s, box-shadow 0.4s;
+    cursor: pointer;
+  }
+  .progress-step.done { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+  .progress-step.active { background: var(--orange); box-shadow: 0 0 8px var(--orange); animation: pulse-glow 1s infinite; }
+  .progress-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    min-width: 80px;
+    text-align: center;
+  }
+
+  /* Floating message */
+  .float-msg {
+    position: fixed;
+    bottom: 80px; right: 20px;
+    background: rgba(0,236,255,0.15);
+    border: 1px solid var(--cyan);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 1px;
+    animation: float-up 3s ease-in-out forwards;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  /* Log terminal */
+  .log-terminal {
+    background: rgba(0,0,0,0.8);
+    border: 1px solid rgba(57,255,20,0.3);
+    border-radius: 6px;
+    margin: 10px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log-line { color: var(--green); margin-bottom: 2px; }
+  .log-line.err { color: #ff4444; }
+  .log-line.warn { color: var(--orange); }
+  .log-line.info { color: var(--cyan); }
+  .log-line::before { content: '> '; opacity: 0.6; }
+
+  /* AR overlay scan effect */
+  .ar-scan {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,236,255,0.4), transparent);
+    animation: scan-line 4s linear infinite;
+    pointer-events: none;
+    top: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .kdc-internal { grid-template-columns: 1fr; }
+    .header h1 { font-size: 14px; }
+    .btn { padding: 5px 10px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="stage-area">
+  <div class="ar-scan"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🔐 Kerberos — KDC Protocol</h1>
+    <p>AD-Service · AS-SERVICE · TGS-SERVICE · Interactive AR Flow</p>
+  </div>
+
+  <!-- MAIN SCENE SVG -->
+  <svg id="main-scene" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" style="background:#080a10;">
+    <defs>
+      <filter id="gc" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="gm" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="gg" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="2.5" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="go" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <pattern id="bg-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#10141f" stroke-width="1"/>
+      </pattern>
+      <!-- Radar sweep gradient -->
+      <radialGradient id="radarGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#00ecff" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#00ecff" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- Background -->
+    <rect width="900" height="300" fill="#080a10"/>
+    <rect width="900" height="300" fill="url(#bg-grid)"/>
+
+    <!-- ═══ CLIENT NODE ═══ -->
+    <g id="g-client">
+      <!-- Radar rings -->
+      <circle cx="110" cy="150" r="80" fill="none" stroke="#00ecff" stroke-width="0.5" stroke-dasharray="4,8" opacity="0.3"/>
+      <circle cx="110" cy="150" r="65" fill="none" stroke="#00ecff" stroke-width="1" stroke-dasharray="8,12" filter="url(#gc)" opacity="0.5">
+        <animateTransform attributeName="transform" type="rotate" from="0 110 150" to="360 110 150" dur="20s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="110" cy="150" r="50" fill="none" stroke="#00ecff" stroke-width="1.5" stroke-dasharray="15,10" filter="url(#gc)">
+        <animateTransform attributeName="transform" type="rotate" from="360 110 150" to="0 110 150" dur="14s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Radar sweep sector -->
+      <g id="radar-client">
+        <path id="sweep-c" d="" fill="url(#radarGrad)" opacity="0.35"/>
+      </g>
+      <!-- Client icon -->
+      <rect x="88" y="136" width="44" height="28" rx="3" fill="none" stroke="#00ecff" stroke-width="2" filter="url(#gc)"/>
+      <path d="M80 168 L140 168 L134 164 L86 164 Z" fill="none" stroke="#00ecff" stroke-width="2" filter="url(#gc)"/>
+      <circle cx="110" cy="150" r="3" fill="#00ecff" opacity="0.6"/>
+      <!-- Label -->
+      <text x="110" y="72" fill="#00ecff" font-size="13" font-weight="bold" text-anchor="middle" filter="url(#gc)" letter-spacing="2">CLIENT</text>
+      <text x="110" y="86" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle" letter-spacing="1">USER WORKSTATION</text>
+      <!-- Status indicator -->
+      <circle id="client-status" cx="110" cy="195" r="5" fill="#00ecff" filter="url(#gc)">
+        <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <text x="110" y="210" id="client-status-text" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle">IDLE</text>
+    </g>
+
+    <!-- ═══ KDC NODE (CENTER) ═══ -->
+    <g id="g-kdc">
+      <!-- Background box -->
+      <rect x="335" y="50" width="230" height="200" rx="10" fill="rgba(8,10,20,0.95)" stroke="#ff007c" stroke-width="1.5" filter="url(#gm)" opacity="0.9"/>
+      <rect x="335" y="50" width="230" height="200" rx="10" fill="none" stroke="rgba(255,0,124,0.3)" stroke-width="4"/>
+      
+      <!-- Title -->
+      <text x="450" y="78" fill="#ff007c" font-size="13" font-weight="bold" text-anchor="middle" filter="url(#gm)" letter-spacing="2">DC-01.ADSO.COM</text>
+      <text x="450" y="93" fill="rgba(255,255,255,0.6)" font-size="9" text-anchor="middle" letter-spacing="1">KDC — KEY DISTRIBUTION CENTER</text>
+
+      <!-- Divider -->
+      <line x1="345" y1="100" x2="555" y2="100" stroke="rgba(255,0,124,0.3)" stroke-width="1"/>
+
+      <!-- AS-Service box -->
+      <rect id="as-box" x="345" y="108" width="98" height="65" rx="6" fill="rgba(0,236,255,0.05)" stroke="#00ecff" stroke-width="1.5"/>
+      <text x="394" y="126" fill="#00ecff" font-size="11" font-weight="bold" text-anchor="middle" filter="url(#gc)">AS-SERVICE</text>
+      <text x="394" y="140" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">Authentication</text>
+      <text x="394" y="152" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">Service</text>
+      <!-- AS indicator -->
+      <circle id="as-indicator" cx="394" cy="165" r="4" fill="#00ecff" opacity="0.3">
+        <animate attributeName="opacity" values="0.3;0.3" dur="1s" repeatCount="indefinite" id="as-anim"/>
+      </circle>
+
+      <!-- TGS-Service box -->
+      <rect id="tgs-box" x="457" y="108" width="98" height="65" rx="6" fill="rgba(255,0,124,0.05)" stroke="#ff007c" stroke-width="1.5"/>
+      <text x="506" y="126" fill="#ff007c" font-size="11" font-weight="bold" text-anchor="middle" filter="url(#gm)">TGS-SERVICE</text>
+      <text x="506" y="140" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">Ticket Granting</text>
+      <text x="506" y="152" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">Service</text>
+      <!-- TGS indicator -->
+      <circle id="tgs-indicator" cx="506" cy="165" r="4" fill="#ff007c" opacity="0.3">
+        <animate attributeName="opacity" values="0.3;0.3" dur="1s" repeatCount="indefinite" id="tgs-anim"/>
+      </circle>
+
+      <!-- AD Database -->
+      <rect x="370" y="186" width="160" height="50" rx="5" fill="rgba(57,255,20,0.05)" stroke="#39ff14" stroke-width="1"/>
+      <text x="450" y="206" fill="#39ff14" font-size="10" font-weight="bold" text-anchor="middle" filter="url(#gg)">AD DATABASE</text>
+      <text x="450" y="220" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">User/Service Keys · Tickets</text>
+      <!-- DB connector lines -->
+      <line x1="394" y1="173" x2="430" y2="186" stroke="#39ff14" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+      <line x1="506" y1="173" x2="470" y2="186" stroke="#39ff14" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+
+      <!-- KDC rotation rings -->
+      <circle cx="450" cy="150" r="130" fill="none" stroke="#ff007c" stroke-width="0.5" stroke-dasharray="5,15" opacity="0.3">
+        <animateTransform attributeName="transform" type="rotate" from="0 450 150" to="360 450 150" dur="30s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- ═══ SERVER/RESOURCE NODE ═══ -->
+    <g id="g-server">
+      <!-- Radar rings -->
+      <circle cx="790" cy="150" r="80" fill="none" stroke="#ffb700" stroke-width="0.5" stroke-dasharray="4,8" opacity="0.3"/>
+      <circle cx="790" cy="150" r="65" fill="none" stroke="#ffb700" stroke-width="1" stroke-dasharray="10,15" filter="url(#go)" opacity="0.5">
+        <animateTransform attributeName="transform" type="rotate" from="360 790 150" to="0 790 150" dur="18s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="790" cy="150" r="50" fill="none" stroke="#ffb700" stroke-width="1.5" stroke-dasharray="20,8" filter="url(#go)">
+        <animateTransform attributeName="transform" type="rotate" from="0 790 150" to="360 790 150" dur="12s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Server icon -->
+      <rect x="770" y="128" width="40" height="48" rx="4" fill="none" stroke="#ffb700" stroke-width="2" filter="url(#go)"/>
+      <line x1="775" y1="142" x2="805" y2="142" stroke="#ffb700" stroke-width="1.5"/>
+      <line x1="775" y1="154" x2="805" y2="154" stroke="#ffb700" stroke-width="1.5"/>
+      <line x1="775" y1="166" x2="805" y2="166" stroke="#ffb700" stroke-width="1.5"/>
+      <circle cx="802" cy="142" r="2" fill="#39ff14" stroke="none"/>
+      <circle cx="802" cy="154" r="2" fill="#39ff14" stroke="none"/>
+      <circle cx="802" cy="166" r="2" fill="#39ff14" stroke="none"/>
+      <!-- Label -->
+      <text x="790" y="72" fill="#ffb700" font-size="11" font-weight="bold" text-anchor="middle" filter="url(#go)" letter-spacing="1">TARGET SERVER</text>
+      <text x="790" y="86" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle">\\FILESERVER01</text>
+      <!-- Status -->
+      <circle id="server-status" cx="790" cy="195" r="5" fill="#ffb700" opacity="0.3" filter="url(#go)"/>
+      <text x="790" y="210" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle" id="server-status-text">WAITING</text>
+    </g>
+
+    <!-- ═══ PACKET PATHS ═══ -->
+    <!-- Client → KDC paths (invisible guides) -->
+    <path id="path-c2k" d="M 185 145 Q 270 120 340 145" fill="none" stroke="transparent"/>
+    <path id="path-k2c" d="M 340 155 Q 270 180 185 155" fill="none" stroke="transparent"/>
+    <!-- KDC → Server paths -->
+    <path id="path-k2s" d="M 560 145 Q 675 120 720 145" fill="none" stroke="transparent"/>
+    <path id="path-s2k" d="M 720 155 Q 675 180 560 155" fill="none" stroke="transparent"/>
+    <!-- Client → Server (direct) -->
+    <path id="path-c2s" d="M 185 160 Q 450 230 720 160" fill="none" stroke="transparent"/>
+
+    <!-- Animated connection lines (base) -->
+    <line x1="185" y1="150" x2="340" y2="150" stroke="rgba(0,236,255,0.15)" stroke-width="1"/>
+    <line x1="560" y1="150" x2="720" y2="150" stroke="rgba(255,183,0,0.15)" stroke-width="1"/>
+
+    <!-- Data flow streams (always on) -->
+    <line x1="185" y1="145" x2="340" y2="145" stroke="#00ecff" stroke-width="2" stroke-dasharray="12,80" filter="url(#gc)" opacity="0.4">
+      <animate attributeName="stroke-dashoffset" from="400" to="0" dur="2s" repeatCount="indefinite"/>
+    </line>
+    <line x1="340" y1="155" x2="185" y2="155" stroke="#00ecff" stroke-width="1.5" stroke-dasharray="8,80" filter="url(#gc)" opacity="0.3">
+      <animate attributeName="stroke-dashoffset" from="-400" to="0" dur="2.5s" repeatCount="indefinite"/>
+    </line>
+    <line x1="560" y1="145" x2="720" y2="145" stroke="#ffb700" stroke-width="2" stroke-dasharray="12,80" filter="url(#go)" opacity="0.4">
+      <animate attributeName="stroke-dashoffset" from="400" to="0" dur="2s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- ═══ ANIMATED PACKETS ═══ -->
+    <!-- Packet 1: AS_REQ -->
+    <g id="pkt-as-req" opacity="0">
+      <circle r="8" fill="rgba(0,236,255,0.3)" stroke="#00ecff" stroke-width="1.5">
+        <animateMotion dur="1.5s" path="M 185 145 Q 270 120 340 145" begin="indefinite" id="pkt-as-req-anim" fill="freeze"/>
+      </circle>
+      <text y="4" text-anchor="middle" fill="#00ecff" font-size="7" font-weight="bold">REQ</text>
+    </g>
+    <!-- Packet 2: TGT -->
+    <g id="pkt-tgt" opacity="0">
+      <rect x="-10" y="-8" width="20" height="16" rx="3" fill="rgba(0,236,255,0.3)" stroke="#00ecff" stroke-width="1.5">
+        <animateMotion dur="1.5s" path="M 340 155 Q 270 180 185 155" begin="indefinite" id="pkt-tgt-anim" fill="freeze"/>
+      </rect>
+      <text y="3" text-anchor="middle" fill="#00ecff" font-size="6" font-weight="bold">TGT</text>
+    </g>
+    <!-- Packet 3: TGS_REQ -->
+    <g id="pkt-tgs-req" opacity="0">
+      <circle r="8" fill="rgba(255,0,124,0.3)" stroke="#ff007c" stroke-width="1.5">
+        <animateMotion dur="1.5s" path="M 185 145 Q 270 120 340 145" begin="indefinite" id="pkt-tgs-req-anim" fill="freeze"/>
+      </circle>
+      <text y="4" text-anchor="middle" fill="#ff007c" font-size="7" font-weight="bold">TGS</text>
+    </g>
+    <!-- Packet 4: Service Ticket -->
+    <g id="pkt-st" opacity="0">
+      <rect x="-10" y="-8" width="20" height="16" rx="3" fill="rgba(255,0,124,0.3)" stroke="#ff007c" stroke-width="1.5">
+        <animateMotion dur="1.5s" path="M 340 155 Q 270 180 185 155" begin="indefinite" id="pkt-st-anim" fill="freeze"/>
+      </rect>
+      <text y="3" text-anchor="middle" fill="#ff007c" font-size="6" font-weight="bold">ST</text>
+    </g>
+    <!-- Packet 5: Auth to server -->
+    <g id="pkt-auth" opacity="0">
+      <circle r="10" fill="rgba(255,183,0,0.3)" stroke="#ffb700" stroke-width="1.5">
+        <animateMotion dur="2s" path="M 185 160 Q 450 230 720 160" begin="indefinite" id="pkt-auth-anim" fill="freeze"/>
+      </circle>
+      <text y="4" text-anchor="middle" fill="#ffb700" font-size="7" font-weight="bold">AUTH</text>
+    </g>
+    <!-- Packet 6: Access granted -->
+    <g id="pkt-access" opacity="0">
+      <rect x="-12" y="-8" width="24" height="16" rx="3" fill="rgba(57,255,20,0.3)" stroke="#39ff14" stroke-width="1.5">
+        <animateMotion dur="2s" path="M 720 160 Q 450 230 185 160" begin="indefinite" id="pkt-access-anim" fill="freeze"/>
+      </rect>
+      <text y="3" text-anchor="middle" fill="#39ff14" font-size="5.5" font-weight="bold">ACCESS</text>
+    </g>
+
+    <!-- ═══ STEP LABELS ON ARROWS ═══ -->
+    <text id="lbl-c2k" x="260" y="132" fill="rgba(0,236,255,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 1 · AS_REQ</text>
+    <text id="lbl-k2c" x="260" y="175" fill="rgba(0,236,255,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 2 · TGT + SK1</text>
+    <text id="lbl-c2k2" x="260" y="132" fill="rgba(255,0,124,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 3 · TGS_REQ</text>
+    <text id="lbl-k2c2" x="260" y="175" fill="rgba(255,0,124,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 4 · ST + SK2</text>
+    <text id="lbl-c2s" x="450" y="248" fill="rgba(255,183,0,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 5 · Authenticator + ST</text>
+    <text id="lbl-s2c" x="450" y="248" fill="rgba(57,255,20,0.7)" font-size="9" text-anchor="middle" opacity="0">Step 6 · Access Granted ✓</text>
+  </svg>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-bar">
+    <span class="progress-label" style="color:rgba(255,255,255,0.4);font-size:10px;min-width:60px">STEP</span>
+    <div class="progress-step" id="ps1" onclick="goToStep(1)"></div>
+    <div class="progress-step" id="ps2" onclick="goToStep(2)"></div>
+    <div class="progress-step" id="ps3" onclick="goToStep(3)"></div>
+    <div class="progress-step" id="ps4" onclick="goToStep(4)"></div>
+    <div class="progress-step" id="ps5" onclick="goToStep(5)"></div>
+    <div class="progress-step" id="ps6" onclick="goToStep(6)"></div>
+    <span class="progress-label" id="step-counter" style="color:rgba(255,255,255,0.5);font-size:10px">0 / 6</span>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn" onclick="prevStep()">◀ PREV</button>
+    <button class="btn active" onclick="nextStep()">NEXT ▶</button>
+    <button class="btn magenta" onclick="autoPlay()">⟳ AUTO PLAY</button>
+    <button class="btn green" onclick="resetAll()">RESET</button>
+    <button class="btn orange" onclick="toggleLogs()">LOGS</button>
+    <button class="btn purple" onclick="showKDCDetail()">KDC DETAIL</button>
+  </div>
+
+  <!-- STEP EXPLANATION PANEL -->
+  <div class="step-panel" id="step-panel">
+    <div class="step-title">
+      <span class="step-dot" id="step-dot" style="background:#00ecff; box-shadow: 0 0 8px #00ecff;"></span>
+      <span id="step-title-text" style="color:#00ecff;">SISTEMA KERBEROS — INICIO</span>
+    </div>
+    <div class="step-content" id="step-content">
+      Presiona <b>NEXT</b> para iniciar la simulación del protocolo Kerberos.<br><br>
+      El flujo completa <b>6 pasos</b> que involucran:<br>
+      <span class="tag tag-tgt">TGT</span> Ticket Granting Ticket &nbsp;
+      <span class="tag tag-st">ST</span> Service Ticket &nbsp;
+      <span class="tag tag-sk1">SK1</span> Session Key 1 &nbsp;
+      <span class="tag tag-sk2">SK2</span> Session Key 2
+    </div>
+  </div>
+
+  <!-- KDC INTERNAL DETAIL (shown on demand) -->
+  <div id="kdc-detail" style="display:none;">
+    <div class="kdc-internal">
+      <!-- AS-SERVICE -->
+      <div class="kdc-box as-box">
+        <div class="kdc-box-title" style="color:#00ecff;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#00ecff;display:inline-block;animation:pulse-glow 1.5s infinite;"></span>
+          AS-SERVICE
+        </div>
+        <div class="kdc-step-item" id="as-s1">
+          <span class="kdc-step-num as-num">1</span>
+          <span style="color:rgba(255,255,255,0.7);">Recibe <b style="color:#00ecff;">AS_REQ</b> del cliente<br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Pre-auth: timestamp cifrado</span></span>
+        </div>
+        <div class="kdc-step-item" id="as-s2">
+          <span class="kdc-step-num as-num">2</span>
+          <span style="color:rgba(255,255,255,0.7);">Verifica credenciales en <b style="color:#39ff14;">AD Database</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Busca clave derivada del password</span></span>
+        </div>
+        <div class="kdc-step-item" id="as-s3">
+          <span class="kdc-step-num as-num">3</span>
+          <span style="color:rgba(255,255,255,0.7);">Genera <b style="color:#00ecff;">TGT</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Cifrado con KDC Master Key</span></span>
+        </div>
+        <div class="kdc-step-item" id="as-s4">
+          <span class="kdc-step-num as-num">4</span>
+          <span style="color:rgba(255,255,255,0.7);">Genera <b style="color:#39ff14;">Session Key 1</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Cifrada con clave del usuario</span></span>
+        </div>
+        <div class="kdc-step-item" id="as-s5">
+          <span class="kdc-step-num as-num">5</span>
+          <span style="color:rgba(255,255,255,0.7);">Envía <b style="color:#00ecff;">AS_REP</b> → cliente<br><span style="font-size:9px;color:rgba(255,255,255,0.4);">{TGT, SK1_enc_user}</span></span>
+        </div>
+      </div>
+      <!-- TGS-SERVICE -->
+      <div class="kdc-box tgs-box">
+        <div class="kdc-box-title" style="color:#ff007c;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#ff007c;display:inline-block;animation:pulse-glow 1.5s infinite;"></span>
+          TGS-SERVICE
+        </div>
+        <div class="kdc-step-item" id="tgs-s1">
+          <span class="kdc-step-num tgs-num">1</span>
+          <span style="color:rgba(255,255,255,0.7);">Recibe <b style="color:#ff007c;">TGS_REQ</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">{TGT, Authenticator, SPN}</span></span>
+        </div>
+        <div class="kdc-step-item" id="tgs-s2">
+          <span class="kdc-step-num tgs-num">2</span>
+          <span style="color:rgba(255,255,255,0.7);">Descifra TGT con <b style="color:#bf5fff;">KDC Master Key</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Extrae SK1, valida identidad</span></span>
+        </div>
+        <div class="kdc-step-item" id="tgs-s3">
+          <span class="kdc-step-num tgs-num">3</span>
+          <span style="color:rgba(255,255,255,0.7);">Verifica <b style="color:#39ff14;">Authenticator</b> con SK1<br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Anti-replay: timestamp ±5min</span></span>
+        </div>
+        <div class="kdc-step-item" id="tgs-s4">
+          <span class="kdc-step-num tgs-num">4</span>
+          <span style="color:rgba(255,255,255,0.7);">Genera <b style="color:#ff007c;">Service Ticket</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Cifrado con clave del servidor</span></span>
+        </div>
+        <div class="kdc-step-item" id="tgs-s5">
+          <span class="kdc-step-num tgs-num">5</span>
+          <span style="color:rgba(255,255,255,0.7);">Genera <b style="color:#ffb700;">Session Key 2</b><br><span style="font-size:9px;color:rgba(255,255,255,0.4);">Cifrada con SK1 → cliente</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG TERMINAL (hidden by default) -->
+  <div id="log-terminal" class="log-terminal" style="display:none;">
+    <div class="log-line info">[KDC] Sistema Kerberos inicializado — DC-01.ADSO.COM</div>
+    <div class="log-line">[KDC] AS-Service: ONLINE | TGS-Service: ONLINE</div>
+    <div class="log-line">[KDC] AD Database: CONECTADO | FSMO: ACTIVO</div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    title: "PASO 1 — AS_REQ: Solicitud de Autenticación",
+    color: "#00ecff",
+    dotColor: "#00ecff",
+    content: `El <b>cliente</b> envía una solicitud de autenticación (<b>AS_REQ</b>) al <b>AS-Service</b> del KDC.<br><br>
+    Contiene: <span class="tag tag-tgt">Username</span> <span class="tag tag-sk1">Timestamp cifrado</span> <span class="tag tag-enc">Pre-Authentication</span><br><br>
+    El timestamp está cifrado con la <b>clave derivada del password</b> del usuario (NTLM hash), lo que permite al KDC verificar la identidad sin transmitir contraseñas en texto plano.`,
+    activeAS: [0], activeTGS: [],
+    packets: ['as-req'], labels: ['lbl-c2k'],
+    clientStatus: "AS_REQ →", serverStatus: "WAITING"
+  },
+  {
+    title: "PASO 2 — AS_REP: TGT + Session Key 1",
+    color: "#00ecff",
+    dotColor: "#00ecff",
+    content: `El <b>AS-Service</b> verifica las credenciales contra la <b>AD Database</b>, genera el <b>TGT</b> y la <b>Session Key 1</b>.<br><br>
+    Responde con <b>AS_REP</b>:<br>
+    <span class="tag tag-tgt">TGT</span> Cifrado con <b>KDC Master Key</b> (el cliente NO puede leerlo) &nbsp;
+    <span class="tag tag-sk1">SK1</span> Cifrada con la clave del usuario<br><br>
+    El TGT tiene una <b>vida útil de 8-10 horas</b> (configurable en GPO).`,
+    activeAS: [0,1,2,3,4], activeTGS: [],
+    packets: ['tgt'], labels: ['lbl-k2c'],
+    clientStatus: "← TGT+SK1", serverStatus: "WAITING"
+  },
+  {
+    title: "PASO 3 — TGS_REQ: Solicitud de Service Ticket",
+    color: "#ff007c",
+    dotColor: "#ff007c",
+    content: `El cliente descifra la <b>SK1</b> con su clave y construye un <b>TGS_REQ</b> para acceder al servidor objetivo.<br><br>
+    Envía al <b>TGS-Service</b>:<br>
+    <span class="tag tag-tgt">TGT</span> El TGT recibido del AS &nbsp;
+    <span class="tag tag-sk1">Authenticator</span> {Username, Timestamp} cifrado con SK1 &nbsp;
+    <span class="tag tag-st">SPN</span> Service Principal Name del servidor objetivo<br><br>
+    El <b>Authenticator</b> prueba que el cliente posee SK1 sin revelarla.`,
+    activeAS: [], activeTGS: [0],
+    packets: ['tgs-req'], labels: ['lbl-c2k2'],
+    clientStatus: "TGS_REQ →", serverStatus: "WAITING"
+  },
+  {
+    title: "PASO 4 — TGS_REP: Service Ticket + Session Key 2",
+    color: "#ff007c",
+    dotColor: "#ff007c",
+    content: `El <b>TGS-Service</b> descifra el TGT, valida el Authenticator y genera el <b>Service Ticket (ST)</b>.<br><br>
+    Responde con <b>TGS_REP</b>:<br>
+    <span class="tag tag-st">ST</span> Cifrado con la <b>clave del servidor objetivo</b> (el cliente NO puede leerlo) &nbsp;
+    <span class="tag tag-sk2">SK2</span> Session Key 2, cifrada con <b>SK1</b><br><br>
+    Protección <b>anti-replay</b>: el timestamp debe estar dentro de ±5 minutos (sincronización NTP obligatoria).`,
+    activeAS: [], activeTGS: [0,1,2,3,4],
+    packets: ['st'], labels: ['lbl-k2c2'],
+    clientStatus: "← ST+SK2", serverStatus: "WAITING"
+  },
+  {
+    title: "PASO 5 — AP_REQ: Autenticación al Servidor",
+    color: "#ffb700",
+    dotColor: "#ffb700",
+    content: `El cliente presenta el <b>Service Ticket</b> y un nuevo <b>Authenticator</b> directamente al <b>servidor objetivo</b>.<br><br>
+    Envía <b>AP_REQ</b> (sin pasar por el KDC):<br>
+    <span class="tag tag-st">ST</span> Service Ticket (opaco para el cliente) &nbsp;
+    <span class="tag tag-sk2">Authenticator</span> {Username, Timestamp} cifrado con SK2<br><br>
+    El servidor descifra el ST con <b>su propia clave</b>, extrae SK2, y verifica el Authenticator. ¡El KDC <b>no interviene</b> en este paso!`,
+    activeAS: [], activeTGS: [],
+    packets: ['auth'], labels: ['lbl-c2s'],
+    clientStatus: "AP_REQ →", serverStatus: "← VERIFYING"
+  },
+  {
+    title: "PASO 6 — AP_REP: Acceso Concedido ✓",
+    color: "#39ff14",
+    dotColor: "#39ff14",
+    content: `El servidor verifica el ST, confirma la identidad del cliente y establece la sesión cifrada con <b>SK2</b>.<br><br>
+    Responde con <b>AP_REP</b> (opcional, para mutual authentication):<br>
+    <span class="tag tag-sk2">SK2</span> Timestamp+1 cifrado con SK2 — prueba que el servidor también es legítimo<br><br>
+    ✅ <b>Autenticación mutua completada.</b> El cliente accede al recurso usando SK2 como clave de sesión. La sesión puede durar independientemente del ticket mientras esté activa.`,
+    activeAS: [], activeTGS: [],
+    packets: ['access'], labels: ['lbl-s2c'],
+    clientStatus: "CONNECTED", serverStatus: "ACCESS OK ✓"
+  }
+];
+
+let currentStep = 0;
+let autoInterval = null;
+let logsVisible = false;
+let kdcDetailVisible = false;
+
+const logs = [
+  "[AS] AS_REQ recibido — usuario: JESPINOZA@ADSO.COM",
+  "[AS] Verificando pre-auth en AD Database...",
+  "[AS] Credenciales válidas. Generando TGT...",
+  "[AS] TGT generado, TTL: 8h | Cifrando con KDC Master Key",
+  "[AS] Session Key 1 generada | Cifrando con clave de usuario",
+  "[AS] AS_REP enviado → cliente",
+  "[TGS] TGS_REQ recibido — SPN: CIFS/FILESERVER01",
+  "[TGS] Descifrando TGT con KDC Master Key...",
+  "[TGS] Verificando Authenticator con Session Key 1...",
+  "[TGS] Anti-replay OK: timestamp delta < 5min",
+  "[TGS] Service Ticket generado | Cifrando con clave de FILESERVER01",
+  "[TGS] Session Key 2 generada | Cifrando con SK1",
+  "[TGS] TGS_REP enviado → cliente",
+  "[SRV] AP_REQ recibido — descifrando ST con clave local...",
+  "[SRV] Verificando Authenticator con Session Key 2...",
+  "[SRV] ✓ AUTENTICACIÓN EXITOSA — sesión establecida con SK2",
+  "[SRV] AP_REP enviado → cliente (mutual auth)"
+];
+
+function addLog(idx) {
+  const terminal = document.getElementById('log-terminal');
+  if (!terminal) return;
+  const line = document.createElement('div');
+  line.className = 'log-line' + (idx >= 15 ? '' : idx >= 6 ? ' warn' : ' info');
+  line.textContent = '> ' + (logs[idx] || '');
+  line.style.animation = 'none';
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function setPacketVisible(id, visible) {
+  const el = document.getElementById('pkt-' + id);
+  if (el) el.style.opacity = visible ? '1' : '0';
+}
+
+function animatePacket(id) {
+  const el = document.getElementById('pkt-' + id);
+  if (!el) return;
+  el.style.opacity = '1';
+  const anim = document.getElementById('pkt-' + id + '-anim');
+  if (anim) {
+    anim.beginElement();
+    setTimeout(() => { el.style.opacity = '0'; }, 1600);
+  }
+}
+
+function setLabel(id, visible) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.opacity = visible ? '1' : '0';
+    el.style.transition = 'opacity 0.4s';
+  }
+}
+
+function setKDCStepsActive(asIds, tgsIds) {
+  for (let i = 1; i <= 5; i++) {
+    const asEl = document.getElementById('as-s' + i);
+    const tgsEl = document.getElementById('tgs-s' + i);
+    if (asEl) {
+      asEl.className = 'kdc-step-item' + (asIds.includes(i-1) ? ' active as-active' : '');
+    }
+    if (tgsEl) {
+      tgsEl.className = 'kdc-step-item' + (tgsIds.includes(i-1) ? ' active tgs-active' : '');
+    }
+  }
+}
+
+function activateASBox(on) {
+  const box = document.getElementById('as-box');
+  const ind = document.getElementById('as-indicator');
+  if (box) { box.style.stroke = on ? '#00ecff' : '#00ecff'; box.style.filter = on ? 'url(#gc)' : 'none'; box.style.fill = on ? 'rgba(0,236,255,0.15)' : 'rgba(0,236,255,0.05)'; }
+  if (ind) { ind.style.opacity = on ? '1' : '0.3'; }
+}
+
+function activateTGSBox(on) {
+  const box = document.getElementById('tgs-box');
+  const ind = document.getElementById('tgs-indicator');
+  if (box) { box.style.fill = on ? 'rgba(255,0,124,0.15)' : 'rgba(255,0,124,0.05)'; }
+  if (ind) { ind.style.opacity = on ? '1' : '0.3'; }
+}
+
+function hideAllLabels() {
+  ['lbl-c2k','lbl-k2c','lbl-c2k2','lbl-k2c2','lbl-c2s','lbl-s2c'].forEach(id => setLabel(id, false));
+}
+
+function updateStatus(client, server) {
+  const ct = document.getElementById('client-status-text');
+  const st = document.getElementById('server-status-text');
+  const cs = document.getElementById('client-status');
+  const ss = document.getElementById('server-status');
+  if (ct) ct.textContent = client;
+  if (st) st.textContent = server;
+  if (cs) cs.style.fill = currentStep === 0 ? '#00ecff' : '#ffb700';
+  if (ss) ss.style.opacity = server === 'ACCESS OK ✓' ? '1' : '0.5';
+}
+
+function renderStep(idx) {
+  const step = steps[idx];
+  if (!step) return;
+
+  // Update panel
+  const titleEl = document.getElementById('step-title-text');
+  const contentEl = document.getElementById('step-content');
+  const dotEl = document.getElementById('step-dot');
+
+  if (titleEl) { titleEl.textContent = step.title; titleEl.style.color = step.color; }
+  if (contentEl) { contentEl.innerHTML = step.content; }
+  if (dotEl) { dotEl.style.background = step.dotColor; dotEl.style.boxShadow = `0 0 8px ${step.dotColor}`; }
+
+  // Update progress
+  for (let i = 1; i <= 6; i++) {
+    const ps = document.getElementById('ps' + i);
+    if (!ps) continue;
+    if (i < idx + 1) { ps.className = 'progress-step done'; }
+    else if (i === idx + 1) { ps.className = 'progress-step active'; }
+    else { ps.className = 'progress-step'; }
+  }
+  const counter = document.getElementById('step-counter');
+  if (counter) counter.textContent = `${idx + 1} / 6`;
+
+  // Animate packets
+  hideAllLabels();
+  setTimeout(() => {
+    step.packets.forEach(p => animatePacket(p));
+    step.labels.forEach(l => setLabel(l, true));
+  }, 100);
+
+  // AS/TGS activation
+  const isAS = idx < 2;
+  const isTGS = idx >= 2 && idx < 4;
+  activateASBox(isAS);
+  activateTGSBox(isTGS);
+  setKDCStepsActive(step.activeAS, step.activeTGS);
+
+  // Status
+  updateStatus(step.clientStatus, step.serverStatus);
+
+  // Logs
+  if (idx === 0) { addLog(0); addLog(1); }
+  if (idx === 1) { addLog(2); addLog(3); addLog(4); addLog(5); }
+  if (idx === 2) { addLog(6); addLog(7); }
+  if (idx === 3) { addLog(8); addLog(9); addLog(10); addLog(11); addLog(12); }
+  if (idx === 4) { addLog(13); addLog(14); }
+  if (idx === 5) { addLog(15); addLog(16); }
+}
+
+function nextStep() {
+  if (currentStep < 6) {
+    renderStep(currentStep);
+    currentStep++;
+  }
+}
+
+function prevStep() {
+  if (currentStep > 1) {
+    currentStep -= 2;
+    renderStep(currentStep);
+    currentStep++;
+  } else {
+    resetAll();
+  }
+}
+
+function goToStep(n) {
+  currentStep = n - 1;
+  renderStep(currentStep);
+  currentStep = n;
+}
+
+function resetAll() {
+  currentStep = 0;
+  hideAllLabels();
+  activateASBox(false);
+  activateTGSBox(false);
+  setKDCStepsActive([], []);
+  updateStatus('IDLE', 'WAITING');
+  for (let i = 1; i <= 6; i++) {
+    const ps = document.getElementById('ps' + i);
+    if (ps) ps.className = 'progress-step';
+  }
+  const counter = document.getElementById('step-counter');
+  if (counter) counter.textContent = '0 / 6';
+  const titleEl = document.getElementById('step-title-text');
+  const contentEl = document.getElementById('step-content');
+  const dotEl = document.getElementById('step-dot');
+  if (titleEl) { titleEl.textContent = 'SISTEMA KERBEROS — INICIO'; titleEl.style.color = '#00ecff'; }
+  if (dotEl) { dotEl.style.background = '#00ecff'; dotEl.style.boxShadow = '0 0 8px #00ecff'; }
+  if (contentEl) { contentEl.innerHTML = 'Presiona <b>NEXT</b> para iniciar la simulación del protocolo Kerberos.<br><br>El flujo completa <b>6 pasos</b> que involucran:<br><span class="tag tag-tgt">TGT</span> Ticket Granting Ticket &nbsp;<span class="tag tag-st">ST</span> Service Ticket &nbsp;<span class="tag tag-sk1">SK1</span> Session Key 1 &nbsp;<span class="tag tag-sk2">SK2</span> Session Key 2'; }
+  // Clear logs
+  const terminal = document.getElementById('log-terminal');
+  if (terminal) { terminal.innerHTML = '<div class="log-line info">> [KDC] Sistema reiniciado — DC-01.ADSO.COM</div>'; }
+  if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+}
+
+function autoPlay() {
+  if (autoInterval) { clearInterval(autoInterval); autoInterval = null; return; }
+  resetAll();
+  autoInterval = setInterval(() => {
+    if (currentStep >= 6) { clearInterval(autoInterval); autoInterval = null; return; }
+    nextStep();
+  }, 3000);
+}
+
+function toggleLogs() {
+  logsVisible = !logsVisible;
+  const t = document.getElementById('log-terminal');
+  if (t) t.style.display = logsVisible ? 'block' : 'none';
+}
+
+function showKDCDetail() {
+  kdcDetailVisible = !kdcDetailVisible;
+  const d = document.getElementById('kdc-detail');
+  if (d) d.style.display = kdcDetailVisible ? 'block' : 'none';
+}
+
+// AR Radar sweep animation
+(function radarSweep() {
+  const path = document.getElementById('sweep-c');
+  if (!path) return;
+  let angle = 0;
+  function drawSweep() {
+    const cx = 110, cy = 150, r = 65;
+    const rad = angle * Math.PI / 180;
+    const ex = cx + r * Math.cos(rad);
+    const ey = cy + r * Math.sin(rad);
+    const spread = 35;
+    const r1 = (angle - spread) * Math.PI / 180;
+    const sx = cx + r * Math.cos(r1);
+    const sy = cy + r * Math.sin(r1);
+    const d = `M ${cx} ${cy} L ${sx} ${sy} A ${r} ${r} 0 0 1 ${ex} ${ey} Z`;
+    if (path) path.setAttribute('d', d);
+    angle = (angle + 1.5) % 360;
+    requestAnimationFrame(drawSweep);
+  }
+  drawSweep();
+})();
+</script>
+</body>
+</html>
