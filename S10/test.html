@@ -1,1 +1,190 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+#qz{padding:1rem 0}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding:0.75rem 1rem;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary)}
+.hdr-left{font-size:13px;color:var(--color-text-secondary)}
+.hdr-num{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.hdr-score{font-size:13px;color:var(--color-text-secondary);text-align:right}
+.hdr-pts{font-size:18px;font-weight:500;color:var(--color-text-primary);text-align:right}
+.timer-wrap{margin-bottom:0.75rem}
+.timer-bar-bg{height:8px;background:var(--color-border-tertiary);border-radius:4px;overflow:hidden}
+.timer-bar{height:8px;border-radius:4px;background:#185FA5;transition:width 0.25s linear}
+.timer-lbl{font-size:12px;color:var(--color-text-secondary);text-align:right;margin-top:4px}
+.q-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem 1.25rem 1rem;margin-bottom:1rem}
+.q-text{font-size:15px;font-weight:500;color:var(--color-text-primary);line-height:1.5;margin-bottom:1rem}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{padding:12px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:13px;color:var(--color-text-primary);line-height:1.4;text-align:left;transition:border-color 0.15s,background 0.15s}
+.opt:hover:not(:disabled){border-color:var(--color-border-primary);background:var(--color-background-primary)}
+.opt.correct{background:#EAF3DE;border-color:#3B6D11;color:#27500A}
+.opt.wrong{background:#FCEBEB;border-color:#A32D2D;color:#791F1F}
+.opt.reveal{background:#E6F1FB;border-color:#185FA5;color:#0C447C}
+.opt:disabled{cursor:default}
+.feedback{margin-top:0.75rem;padding:0.75rem 1rem;border-radius:var(--border-radius-md);font-size:13px;line-height:1.5;display:none}
+.feedback.show{display:block}
+.feedback.ok{background:#EAF3DE;color:#27500A;border:0.5px solid #3B6D11}
+.feedback.ko{background:#FCEBEB;color:#791F1F;border:0.5px solid #A32D2D}
+.feedback.timeout{background:#FAEEDA;color:#633806;border:0.5px solid #854F0B}
+.next-btn{margin-top:1rem;width:100%}
+.result-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.5rem;text-align:center}
+.result-title{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:0.5rem}
+.result-sub{font-size:14px;color:var(--color-text-secondary);margin-bottom:1.5rem}
+.result-score{font-size:48px;font-weight:500;color:var(--color-text-primary);margin-bottom:0.25rem}
+.result-max{font-size:14px;color:var(--color-text-secondary);margin-bottom:1.5rem}
+.result-grade{font-size:16px;font-weight:500;margin-bottom:1.5rem;padding:0.5rem 1rem;border-radius:var(--border-radius-md);display:inline-block}
+.grade-a{background:#EAF3DE;color:#27500A}
+.grade-b{background:#E6F1FB;color:#0C447C}
+.grade-c{background:#FAEEDA;color:#633806}
+.grade-d{background:#FCEBEB;color:#791F1F}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.5rem}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem;text-align:center}
+.stat-n{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.stat-l{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:0.5rem}
+.badge-tag{background:var(--color-background-info);color:var(--color-text-info)}
+</style>
+<div id="qz">
+<div id="quiz-area"></div>
+</div>
+<script>
+const QS=[
+{q:"¿Cuál es la función principal del servicio DNS en Active Directory?",opts:["Autenticar usuarios mediante tickets cifrados","Localizar Domain Controllers, el KDC y el Global Catalog mediante registros SRV","Gestionar la replicación de objetos LDAP entre DCs","Cifrar las comunicaciones entre cliente y servidor"],ans:1,fb_ok:"Correcto. DNS es el pilar de localización de AD: sin él, los clientes no pueden encontrar los DCs, el KDC de Kerberos ni el Global Catalog. La zona _msdcs almacena los registros SRV críticos para este descubrimiento.",fb_ko:"Incorrecto. DNS en AD actúa como directorio de localización de servicios, no como protocolo de autenticación ni de replicación. Su función crítica es publicar registros SRV en la zona _msdcs para que los clientes encuentren los DCs.",tag:"DNS"},
+{q:"¿Qué significa el acrónimo LDAP y cuál es su origen?",opts:["Local Directory Access Protocol — creado por Microsoft para Windows Server","Lightweight Directory Access Protocol — versión simplificada del protocolo DAP definido en X.500","Linked Data Access Protocol — protocolo de red basado en TCP/IP","Layer Directory Authentication Protocol — parte del stack OSI"],ans:1,fb_ok:"Correcto. LDAP (Lightweight Directory Access Protocol) nació como una versión ligera del protocolo DAP del estándar X.500 (ISO/IEC 9594), reduciendo su complejidad para operar sobre TCP/IP sin requerir el stack OSI completo.",fb_ko:"Incorrecto. LDAP significa Lightweight Directory Access Protocol y es una simplificación del protocolo DAP definido en el estándar X.500 de la ISO, pensado para funcionar sobre TCP/IP.",tag:"LDAP"},
+{q:"¿Qué puertos usa LDAP por defecto para comunicaciones no cifradas y cifradas (LDAPS)?",opts:["Puerto 88 TCP/UDP para ambos casos","Puerto 389 TCP para no cifrado · Puerto 636 TCP para LDAPS","Puerto 53 UDP para consultas · Puerto 443 TCP para LDAPS","Puerto 445 SMB para no cifrado · Puerto 389 para LDAPS"],ans:1,fb_ok:"Correcto. El cliente LDAP se conecta al Directory System Agent (DSA) del DC usando el puerto TCP 389 para comunicaciones estándar y el puerto TCP 636 para LDAPS (LDAP sobre SSL/TLS).",fb_ko:"Incorrecto. LDAP usa TCP 389 (no cifrado) y TCP 636 (LDAPS con SSL/TLS). El puerto 88 es de Kerberos, el 53 es de DNS y el 445 corresponde a SMB.",tag:"LDAP"},
+{q:"¿Qué es el AS-Service dentro del KDC de Kerberos?",opts:["Application Server: el servidor al que el usuario quiere acceder","Authentication Service: el componente que valida la identidad del usuario y emite el TGT","Active Session Manager: gestiona las sesiones activas de usuarios en el DC","Access Selector: determina qué recursos puede ver el usuario en AD"],ans:1,fb_ok:"Correcto. AS (Authentication Service) es uno de los dos servicios internos del KDC. Recibe el AS_REQ, verifica las credenciales contra la AD Database usando la clave derivada del password del usuario, genera el TGT cifrado con la KDC Master Key y emite la Session Key 1.",fb_ko:"Incorrecto. AS significa Authentication Service, el primer punto de contacto en Kerberos. Es el componente del KDC que verifica la identidad del usuario y emite el TGT (Ticket Granting Ticket) junto con la Session Key 1.",tag:"Kerberos"},
+{q:"¿Cuál es la diferencia fundamental entre una OU (Unidad Organizativa) y un objeto leaf como 'usuario' en AD?",opts:["No hay diferencia: ambos son objetos iguales del esquema LDAP","La OU es un contenedor que puede albergar otros objetos y sobre el que se aplican GPOs; el objeto leaf (usuario/equipo) es una entidad concreta sin capacidad de contener otros objetos","Las OUs solo existen en el Forest raíz; los usuarios se crean en cada dominio hijo","El usuario puede contener grupos; la OU solo puede contener otros OUs"],ans:1,fb_ok:"Correcto. Esta distinción es fundamental: las OUs son contenedores (clase organizationalUnit) que estructuran el directorio y reciben GPOs. Los objetos leaf como user y computer son instancias del esquema que representan entidades reales y viven dentro de las OUs.",fb_ko:"Incorrecto. La diferencia es esencial: la OU es un contenedor (clase organizationalUnit) que puede albergar objetos y sub-OUs, y es el destino de las GPOs. Los objetos leaf como usuario o equipo son entidades concretas que no pueden contener otros objetos.",tag:"Estructura AD"},
+{q:"¿Cuál es el rol de la cuenta 'krbtgt' en Active Directory?",opts:["Es la cuenta del administrador principal del dominio con acceso total a todos los recursos","Es la cuenta especial cuya clave se usa como KDC Master Key para cifrar todos los TGTs del dominio","Es el usuario de servicio que gestiona la replicación entre Domain Controllers","Es la cuenta por defecto del servicio DNS integrado en Active Directory"],ans:1,fb_ko:"Incorrecto. La cuenta krbtgt es una cuenta especial de clase user que existe desde la creación del dominio. Su hash de password es la KDC Master Key con la que el AS-Service cifra todos los TGTs. Por eso un ataque Golden Ticket apunta exactamente a esta cuenta.",fb_ok:"Correcto. La cuenta krbtgt nunca inicia sesión interactivamente: existe exclusivamente para derivar la clave maestra del KDC. Todos los TGTs del dominio se cifran con su hash. Comprometer esta cuenta permite crear TGTs arbitrarios (Golden Ticket attack).",tag:"Kerberos"},
+{q:"En el proceso Kerberos, ¿cuál es el orden correcto de los mensajes hasta acceder a un recurso compartido?",opts:["TGS_REQ → AS_REQ → AP_REQ → AS_REP → TGS_REP → AP_REP","AS_REQ → AS_REP → TGS_REQ → TGS_REP → AP_REQ → AP_REP","AS_REP → TGT → AP_REQ → TGS_REQ → TGS_REP → acceso","DNS_QUERY → LDAP_BIND → AS_REQ → TGS_REQ → AP_REQ"],ans:1,fb_ok:"Correcto. El flujo completo es: (1) AS_REQ al KDC, (2) AS_REP con TGT + SK1, (3) TGS_REQ al KDC con el TGT, (4) TGS_REP con Service Ticket + SK2, (5) AP_REQ al servidor destino, (6) AP_REP opcional para autenticación mutua.",fb_ko:"Incorrecto. El orden correcto es AS_REQ → AS_REP (obtener TGT) → TGS_REQ → TGS_REP (obtener Service Ticket) → AP_REQ → AP_REP (acceder al recurso). Primero se autentica ante el AS, luego se solicita el ticket de servicio al TGS.",tag:"Kerberos"},
+{q:"¿Qué representa el Distinguished Name (DN) 'CN=Juan Perez,OU=Ventas,DC=empresa,DC=com' en LDAP?",opts:["Un registro DNS SRV que apunta al Domain Controller del dominio empresa.com","La ruta jerárquica única de un objeto llamado Juan Perez, dentro de la OU Ventas, en el dominio empresa.com","El nombre de una GPO aplicada a la OU Ventas del bosque empresa.com","El identificador SID del usuario Juan Perez en la base de datos SAM local"],ans:1,fb_ok:"Correcto. El DN (Distinguished Name) es el identificador único y absoluto de cada objeto en el directorio LDAP. Cada componente describe un nivel de la jerarquía: CN = Common Name (nombre del objeto), OU = Unidad Organizativa, DC = Domain Component (parte del nombre DNS).",fb_ko:"Incorrecto. El DN (Distinguished Name) es la ruta jerárquica única de un objeto en LDAP. CN es el nombre del objeto, OU es la Unidad Organizativa que lo contiene, y DC son los componentes del nombre de dominio DNS. Juntos ubican el objeto de forma unívoca en el árbol.",tag:"LDAP"},
+{q:"¿Qué es el Global Catalog (GC) en Active Directory y para qué sirve?",opts:["Es la base de datos NTDS.dit que almacena todos los objetos del dominio local con todos sus atributos completos","Es un DC especial que contiene información completa de los objetos de su dominio e información parcial de todos los objetos del bosque, usado para búsquedas multi-dominio","Es el servidor que gestiona los roles FSMO de Schema Master y RID Master del bosque","Es el catálogo de políticas GPO disponibles en todos los dominios del árbol"],ans:1,fb_ok:"Correcto. El GC es fundamental en entornos multi-dominio: permite localizar objetos en dominios distintos al propio sin necesitar conocer el dominio específico del objeto. También almacena en caché membresías de grupos Universal, críticas para la autorización.",fb_ko:"Incorrecto. El Global Catalog contiene los objetos completos del dominio local más un subconjunto de atributos de todos los objetos del bosque. Es esencial para búsquedas cross-domain y para resolver membresías de grupos Universal durante el inicio de sesión.",tag:"Estructura AD"},
+{q:"¿Cuál es el puerto que utiliza el protocolo Kerberos v5 en Windows Server?",opts:["Puerto TCP/UDP 389 para autenticación con pre-auth","Puerto TCP/UDP 88 para toda la comunicación Kerberos","Puerto TCP 636 exclusivamente para tickets cifrados","Puerto UDP 53 para la resolución de nombres del KDC"],ans:1,fb_ok:"Correcto. Kerberos v5 (RFC 4120), implementado por Windows Server desde Windows 2000, utiliza el puerto TCP/UDP 88 para todos sus mensajes: AS_REQ, AS_REP, TGS_REQ, TGS_REP. Los tickets pequeños usan UDP; los mayores a ~1500 bytes usan TCP.",fb_ko:"Incorrecto. Kerberos v5 usa el puerto TCP/UDP 88. El 389 es de LDAP, el 636 de LDAPS y el 53 de DNS. Es importante no confundirlos porque todos coexisten en el mismo Domain Controller.",tag:"Kerberos"}
+];
+
+const TOTAL=QS.length, TIME=30, MAX_PTS=20;
+let cur=0, score=0, answered=0, correct=0, timerInterval=null, timeLeft=TIME;
+
+function render(){
+  const q=QS[cur];
+  const colors=["#185FA5","#854F0B","#3B6D11","#993556"];
+  document.getElementById('quiz-area').innerHTML=`
+<div class="hdr">
+  <div>
+    <div class="hdr-left">Pregunta</div>
+    <div class="hdr-num">${cur+1} / ${TOTAL}</div>
+  </div>
+  <div style="flex:1;padding:0 1rem">
+    <span class="badge badge-tag">${q.tag}</span>
+  </div>
+  <div>
+    <div class="hdr-score">Puntuación</div>
+    <div class="hdr-pts">${score} / ${cur*MAX_PTS}</div>
+  </div>
+</div>
+<div class="timer-wrap">
+  <div class="timer-bar-bg"><div class="timer-bar" id="tbar" style="width:100%"></div></div>
+  <div class="timer-lbl"><span id="tlbl">${TIME}s</span></div>
+</div>
+<div class="q-card">
+  <div class="q-text">${q.q}</div>
+  <div class="opts" id="opts">
+    ${q.opts.map((o,i)=>`<button class="opt" id="opt${i}" onclick="choose(${i})" style="border-left:3px solid ${colors[i]}">${o}</button>`).join('')}
+  </div>
+  <div class="feedback" id="fb"></div>
+</div>
+<button class="next-btn" id="nbtn" style="display:none" onclick="nextQ()">${cur<TOTAL-1?'Siguiente pregunta →':'Ver resultados →'}</button>`;
+  startTimer();
+}
+
+function startTimer(){
+  timeLeft=TIME;
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    const pct=Math.round((timeLeft/TIME)*100);
+    const bar=document.getElementById('tbar');
+    const lbl=document.getElementById('tlbl');
+    if(bar) bar.style.width=pct+'%';
+    if(bar){
+      if(pct>50) bar.style.background='#185FA5';
+      else if(pct>25) bar.style.background='#854F0B';
+      else bar.style.background='#A32D2D';
+    }
+    if(lbl) lbl.textContent=timeLeft+'s';
+    if(timeLeft<=0){ clearInterval(timerInterval); timeoutQ(); }
+  },1000);
+}
+
+function choose(i){
+  clearInterval(timerInterval);
+  const q=QS[cur];
+  answered++;
+  const opts=document.querySelectorAll('.opt');
+  opts.forEach(o=>o.disabled=true);
+  const fb=document.getElementById('fb');
+  if(i===q.ans){
+    correct++;
+    const pts=Math.round((timeLeft/TIME)*MAX_PTS);
+    score+=pts;
+    document.getElementById('opt'+i).classList.add('correct');
+    fb.className='feedback show ok';
+    fb.innerHTML=`<strong>Correcto +${pts} pts</strong> — ${q.fb_ok}`;
+  } else {
+    document.getElementById('opt'+i).classList.add('wrong');
+    document.getElementById('opt'+q.ans).classList.add('reveal');
+    fb.className='feedback show ko';
+    fb.innerHTML=`<strong>Incorrecto — 0 pts</strong> — ${q.fb_ko}`;
+  }
+  document.getElementById('nbtn').style.display='block';
+}
+
+function timeoutQ(){
+  const q=QS[cur];
+  answered++;
+  const opts=document.querySelectorAll('.opt');
+  opts.forEach(o=>o.disabled=true);
+  document.getElementById('opt'+q.ans).classList.add('reveal');
+  const fb=document.getElementById('fb');
+  fb.className='feedback show timeout';
+  fb.innerHTML=`<strong>Tiempo agotado — 0 pts</strong> — ${q.fb_ko}`;
+  document.getElementById('nbtn').style.display='block';
+}
+
+function nextQ(){
+  cur++;
+  if(cur>=TOTAL){ showResult(); return; }
+  render();
+}
+
+function showResult(){
+  const pct=Math.round((score/(TOTAL*MAX_PTS))*100);
+  let grade,gclass,emoji;
+  if(pct>=85){grade='Excelente (AD';gclass='grade-a';emoji='Sobresaliente';}
+  else if(pct>=70){grade='Aprobado';gclass='grade-b';emoji='Bueno';}
+  else if(pct>=50){grade='En proceso';gclass='grade-c';emoji='Regular';}
+  else{grade='Desaprobado';gclass='grade-d';emoji='Necesita refuerzo';}
+  document.getElementById('quiz-area').innerHTML=`
+<div class="result-card">
+  <div class="result-title">Resultados del quiz</div>
+  <div class="result-sub">AD DS — Servicios DNS, LDAP y Kerberos · 1INF35 PUCP</div>
+  <div class="result-score">${score}</div>
+  <div class="result-max">de ${TOTAL*MAX_PTS} puntos posibles</div>
+  <span class="result-grade ${gclass}">${grade} — ${emoji}</span>
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-n">${correct}</div><div class="stat-l">Correctas</div></div>
+    <div class="stat"><div class="stat-n">${TOTAL-correct}</div><div class="stat-l">Incorrectas</div></div>
+    <div class="stat"><div class="stat-n">${pct}%</div><div class="stat-l">Acierto</div></div>
+  </div>
+  <button onclick="restart()" style="margin-bottom:0.75rem;width:100%">Reintentar quiz</button>
+  <br>
+  <button onclick="sendPrompt('Explícame los temas donde tuve más errores en el quiz de AD DS: DNS, LDAP y Kerberos')" style="width:100%">Repasar temas con errores ↗</button>
+</div>`;
+}
+
+function restart(){
+  cur=0;score=0;answered=0;correct=0;
+  render();
+}
+
+render();
+</script>
 
