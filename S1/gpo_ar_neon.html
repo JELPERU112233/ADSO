@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPO Processing — AR Neon Visualization</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#000;font-family:Arial,sans-serif;color:#fff;min-height:100vh;overflow-x:hidden;}
+
+/* ── AR GRID ── */
+.ar-grid{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,255,.04) 1px,transparent 1px);
+  background-size:44px 44px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── SCANLINE ── */
+@keyframes scan{0%{top:-4px}100%{top:100%}}
+.scanline{
+  position:fixed;left:0;width:100%;height:3px;
+  background:linear-gradient(transparent,rgba(0,255,255,.18),transparent);
+  animation:scan 5s linear infinite;
+  pointer-events:none;z-index:1;
+}
+
+/* ── CORNER HUD ── */
+.hud-corner{position:fixed;width:40px;height:40px;z-index:2;}
+.hud-corner::before,.hud-corner::after{content:'';position:absolute;background:#0ff;box-shadow:0 0 6px #0ff;}
+.hud-tl{top:10px;left:10px;}
+.hud-tr{top:10px;right:10px;}
+.hud-bl{bottom:10px;left:10px;}
+.hud-br{bottom:10px;right:10px;}
+.hud-tl::before,.hud-tr::before,.hud-bl::before,.hud-br::before{width:2px;height:20px;}
+.hud-tl::after,.hud-tr::after,.hud-bl::after,.hud-br::after{width:20px;height:2px;}
+.hud-tl::before{top:0;left:0}   .hud-tl::after{top:0;left:0}
+.hud-tr::before{top:0;right:0}  .hud-tr::after{top:0;right:0}
+.hud-bl::before{bottom:0;left:0}.hud-bl::after{bottom:0;left:0}
+.hud-br::before{bottom:0;right:0}.hud-br::after{bottom:0;right:0}
+
+/* ── STATUS BAR ── */
+.status-bar{
+  position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:3px;color:rgba(0,255,255,.45);
+  z-index:3;text-shadow:0 0 6px #0ff;
+}
+
+/* ── WRAPPER ── */
+.wrap{position:relative;z-index:2;max-width:980px;margin:0 auto;padding:24px 20px 80px;}
+
+/* ── TITLE ── */
+.main-title{
+  text-align:center;font-size:20px;font-weight:bold;letter-spacing:4px;
+  color:#0ff;text-shadow:0 0 8px #0ff,0 0 20px #0ff,0 0 40px rgba(0,255,255,.5);
+  padding:16px 0 4px;
+}
+.main-sub{
+  text-align:center;font-size:10px;letter-spacing:3px;color:rgba(0,255,136,.7);
+  text-shadow:0 0 8px #0f8;margin-bottom:28px;
+}
+
+/* ── SECTION PANEL ── */
+.panel{
+  position:relative;border-radius:8px;padding:18px 18px 20px;margin-bottom:22px;
+  background:rgba(255,255,255,.012);
+}
+.panel-sync{border:1px solid rgba(0,255,255,.35);box-shadow:inset 0 0 30px rgba(0,255,255,.03),0 0 20px rgba(0,255,255,.06);}
+.panel-async{border:1px solid rgba(255,0,255,.35);box-shadow:inset 0 0 30px rgba(255,0,255,.03),0 0 20px rgba(255,0,255,.06);}
+
+/* ── AR BRACKET CORNERS ── */
+.bc{position:absolute;width:14px;height:14px;}
+.bc::before,.bc::after{content:'';position:absolute;}
+.bc::before{width:2px;height:14px;top:0;}
+.bc::after{width:14px;height:2px;top:0;}
+.bc-tl{top:-1px;left:-1px;}.bc-tl::before{left:0;}.bc-tl::after{left:0;}
+.bc-tr{top:-1px;right:-1px;}.bc-tr::before{right:0;}.bc-tr::after{right:0;}
+.bc-bl{bottom:-1px;left:-1px;}.bc-bl::before{left:0;bottom:0;top:auto;}.bc-bl::after{left:0;bottom:0;top:auto;}
+.bc-br{bottom:-1px;right:-1px;}.bc-br::before{right:0;bottom:0;top:auto;}.bc-br::after{right:0;bottom:0;top:auto;}
+.bc-c::before,.bc-c::after{background:#0ff;box-shadow:0 0 6px #0ff;}
+.bc-m::before,.bc-m::after{background:#f0f;box-shadow:0 0 6px #f0f;}
+
+/* ── SECTION LABEL ── */
+.sec-label{
+  font-size:11px;font-weight:bold;letter-spacing:2px;
+  margin-bottom:10px;padding:3px 10px;display:inline-flex;align-items:center;gap:8px;
+}
+.sec-label-c{color:#0ff;border-left:2px solid #0ff;text-shadow:0 0 8px #0ff;}
+.sec-label-m{color:#f0f;border-left:2px solid #f0f;text-shadow:0 0 8px #f0f;}
+.blink{animation:blink 1.4s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── LOCK BANNER ── */
+.lock-banner{
+  display:flex;align-items:center;gap:8px;
+  border:1px dashed rgba(255,200,0,.5);border-radius:4px;
+  padding:6px 12px;margin-bottom:12px;
+  font-size:10px;letter-spacing:1px;color:#fc0;
+  text-shadow:0 0 8px #fc0;background:rgba(255,200,0,.04);
+}
+
+/* ── FLOW ROW ── */
+.flow-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;row-gap:12px;}
+
+/* ── ARROW ── */
+.arrow-c,.arrow-m{
+  flex-shrink:0;font-size:18px;padding:0 6px;line-height:1;
+  user-select:none;
+}
+.arrow-c{color:#0ff;text-shadow:0 0 8px #0ff;}
+.arrow-m{color:#f0f;text-shadow:0 0 8px #f0f;}
+
+/* ── NODE (clickable card) ── */
+.node{
+  cursor:pointer;border-radius:6px;padding:10px 14px;
+  min-width:108px;text-align:center;flex-shrink:0;
+  transition:transform .18s,box-shadow .18s;
+  position:relative;overflow:hidden;
+}
+.node::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.04),transparent);
+  pointer-events:none;
+}
+.node:hover{transform:scale(1.07);}
+.node:active{transform:scale(0.97);}
+
+/* click ripple */
+@keyframes ripple{0%{transform:scale(0);opacity:.4}100%{transform:scale(3);opacity:0}}
+.ripple{
+  position:absolute;border-radius:50%;
+  width:60px;height:60px;margin:-30px;
+  animation:ripple .5s ease-out forwards;
+  pointer-events:none;
+}
+
+.node-title{font-size:11px;font-weight:bold;letter-spacing:.8px;margin-bottom:3px;}
+.node-sub{font-size:9px;opacity:.7;letter-spacing:.3px;}
+.node-hint{
+  position:absolute;bottom:4px;right:5px;
+  font-size:8px;opacity:.4;letter-spacing:.5px;
+}
+
+/* Neon node variants */
+.n-cyan{
+  background:rgba(0,255,255,.06);border:1px solid rgba(0,255,255,.7);
+  color:#0ff;box-shadow:0 0 10px rgba(0,255,255,.35),inset 0 0 10px rgba(0,255,255,.04);
+  text-shadow:0 0 6px #0ff;
+}
+.n-cyan:hover{box-shadow:0 0 18px #0ff,0 0 35px rgba(0,255,255,.4),inset 0 0 14px rgba(0,255,255,.1);}
+.n-cyan .ripple{background:#0ff;}
+
+.n-magenta{
+  background:rgba(255,0,255,.06);border:1px solid rgba(255,0,255,.7);
+  color:#f0f;box-shadow:0 0 10px rgba(255,0,255,.35),inset 0 0 10px rgba(255,0,255,.04);
+  text-shadow:0 0 6px #f0f;
+}
+.n-magenta:hover{box-shadow:0 0 18px #f0f,0 0 35px rgba(255,0,255,.4),inset 0 0 14px rgba(255,0,255,.1);}
+.n-magenta .ripple{background:#f0f;}
+
+.n-green{
+  background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.7);
+  color:#0f8;box-shadow:0 0 10px rgba(0,255,136,.35),inset 0 0 10px rgba(0,255,136,.04);
+  text-shadow:0 0 6px #0f8;
+}
+.n-green:hover{box-shadow:0 0 18px #0f8,0 0 35px rgba(0,255,136,.4);}
+.n-green .ripple{background:#0f8;}
+
+.n-amber{
+  background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.7);
+  color:#fc0;box-shadow:0 0 10px rgba(255,200,0,.35),inset 0 0 10px rgba(255,200,0,.04);
+  text-shadow:0 0 6px #fc0;
+}
+.n-amber:hover{box-shadow:0 0 18px #fc0,0 0 35px rgba(255,200,0,.4);}
+.n-amber .ripple{background:#fc0;}
+
+.n-red{
+  background:rgba(255,50,50,.06);border:1px solid rgba(255,50,50,.7);
+  color:#f44;box-shadow:0 0 10px rgba(255,50,50,.35),inset 0 0 10px rgba(255,50,50,.04);
+  text-shadow:0 0 6px #f44;
+}
+.n-red:hover{box-shadow:0 0 18px #f44,0 0 35px rgba(255,50,50,.4);}
+.n-red .ripple{background:#f44;}
+
+/* pulse animations */
+@keyframes pulse-c{0%,100%{box-shadow:0 0 10px rgba(0,255,255,.35),inset 0 0 10px rgba(0,255,255,.04)}50%{box-shadow:0 0 20px #0ff,0 0 40px rgba(0,255,255,.5),inset 0 0 16px rgba(0,255,255,.1)}}
+@keyframes pulse-m{0%,100%{box-shadow:0 0 10px rgba(255,0,255,.35),inset 0 0 10px rgba(255,0,255,.04)}50%{box-shadow:0 0 20px #f0f,0 0 40px rgba(255,0,255,.5),inset 0 0 16px rgba(255,0,255,.1)}}
+.pulse-c{animation:pulse-c 2.2s ease-in-out infinite;}
+.pulse-m{animation:pulse-m 2.2s ease-in-out infinite;}
+
+/* ── COMPARISON TABLE ── */
+.comp{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;}
+.comp thead th{padding:9px 12px;letter-spacing:1px;border-bottom:1px solid #1a1a1a;text-align:left;}
+.comp tbody td{padding:8px 12px;border-bottom:1px solid #0d0d0d;color:#888;}
+.comp tbody tr:hover td{background:rgba(255,255,255,.015);}
+.comp-panel{
+  border:1px solid #1a1a1a;border-radius:6px;padding:14px;
+  background:rgba(255,255,255,.008);
+}
+.comp-title{font-size:10px;letter-spacing:2px;color:#444;margin-bottom:10px;}
+
+/* ── MODAL OVERLAY ── */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.overlay.open{display:flex;}
+
+/* AR scan on open */
+@keyframes modal-in{
+  0%{opacity:0;transform:scale(.94) translateY(8px);}
+  100%{opacity:1;transform:scale(1) translateY(0);}
+}
+.modal{
+  position:relative;background:#000;border-radius:10px;
+  padding:30px 32px 26px;max-width:520px;width:92%;
+  animation:modal-in .22s ease-out;
+  font-family:Arial,sans-serif;
+}
+
+/* Corner brackets on modal */
+.mc{position:absolute;width:16px;height:16px;}
+.mc::before,.mc::after{content:'';position:absolute;}
+.mc::before{width:2px;height:16px;top:0;}
+.mc::after{width:16px;height:2px;top:0;}
+.mc-tl{top:-1px;left:-1px;}.mc-tl::before{left:0;}.mc-tl::after{left:0;}
+.mc-tr{top:-1px;right:-1px;}.mc-tr::before{right:0;}.mc-tr::after{right:0;}
+.mc-bl{bottom:-1px;left:-1px;}.mc-bl::before{left:0;bottom:0;top:auto;}.mc-bl::after{left:0;bottom:0;top:auto;}
+.mc-br{bottom:-1px;right:-1px;}.mc-br::before{right:0;bottom:0;top:auto;}.mc-br::after{right:0;bottom:0;top:auto;}
+
+.modal-icon{font-size:30px;margin-bottom:10px;display:block;}
+.modal-title{font-size:15px;font-weight:bold;letter-spacing:1.5px;margin-bottom:14px;}
+.modal-body{font-size:12px;line-height:1.8;color:#aaa;}
+.modal-body b{font-weight:bold;}
+.modal-body ul{margin:6px 0 6px 16px;}
+.modal-body li{margin-bottom:3px;}
+.modal-tag{
+  display:inline-block;margin-top:14px;font-size:9px;letter-spacing:2px;
+  padding:3px 10px;border-radius:3px;font-weight:bold;
+}
+.close-btn{
+  position:absolute;top:12px;right:14px;
+  background:none;border:none;color:#444;font-size:18px;
+  cursor:pointer;font-family:Arial;line-height:1;
+  transition:color .15s;
+}
+.close-btn:hover{color:#fff;}
+
+/* Modal color themes */
+.m-cyan{border:1px solid rgba(0,255,255,.6);box-shadow:0 0 40px rgba(0,255,255,.25),0 0 80px rgba(0,255,255,.08);}
+.m-cyan .mc::before,.m-cyan .mc::after{background:#0ff;box-shadow:0 0 6px #0ff;}
+.m-magenta{border:1px solid rgba(255,0,255,.6);box-shadow:0 0 40px rgba(255,0,255,.25),0 0 80px rgba(255,0,255,.08);}
+.m-magenta .mc::before,.m-magenta .mc::after{background:#f0f;box-shadow:0 0 6px #f0f;}
+.m-green{border:1px solid rgba(0,255,136,.6);box-shadow:0 0 40px rgba(0,255,136,.25),0 0 80px rgba(0,255,136,.08);}
+.m-green .mc::before,.m-green .mc::after{background:#0f8;box-shadow:0 0 6px #0f8;}
+.m-amber{border:1px solid rgba(255,200,0,.6);box-shadow:0 0 40px rgba(255,200,0,.25),0 0 80px rgba(255,200,0,.08);}
+.m-amber .mc::before,.m-amber .mc::after{background:#fc0;box-shadow:0 0 6px #fc0;}
+.m-red{border:1px solid rgba(255,68,68,.6);box-shadow:0 0 40px rgba(255,68,68,.25),0 0 80px rgba(255,68,68,.08);}
+.m-red .mc::before,.m-red .mc::after{background:#f44;box-shadow:0 0 6px #f44;}
+</style>
+</head>
+<body>
+
+<!-- AR UI chrome -->
+<div class="ar-grid"></div>
+<div class="scanline"></div>
+<div class="hud-corner hud-tl"></div>
+<div class="hud-corner hud-tr"></div>
+<div class="hud-corner hud-bl"></div>
+<div class="hud-corner hud-br"></div>
+<div class="status-bar" id="status">[ SYS:ONLINE — AD:CONNECTED — GPO:READY — CLICK NODE FOR INFO ]</div>
+
+<div class="wrap">
+
+  <!-- TITLE -->
+  <div class="main-title">PROCESAMIENTO DE POLÍTICA DE GRUPO</div>
+  <div class="main-sub">[ ACTIVE DIRECTORY · GROUP POLICY OBJECTS · AR VISUALIZATION · HAZ CLIC EN CADA NODO ]</div>
+
+  <!-- ══════════════════════════════════════════
+       PANEL SINCRÓNICO
+  ══════════════════════════════════════════ -->
+  <div class="panel panel-sync">
+    <div class="bc bc-tl bc-c"></div>
+    <div class="bc bc-tr bc-c"></div>
+    <div class="bc bc-bl bc-c"></div>
+    <div class="bc bc-br bc-c"></div>
+
+    <div class="sec-label sec-label-c">
+      <span class="blink">▌</span> PROCESAMIENTO INICIAL SINCRÓNICO
+    </div>
+
+    <div class="lock-banner">
+      <span>⏸</span>
+      <span>LOGIN BLOQUEADO — el escritorio NO aparece hasta que TODAS las GPOs estén completamente aplicadas</span>
+    </div>
+
+    <div class="flow-row">
+      <div class="node n-cyan pulse-c" onclick="show('pc-boot-s')" id="n1">
+        <div class="node-title">PC CLIENTE</div>
+        <div class="node-sub">Arranque / boot</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-c">──▶</div>
+      <div class="node n-cyan" onclick="show('kerberos-s')">
+        <div class="node-title">KERBEROS</div>
+        <div class="node-sub">Auth cuenta máquina</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-c">──▶</div>
+      <div class="node n-cyan" onclick="show('gpo-equipo')">
+        <div class="node-title">GPOs EQUIPO</div>
+        <div class="node-sub">Computer Config</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-c">──▶</div>
+      <div class="node n-amber" onclick="show('login-bloq')">
+        <div class="node-title">LOGIN BLOQUEADO</div>
+        <div class="node-sub">Espera GPOs equipo</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-c">──▶</div>
+      <div class="node n-cyan" onclick="show('gpo-usuario')">
+        <div class="node-title">GPOs USUARIO</div>
+        <div class="node-sub">User Config</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-c">──▶</div>
+      <div class="node n-green" onclick="show('escritorio-s')">
+        <div class="node-title">ESCRITORIO</div>
+        <div class="node-sub">100% configurado</div>
+        <div class="node-hint">TAP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       PANEL ASÍNCRONO
+  ══════════════════════════════════════════ -->
+  <div class="panel panel-async">
+    <div class="bc bc-tl bc-m"></div>
+    <div class="bc bc-tr bc-m"></div>
+    <div class="bc bc-bl bc-m"></div>
+    <div class="bc bc-br bc-m"></div>
+
+    <div class="sec-label sec-label-m">
+      <span class="blink">▌</span> PROCESAMIENTO INICIAL ASÍNCRONO
+    </div>
+
+    <div class="flow-row">
+      <div class="node n-magenta pulse-m" onclick="show('pc-boot-a')">
+        <div class="node-title">PC CLIENTE</div>
+        <div class="node-sub">Arranque / boot</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-m">──▶</div>
+      <div class="node n-green" onclick="show('login-inmediato')">
+        <div class="node-title">LOGIN INMEDIATO</div>
+        <div class="node-sub">No espera GPOs</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-m">──▶</div>
+      <div class="node n-red" onclick="show('gpos-fondo')">
+        <div class="node-title">GPOs EN FONDO</div>
+        <div class="node-sub">Background thread</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-m">──▶</div>
+      <div class="node n-magenta" onclick="show('cse-async')">
+        <div class="node-title">CSEs ASYNC</div>
+        <div class="node-sub">Procesamiento parcial</div>
+        <div class="node-hint">TAP</div>
+      </div>
+      <div class="arrow-m">──▶</div>
+      <div class="node n-amber" onclick="show('escritorio-a')">
+        <div class="node-title">ESCRITORIO</div>
+        <div class="node-sub">Políticas pendientes</div>
+        <div class="node-hint">TAP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TABLA COMPARATIVA
+  ══════════════════════════════════════════ -->
+  <div class="comp-panel">
+    <div class="comp-title">// COMPARATIVA DE MODALIDADES</div>
+    <table class="comp">
+      <thead>
+        <tr>
+          <th style="color:#555">PARÁMETRO</th>
+          <th style="color:#0ff;text-shadow:0 0 6px #0ff;">SINCRÓNICO</th>
+          <th style="color:#f0f;text-shadow:0 0 6px #f0f;">ASÍNCRONO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Velocidad de login</td><td style="color:#0ff">Lento (+30–120 s)</td><td style="color:#f0f">Rápido (inmediato)</td></tr>
+        <tr><td>GPOs activas al 1.er login</td><td style="color:#0ff">100% garantizado</td><td style="color:#f0f">Parcial / diferido</td></tr>
+        <tr><td>Folder Redirection</td><td style="color:#0ff">Siempre funciona</td><td style="color:#f0f">Puede fallar 1.er login</td></tr>
+        <tr><td>Software Install (GPO)</td><td style="color:#0ff">Siempre funciona</td><td style="color:#f0f">Requiere 2.º login</td></tr>
+        <tr><td>Refresco periódico</td><td style="color:#0ff">90 min ± 30 min</td><td style="color:#f0f">90 min ± 30 min</td></tr>
+        <tr><td>Forzar refresco</td><td style="color:#0ff" colspan="2" style="text-align:center">gpupdate /force &nbsp;|&nbsp; gpupdate /target:computer</td></tr>
+        <tr><td>Entorno ideal</td><td style="color:#0ff">Dominio corporativo / ISO 27001</td><td style="color:#f0f">Estaciones de alta velocidad</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- ══════════════════════════════════════════
+     MODAL OVERLAY
+══════════════════════════════════════════ -->
+<div class="overlay" id="overlay" onclick="closeOnBg(event)">
+  <div class="modal" id="modal">
+    <!-- corner brackets (theme set by JS) -->
+    <div class="mc mc-tl" id="mc-tl"></div>
+    <div class="mc mc-tr" id="mc-tr"></div>
+    <div class="mc mc-bl" id="mc-bl"></div>
+    <div class="mc mc-br" id="mc-br"></div>
+
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <span class="modal-icon" id="m-icon"></span>
+    <div class="modal-title" id="m-title"></div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-tag" id="m-tag"></div>
+  </div>
+</div>
+
+<script>
+/* ── DATA ──────────────────────────────────────────────────── */
+const DB = {
+  'pc-boot-s':{
+    color:'cyan',icon:'🖥️',
+    title:'PC CLIENTE — ARRANQUE SINCRÓNICO',
+    body:`Al encender el equipo, el kernel de Windows carga los servicios base. El servicio <b>Group Policy Client (gpsvc)</b> se activa en esta etapa temprana, <b>antes</b> de mostrar cualquier interfaz de usuario.<br><br>
+    El equipo se autentica con el Domain Controller usando su <b>cuenta de máquina (HOSTNAME$)</b> mediante el protocolo Kerberos. El DC responde con la lista de GPOs aplicables según la jerarquía LSDOU:<br><br>
+    <ul>
+      <li><b>L</b> — Local Group Policy</li>
+      <li><b>S</b> — Site GPOs</li>
+      <li><b>D</b> — Domain GPOs (Default Domain Policy)</li>
+      <li><b>OU</b> — Organizational Unit GPOs (hija sobreescribe padre)</li>
+    </ul>
+    En modo sincrónico el sistema <b>no avanza</b> hasta completar este proceso íntegro.`,
+    tag:'GPSVC — GROUP POLICY CLIENT SERVICE'
+  },
+  'kerberos-s':{
+    color:'cyan',icon:'🔐',
+    title:'AUTENTICACIÓN KERBEROS DE CUENTA DE MÁQUINA',
+    body:`El equipo no usa credenciales de usuario para obtener GPOs: usa su propia <b>cuenta de dominio (COMPUTERNAME$)</b> almacenada en el Active Directory.<br><br>
+    <b>Flujo Kerberos en arranque:</b>
+    <ul>
+      <li>El equipo solicita un TGT (Ticket Granting Ticket) al KDC del DC</li>
+      <li>Con el TGT obtiene un Service Ticket para el servicio LDAP del DC</li>
+      <li>Consulta vía LDAP el atributo <b>gPLink</b> de su OU y DCs padres</li>
+      <li>El DC devuelve la lista de GUIDs de GPOs ordenada por precedencia</li>
+    </ul>
+    Si el DC no es alcanzable, Windows puede usar las GPOs en <b>caché local</b> de la sesión anterior (si el sitio lo permite).`,
+    tag:'LDAP · KERBEROS · TGT · SERVICE TICKET'
+  },
+  'gpo-equipo':{
+    color:'cyan',icon:'⚙️',
+    title:'GPOs DE EQUIPO — Computer Configuration',
+    body:`Son las políticas que se aplican al <b>objeto máquina</b> en AD, afectando <b>HKEY_LOCAL_MACHINE</b>. Se procesan independientemente de quién inicie sesión.<br><br>
+    <b>Configuraciones habituales:</b>
+    <ul>
+      <li>Password Policy y Account Lockout Policy</li>
+      <li>Windows Firewall y reglas de red</li>
+      <li>AppLocker / Software Restriction Policies</li>
+      <li>Scripts de Startup y Shutdown</li>
+      <li>Instalación de software por máquina (MSI/App-V)</li>
+      <li>Auditoría de eventos de seguridad</li>
+      <li>Configuración de WMI filters</li>
+      <li>BitLocker y cifrado de disco</li>
+    </ul>
+    Los archivos se descargan desde <b>\\\\dominio\\SYSVOL\\...\\Machine\\</b> y son procesados por los <b>Client-Side Extensions (CSEs)</b> en orden determinístico.`,
+    tag:'HKEY_LOCAL_MACHINE · SYSVOL\\MACHINE'
+  },
+  'login-bloq':{
+    color:'amber',icon:'⏸',
+    title:'LOGIN BLOQUEADO — Barrera de Control Sincrónica',
+    body:`En el modo sincrónico, la pantalla de login actúa como una <b>barrera de control</b>: no aparece hasta que todas las Computer GPOs han sido completamente procesadas y escritas en el sistema.<br><br>
+    <b>¿Por qué puede demorar?</b>
+    <ul>
+      <li>Primera ejecución sin caché local de GPOs</li>
+      <li>Muchas GPOs o GPOs con archivos grandes en SYSVOL</li>
+      <li>Latencia de red hacia el DC (WAN / VPN)</li>
+      <li>Software Installation activo (descarga e instala MSIs)</li>
+      <li>Folder Redirection apuntando a ruta de red lenta</li>
+    </ul>
+    <b>Control via GPO:</b><br>
+    <i>Computer Config → Admin Templates → System → Logon →<br>"Always wait for the network at computer startup and logon"</i>`,
+    tag:'SINCRÓNICO — BARRERA OBLIGATORIA'
+  },
+  'gpo-usuario':{
+    color:'cyan',icon:'👤',
+    title:'GPOs DE USUARIO — User Configuration',
+    body:`Se aplican a la <b>cuenta de usuario</b> que inicia sesión. Afectan <b>HKEY_CURRENT_USER</b> y el perfil personal. Se procesan <b>después</b> de la autenticación de usuario, antes de mostrar el escritorio.<br><br>
+    <b>Configuraciones habituales:</b>
+    <ul>
+      <li>Folder Redirection (Documentos → servidor de archivos)</li>
+      <li>Drive Mapping (unidades de red por usuario)</li>
+      <li>Scripts de Logon y Logoff</li>
+      <li>Restricciones de Panel de Control y escritorio</li>
+      <li>Configuración de navegadores y Office 365</li>
+      <li>Printer deployment por usuario</li>
+      <li>Internet Explorer / Edge Maintenance</li>
+    </ul>
+    Se descargan desde <b>\\\\dominio\\SYSVOL\\...\\User\\</b>. El procesamiento usa el token Kerberos del <b>usuario</b>, no de la máquina.`,
+    tag:'HKEY_CURRENT_USER · SYSVOL\\USER'
+  },
+  'escritorio-s':{
+    color:'green',icon:'✅',
+    title:'ESCRITORIO — Entorno 100% Configurado',
+    body:`Cuando el escritorio aparece en modo sincrónico, <b>la totalidad de las políticas están activas</b> desde el primer segundo: seguridad, software, unidades de red, restricciones, configuración de perfil.<br><br>
+    <b>Garantías al primer login:</b>
+    <ul>
+      <li>Folder Redirection activo → archivos en servidor desde inicio</li>
+      <li>Software corporativo disponible de inmediato</li>
+      <li>Políticas de seguridad en efecto (cumplimiento ISO 27001)</li>
+      <li>Unidades de red mapeadas y accesibles</li>
+    </ul>
+    <b>Casos de uso ideales:</b>
+    <ul>
+      <li>Laboratorios universitarios (tus aulas UPN/PUCP/UPC)</li>
+      <li>Kioscos y cajeros corporativos</li>
+      <li>Estaciones médicas con datos sensibles</li>
+      <li>Entornos auditados (ISO 27001, SOC2)</li>
+    </ul>`,
+    tag:'ENTORNO COMPLETAMENTE CONFIGURADO'
+  },
+  'pc-boot-a':{
+    color:'magenta',icon:'🖥️',
+    title:'PC CLIENTE — ARRANQUE ASÍNCRONO',
+    body:`El arranque comienza igual: kernel carga, gpsvc se activa, el equipo se autentica con el DC vía Kerberos y recibe la lista de GPOs aplicables.<br><br>
+    La diferencia crítica: el cliente de Group Policy <b>inicia la descarga en un hilo de fondo (background thread)</b> sin bloquear el progreso del inicio de sesión.<br><br>
+    <b>¿Cuándo ocurre por defecto?</b><br>
+    Windows Vista/7 introdujo este comportamiento para mejorar los tiempos de inicio percibidos. El sistema no espera a que las GPOs terminen antes de mostrar el login.<br><br>
+    <b>Resultado:</b> el login aparece mucho más rápido, pero algunas políticas pueden no estar activas en los primeros segundos o minutos de sesión.`,
+    tag:'DEFAULT EN WINDOWS VISTA / 7 / 8 / 10 / 11'
+  },
+  'login-inmediato':{
+    color:'green',icon:'▶',
+    title:'LOGIN INMEDIATO — Sin Espera de GPOs',
+    body:`La pantalla de login aparece <b>sin esperar a que ninguna Computer GPO esté procesada</b>. El usuario puede ingresar credenciales de inmediato.<br><br>
+    En paralelo, en segundo plano:
+    <ul>
+      <li>Las Computer GPOs continúan descargándose</li>
+      <li>Tras la autenticación, las User GPOs inician su procesamiento</li>
+    </ul>
+    <b>Impacto visible para el usuario:</b>
+    <ul>
+      <li>Login percibido como "instantáneo"</li>
+      <li>El escritorio puede aparecer sin drives de red mapeados</li>
+      <li>Algunas restricciones pueden no estar activas al inicio</li>
+      <li>Folder Redirection puede no aplicar en la primera sesión</li>
+    </ul>
+    Las políticas pendientes se completan durante los primeros <b>90 minutos</b> de sesión vía refresco periódico.`,
+    tag:'UX RÁPIDA — CUMPLIMIENTO PARCIAL'
+  },
+  'gpos-fondo':{
+    color:'red',icon:'⚠️',
+    title:'GPOs EN SEGUNDO PLANO — Background Processing',
+    body:`Mientras el usuario usa el escritorio, <b>gpsvc continúa procesando GPOs en un hilo de fondo</b>. Este es el mecanismo central del modo asíncrono.<br><br>
+    <b>Políticas que se aplican sin reinicio:</b>
+    <ul>
+      <li>Registry settings → efecto inmediato</li>
+      <li>Security settings → efecto inmediato</li>
+      <li>Screensaver / bloqueo de pantalla → inmediato</li>
+      <li>Auditing policies → inmediato</li>
+    </ul>
+    <b>Políticas que REQUIEREN segundo login o reinicio:</b>
+    <ul>
+      <li>Folder Redirection → necesita nuevo logon</li>
+      <li>Software Installation vía GPO → necesita nuevo logon</li>
+      <li>Scripts de startup → solo al próximo arranque</li>
+    </ul>
+    <b>Refresco periódico:</b> cada 90 min ± 30 min (estaciones) · cada 5 min (DCs)`,
+    tag:'GPSVC BACKGROUND THREAD — REFRESCO CADA 90 MIN'
+  },
+  'cse-async':{
+    color:'magenta',icon:'🔌',
+    title:'CLIENT-SIDE EXTENSIONS (CSEs) — Procesamiento Asíncrono',
+    body:`Los <b>Client-Side Extensions (CSEs)</b> son las DLLs que procesan cada sección de una GPO. En modo asíncrono, cada CSE procesa su sección cuando los recursos están disponibles, <b>sin bloquear la sesión</b>.<br><br>
+    <b>CSEs principales y su comportamiento asíncrono:</b>
+    <ul>
+      <li><b>Security CSE</b> — aplica de inmediato en background</li>
+      <li><b>Registry CSE</b> — aplica de inmediato en background</li>
+      <li><b>Scripts CSE</b> — startup: próximo reinicio · logon: próximo login</li>
+      <li><b>Software Install CSE</b> — requiere nuevo logon para instalar</li>
+      <li><b>Folder Redirection CSE</b> — requiere nuevo logon</li>
+      <li><b>IE Maintenance CSE</b> — aplica en background (deprecated)</li>
+    </ul>
+    Diagnóstico: <b>gpresult /h C:\\report.html</b> para ver RSOP completo.`,
+    tag:'CSE — DLLs DE PROCESAMIENTO DE GPO'
+  },
+  'escritorio-a':{
+    color:'amber',icon:'⚠️',
+    title:'ESCRITORIO — Políticas Parcialmente Aplicadas',
+    body:`El escritorio aparece rápidamente, pero en un estado <b>potencialmente incompleto</b> desde la perspectiva de Group Policy.<br><br>
+    <b>Riesgos en entornos corporativos:</b>
+    <ul>
+      <li>Usuario accede a archivos antes de que Folder Redirection apunte al servidor</li>
+      <li>Software corporativo puede no estar disponible aún</li>
+      <li>Restricciones de seguridad pueden no estar activas los primeros segundos</li>
+      <li>Unidades de red pueden no aparecer hasta el primer refresco</li>
+    </ul>
+    <b>Mitigación disponible:</b><br>
+    Activar <i>"Always wait for the network at computer startup and logon"</i> vía GPO para forzar comportamiento sincrónico en equipos críticos.<br><br>
+    <b>Diagnóstico:</b> <code>gpresult /r</code> · <code>eventvwr → System → GroupPolicy</code>`,
+    tag:'VERIFICAR: gpresult /r · Event ID 1500–1502'
+  }
+};
+
+/* ── COLOR MAP ──────────────────────────────────────────────── */
+const COLOR = {
+  cyan:    {cls:'m-cyan',   hex:'#00ffff', tagBg:'rgba(0,255,255,.1)'},
+  magenta: {cls:'m-magenta',hex:'#ff00ff', tagBg:'rgba(255,0,255,.1)'},
+  green:   {cls:'m-green',  hex:'#00ff88', tagBg:'rgba(0,255,136,.1)'},
+  amber:   {cls:'m-amber',  hex:'#ffcc00', tagBg:'rgba(255,200,0,.1)'},
+  red:     {cls:'m-red',    hex:'#ff4444', tagBg:'rgba(255,68,68,.1)'},
+};
+
+/* ── MODAL LOGIC ─────────────────────────────────────────────── */
+function show(key){
+  const d = DB[key];
+  const c = COLOR[d.color];
+  const modal = document.getElementById('modal');
+  const overlay = document.getElementById('overlay');
+
+  // set theme class
+  modal.className = 'modal ' + c.cls;
+
+  document.getElementById('m-icon').textContent  = d.icon;
+  document.getElementById('m-title').textContent = d.title;
+  document.getElementById('m-title').style.color = c.hex;
+  document.getElementById('m-title').style.textShadow = `0 0 12px ${c.hex}`;
+  document.getElementById('m-body').innerHTML    = d.body;
+
+  const tag = document.getElementById('m-tag');
+  tag.textContent = d.tag;
+  tag.style.color      = c.hex;
+  tag.style.background = c.tagBg;
+  tag.style.border     = `1px solid ${c.hex}`;
+  tag.style.textShadow = `0 0 6px ${c.hex}`;
+
+  overlay.classList.add('open');
+
+  // update status bar
+  document.getElementById('status').textContent =
+    `[ NODE: ${d.title.substring(0,30)} — ESC O CLIC FUERA PARA CERRAR ]`;
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('status').textContent =
+    '[ SYS:ONLINE — AD:CONNECTED — GPO:READY — CLICK NODE FOR INFO ]';
+}
+
+function closeOnBg(e){
+  if(e.target === document.getElementById('overlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+/* ── RIPPLE on node click ────────────────────────────────────── */
+document.querySelectorAll('.node').forEach(node => {
+  node.addEventListener('click', function(e){
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    const rect = this.getBoundingClientRect();
+    r.style.left = (e.clientX - rect.left) + 'px';
+    r.style.top  = (e.clientY - rect.top)  + 'px';
+    this.appendChild(r);
+    setTimeout(()=>r.remove(), 600);
+  });
+});
+
+/* ── CLOCK in status bar ─────────────────────────────────────── */
+setInterval(()=>{
+  if(!document.getElementById('overlay').classList.contains('open')){
+    const now = new Date();
+    const t = now.toTimeString().slice(0,8);
+    document.getElementById('status').textContent =
+      `[ SYS:ONLINE — AD:CONNECTED — GPO:READY — ${t} — CLICK NODE FOR INFO ]`;
+  }
+}, 1000);
+</script>
+</body>
+</html>
