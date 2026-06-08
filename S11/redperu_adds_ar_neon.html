@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AD DS RedPerú — AR Neon Implementation Guide</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#000;font-family:Arial,sans-serif;color:#fff;min-height:100vh;overflow-x:hidden;}
+
+/* ── AR GRID ── */
+.ar-grid{position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,255,.032) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none;z-index:0;}
+
+/* ── SCANLINE ── */
+@keyframes scan{0%{top:-4px}100%{top:100%}}
+.scanline{position:fixed;left:0;width:100%;height:3px;
+  background:linear-gradient(transparent,rgba(0,255,255,.15),transparent);
+  animation:scan 5s linear infinite;pointer-events:none;z-index:1;}
+
+/* ── HUD CORNERS ── */
+.hud{position:fixed;width:40px;height:40px;z-index:2;}
+.hud::before,.hud::after{content:'';position:absolute;background:#0ff;box-shadow:0 0 6px #0ff;}
+.hud-tl{top:10px;left:10px;} .hud-tr{top:10px;right:10px;}
+.hud-bl{bottom:10px;left:10px;} .hud-br{bottom:10px;right:10px;}
+.hud-tl::before,.hud-tr::before,.hud-bl::before,.hud-br::before{width:2px;height:20px;}
+.hud-tl::after,.hud-tr::after,.hud-bl::after,.hud-br::after{width:20px;height:2px;}
+.hud-tl::before{top:0;left:0} .hud-tl::after{top:0;left:0}
+.hud-tr::before{top:0;right:0} .hud-tr::after{top:0;right:0}
+.hud-bl::before{bottom:0;left:0} .hud-bl::after{bottom:0;left:0}
+.hud-br::before{bottom:0;right:0} .hud-br::after{bottom:0;right:0}
+
+/* ── STATUS BAR ── */
+.statusbar{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:3px;color:rgba(0,255,255,.4);z-index:3;
+  text-shadow:0 0 6px #0ff;white-space:nowrap;}
+
+/* ── WRAP ── */
+.wrap{position:relative;z-index:2;max-width:1060px;margin:0 auto;padding:22px 18px 80px;}
+
+/* ── HEADER ── */
+.main-title{text-align:center;font-size:20px;font-weight:bold;letter-spacing:4px;
+  color:#0ff;text-shadow:0 0 8px #0ff,0 0 22px #0ff,0 0 44px rgba(0,255,255,.4);padding:14px 0 4px;}
+.main-sub{text-align:center;font-size:10px;letter-spacing:3px;color:rgba(0,255,136,.7);
+  text-shadow:0 0 8px #0f8;margin-bottom:6px;}
+.company-bar{
+  display:flex;align-items:center;justify-content:center;gap:20px;
+  border:1px solid #111;border-radius:4px;padding:7px 16px;margin-bottom:22px;
+  background:rgba(255,255,255,.012);}
+.cb-item{font-size:10px;letter-spacing:1px;}
+.cb-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle;}
+
+/* ── PHASE ROW ── */
+.phase-row{display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+.phase-label{font-size:10px;letter-spacing:2px;font-weight:bold;
+  margin-bottom:10px;padding:3px 10px;display:inline-flex;align-items:center;gap:7px;}
+.pl-c{color:#0ff;border-left:2px solid #0ff;text-shadow:0 0 8px #0ff;}
+.pl-m{color:#f0f;border-left:2px solid #f0f;text-shadow:0 0 8px #f0f;}
+
+/* ── PANEL ── */
+.panel{position:relative;border-radius:8px;padding:15px 15px 18px;margin-bottom:16px;
+  background:rgba(255,255,255,.01);}
+.panel-c{border:1px solid rgba(0,255,255,.3);box-shadow:0 0 20px rgba(0,255,255,.05),inset 0 0 28px rgba(0,255,255,.02);}
+.panel-m{border:1px solid rgba(255,0,255,.3);box-shadow:0 0 20px rgba(255,0,255,.05),inset 0 0 28px rgba(255,0,255,.02);}
+
+/* Bracket corners */
+.bc{position:absolute;width:14px;height:14px;}
+.bc::before,.bc::after{content:'';position:absolute;}
+.bc::before{width:2px;height:14px;top:0;}
+.bc::after{width:14px;height:2px;top:0;}
+.bc-tl{top:-1px;left:-1px;} .bc-tl::before{left:0} .bc-tl::after{left:0}
+.bc-tr{top:-1px;right:-1px;} .bc-tr::before{right:0} .bc-tr::after{right:0}
+.bc-bl{bottom:-1px;left:-1px;} .bc-bl::before{left:0;bottom:0;top:auto} .bc-bl::after{left:0;bottom:0;top:auto}
+.bc-br{bottom:-1px;right:-1px;} .bc-br::before{right:0;bottom:0;top:auto} .bc-br::after{right:0;bottom:0;top:auto}
+.bc-c::before,.bc-c::after{background:#0ff;box-shadow:0 0 5px #0ff;}
+.bc-m::before,.bc-m::after{background:#f0f;box-shadow:0 0 5px #f0f;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.blink{animation:blink 1.4s step-end infinite;}
+
+/* ── STEP CARD ── */
+.step{cursor:pointer;border-radius:6px;padding:12px 14px 14px;
+  flex:1;min-width:180px;text-align:center;position:relative;overflow:hidden;
+  transition:transform .18s,box-shadow .18s;}
+.step::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.04),transparent);pointer-events:none;}
+.step:hover{transform:scale(1.05);}
+.step:active{transform:scale(.97);}
+
+.step-num{font-size:9px;letter-spacing:2px;opacity:.5;margin-bottom:3px;font-weight:bold;}
+.step-icon{font-size:22px;margin-bottom:6px;display:block;}
+.step-title{font-size:11px;font-weight:bold;letter-spacing:.8px;margin-bottom:4px;}
+.step-sub{font-size:9px;opacity:.7;letter-spacing:.3px;margin-bottom:5px;}
+.step-tag{font-size:8px;letter-spacing:1px;padding:1px 6px;border-radius:2px;display:inline-block;}
+.step-hint{position:absolute;bottom:4px;right:5px;font-size:8px;opacity:.32;letter-spacing:.5px;}
+
+/* Cyan variant */
+.s-c{background:rgba(0,255,255,.055);border:1px solid rgba(0,255,255,.65);
+  color:#0ff;box-shadow:0 0 10px rgba(0,255,255,.3),inset 0 0 10px rgba(0,255,255,.03);text-shadow:0 0 5px #0ff;}
+.s-c:hover{box-shadow:0 0 20px #0ff,0 0 36px rgba(0,255,255,.4),inset 0 0 14px rgba(0,255,255,.08);}
+.s-c .step-tag{background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.3);color:#0ff;}
+
+/* Magenta variant */
+.s-m{background:rgba(255,0,255,.055);border:1px solid rgba(255,0,255,.65);
+  color:#f0f;box-shadow:0 0 10px rgba(255,0,255,.3),inset 0 0 10px rgba(255,0,255,.03);text-shadow:0 0 5px #f0f;}
+.s-m:hover{box-shadow:0 0 20px #f0f,0 0 36px rgba(255,0,255,.4),inset 0 0 14px rgba(255,0,255,.08);}
+.s-m .step-tag{background:rgba(255,0,255,.08);border:1px solid rgba(255,0,255,.3);color:#f0f;}
+
+/* Pulse */
+@keyframes pulse-c{0%,100%{box-shadow:0 0 10px rgba(0,255,255,.3),inset 0 0 10px rgba(0,255,255,.03)}50%{box-shadow:0 0 22px #0ff,0 0 44px rgba(0,255,255,.5),inset 0 0 18px rgba(0,255,255,.1)}}
+@keyframes pulse-m{0%,100%{box-shadow:0 0 10px rgba(255,0,255,.3),inset 0 0 10px rgba(255,0,255,.03)}50%{box-shadow:0 0 22px #f0f,0 0 44px rgba(255,0,255,.5),inset 0 0 18px rgba(255,0,255,.1)}}
+.pulse-c{animation:pulse-c 2.4s ease-in-out infinite;}
+.pulse-m{animation:pulse-m 2.4s ease-in-out infinite;}
+
+/* Ripple */
+@keyframes ripple{0%{transform:scale(0);opacity:.4}100%{transform:scale(3);opacity:0}}
+.ripple{position:absolute;border-radius:50%;width:60px;height:60px;margin:-30px;
+  animation:ripple .5s ease-out forwards;pointer-events:none;}
+
+/* Arrow connector between phases */
+.phase-arrow{display:flex;align-items:center;justify-content:center;
+  color:#333;font-size:20px;letter-spacing:-2px;margin:0 0 14px 0;
+  text-shadow:0 0 8px #555;}
+
+/* ── SUMMARY TABLE ── */
+.sum-panel{border:1px solid #111;border-radius:6px;padding:14px;background:rgba(255,255,255,.006);}
+.sum-title{font-size:10px;letter-spacing:2px;color:#333;margin-bottom:10px;}
+.sum-table{width:100%;border-collapse:collapse;font-size:11px;}
+.sum-table th{padding:8px 10px;text-align:left;letter-spacing:1px;border-bottom:1px solid #1a1a1a;color:#444;}
+.sum-table td{padding:7px 10px;border-bottom:1px solid #0d0d0d;color:#666;}
+.sum-table tr:hover td{background:rgba(255,255,255,.015);}
+
+/* ── MODAL OVERLAY ── */
+.overlay{display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(5px);
+  align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+
+@keyframes modal-in{0%{opacity:0;transform:scale(.93) translateY(12px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.modal{position:relative;background:#000;border-radius:10px;
+  padding:28px 30px 24px;max-width:560px;width:93%;max-height:88vh;overflow-y:auto;
+  animation:modal-in .22s ease-out;font-family:Arial,sans-serif;scrollbar-width:thin;}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-track{background:#111;}
+.modal::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
+
+/* Modal bracket corners */
+.mc{position:absolute;width:16px;height:16px;}
+.mc::before,.mc::after{content:'';position:absolute;}
+.mc::before{width:2px;height:16px;top:0;}
+.mc::after{width:16px;height:2px;top:0;}
+.mc-tl{top:-1px;left:-1px;} .mc-tl::before{left:0} .mc-tl::after{left:0}
+.mc-tr{top:-1px;right:-1px;} .mc-tr::before{right:0} .mc-tr::after{right:0}
+.mc-bl{bottom:-1px;left:-1px;} .mc-bl::before{left:0;bottom:0;top:auto} .mc-bl::after{left:0;bottom:0;top:auto}
+.mc-br{bottom:-1px;right:-1px;} .mc-br::before{right:0;bottom:0;top:auto} .mc-br::after{right:0;bottom:0;top:auto}
+
+.modal-icon{font-size:28px;margin-bottom:8px;display:block;}
+.modal-title{font-size:15px;font-weight:bold;letter-spacing:1.5px;margin-bottom:6px;}
+.modal-phase{font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:3px;
+  display:inline-block;margin-bottom:12px;font-weight:bold;}
+.modal-body{font-size:12px;line-height:1.85;color:#aaa;}
+.modal-body b{font-weight:bold;}
+.modal-body ul{margin:6px 0 6px 16px;}
+.modal-body li{margin-bottom:3px;}
+.modal-pre{display:block;font-family:'Courier New',monospace;font-size:10px;
+  background:rgba(0,255,255,.04);border:1px solid rgba(0,255,255,.12);
+  padding:10px 12px;border-radius:4px;margin-top:10px;color:#5af;
+  letter-spacing:.3px;line-height:1.7;white-space:pre-wrap;word-break:break-all;}
+.modal-pre-m{background:rgba(255,0,255,.04);border-color:rgba(255,0,255,.12);color:#d8a;}
+.modal-tag{display:inline-block;font-size:9px;letter-spacing:2px;padding:3px 10px;
+  border-radius:3px;font-weight:bold;margin-top:12px;}
+.close-btn{position:absolute;top:12px;right:14px;background:none;border:none;
+  color:#444;font-size:18px;cursor:pointer;font-family:Arial;transition:color .15s;}
+.close-btn:hover{color:#fff;}
+
+/* Modal themes */
+.m-c{border:1px solid rgba(0,255,255,.5);box-shadow:0 0 40px rgba(0,255,255,.2),0 0 80px rgba(0,255,255,.07);}
+.m-c .mc::before,.m-c .mc::after{background:#0ff;box-shadow:0 0 6px #0ff;}
+.m-m{border:1px solid rgba(255,0,255,.5);box-shadow:0 0 40px rgba(255,0,255,.2),0 0 80px rgba(255,0,255,.07);}
+.m-m .mc::before,.m-m .mc::after{background:#f0f;box-shadow:0 0 6px #f0f;}
+</style>
+</head>
+<body>
+
+<div class="ar-grid"></div>
+<div class="scanline"></div>
+<div class="hud hud-tl"></div><div class="hud hud-tr"></div>
+<div class="hud hud-bl"></div><div class="hud hud-br"></div>
+<div class="statusbar" id="sb">[ SISTEMA:EN LÍNEA — AD DS:LISTO — REDPERU.COM.PE — CLIC EN CADA PASO ]</div>
+
+<div class="wrap">
+
+  <div class="main-title">IMPLEMENTACIÓN DE ACTIVE DIRECTORY DS</div>
+  <div class="main-sub">[ REDPERÚ TELECOMUNICACIONES SAC · 6 PASOS · AR VISUALIZATION · HAZ CLIC EN CADA PASO ]</div>
+
+  <div class="company-bar">
+    <div class="cb-item"><span class="cb-dot" style="background:#0ff;box-shadow:0 0 6px #0ff"></span><span style="color:#0ff;text-shadow:0 0 5px #0ff">redperu.com.pe</span></div>
+    <div class="cb-item" style="color:#333">|</div>
+    <div class="cb-item" style="color:#555">Bosque único</div>
+    <div class="cb-item" style="color:#333">|</div>
+    <div class="cb-item" style="color:#555">5 sitios AD</div>
+    <div class="cb-item" style="color:#333">|</div>
+    <div class="cb-item" style="color:#555">1.330 usuarios</div>
+    <div class="cb-item" style="color:#333">|</div>
+    <div class="cb-item" style="color:#555">Windows Server 2022</div>
+    <div class="cb-item" style="color:#333">|</div>
+    <div class="cb-item"><span class="cb-dot" style="background:#0f8;box-shadow:0 0 5px #0f8"></span><span style="color:#0f8">Nivel funcional: WinThreshold</span></div>
+  </div>
+
+  <!-- ══ FASE DE DISEÑO ══ -->
+  <div class="panel panel-c">
+    <div class="bc bc-tl bc-c"></div><div class="bc bc-tr bc-c"></div>
+    <div class="bc bc-bl bc-c"></div><div class="bc bc-br bc-c"></div>
+    <div class="phase-label pl-c"><span class="blink">▌</span> FASE 1 — DISEÑO Y PLANIFICACIÓN</div>
+    <div class="phase-row">
+
+      <div class="step s-c pulse-c" onclick="show('p1')">
+        <div class="step-num">PASO 01</div>
+        <div class="step-icon">🗺️</div>
+        <div class="step-title">ESTRUCTURA LÓGICA AD</div>
+        <div class="step-sub">Dominios · OUs · Árboles</div>
+        <div class="step-tag">Dominio único · redperu.com.pe</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+      <div class="step s-c" onclick="show('p2')">
+        <div class="step-num">PASO 02</div>
+        <div class="step-icon">🌐</div>
+        <div class="step-title">TOPOLOGÍA DE SITIOS</div>
+        <div class="step-sub">Replicación · WAN · Sites</div>
+        <div class="step-tag">5 sitios · Lima HQ + 4 sedes</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+      <div class="step s-c" onclick="show('p3')">
+        <div class="step-num">PASO 03</div>
+        <div class="step-icon">⚙️</div>
+        <div class="step-title">CAPACIDAD DE LOS DCs</div>
+        <div class="step-sub">Hardware · RODC · GC</div>
+        <div class="step-tag">2 DCs Lima + 4 RODCs</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Arrow between phases -->
+  <div class="phase-arrow">▼ ▼ ▼ &nbsp; INICIO DE DESPLIEGUE &nbsp; ▼ ▼ ▼</div>
+
+  <!-- ══ FASE DE DESPLIEGUE ══ -->
+  <div class="panel panel-m">
+    <div class="bc bc-tl bc-m"></div><div class="bc bc-tr bc-m"></div>
+    <div class="bc bc-bl bc-m"></div><div class="bc bc-br bc-m"></div>
+    <div class="phase-label pl-m"><span class="blink">▌</span> FASE 2 — DESPLIEGUE Y CONFIGURACIÓN</div>
+    <div class="phase-row">
+
+      <div class="step s-m pulse-m" onclick="show('p4')">
+        <div class="step-num">PASO 04</div>
+        <div class="step-icon">🌲</div>
+        <div class="step-title">DOMINIO RAÍZ DEL BOSQUE</div>
+        <div class="step-sub">Primer DC · FSMO · DNS</div>
+        <div class="step-tag">LIMA-DC01 · Install-ADDSForest</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+      <div class="step s-m" onclick="show('p5')">
+        <div class="step-num">PASO 05</div>
+        <div class="step-icon">🏢</div>
+        <div class="step-title">DOMINIOS REGIONALES</div>
+        <div class="step-sub">DCs sucursales · RODC · PRP</div>
+        <div class="step-tag">ARQ · TRU · CUS · PIU</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+      <div class="step s-m" onclick="show('p6')">
+        <div class="step-num">PASO 06</div>
+        <div class="step-icon">🔐</div>
+        <div class="step-title">FUNCIONES AVANZADAS</div>
+        <div class="step-sub">GPOs · FSMO · Auditoría</div>
+        <div class="step-tag">ISO 27001 · DFS-R · WEF</div>
+        <div class="step-hint">TAP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ TABLA RESUMEN ══ -->
+  <div class="sum-panel">
+    <div class="sum-title">// RESUMEN DE INFRAESTRUCTURA — REDPERÚ TELECOMUNICACIONES SAC</div>
+    <table class="sum-table">
+      <thead>
+        <tr>
+          <th>SEDE</th><th>SUBRED</th><th>DC</th><th>TIPO</th><th>USUARIOS</th><th>ENLACE WAN</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="color:#0ff">Lima HQ</td><td style="color:#555">10.10.0.0/16</td><td style="color:#555">LIMA-DC01, LIMA-DC02</td><td style="color:#0f8">DC R/W + GC</td><td style="color:#444">800</td><td style="color:#444">Local</td></tr>
+        <tr><td style="color:#0ff">Arequipa</td><td style="color:#555">10.20.0.0/24</td><td style="color:#555">ARQ-DC01</td><td style="color:#fc0">RODC + GC</td><td style="color:#444">200</td><td style="color:#444">100 Mbps MPLS</td></tr>
+        <tr><td style="color:#0ff">Trujillo</td><td style="color:#555">10.30.0.0/24</td><td style="color:#555">TRU-DC01</td><td style="color:#fc0">RODC + GC</td><td style="color:#444">150</td><td style="color:#444">50 Mbps MPLS</td></tr>
+        <tr><td style="color:#0ff">Cusco</td><td style="color:#555">10.40.0.0/24</td><td style="color:#555">CUS-DC01</td><td style="color:#fc0">RODC + GC</td><td style="color:#444">100</td><td style="color:#444">20 Mbps fibra</td></tr>
+        <tr><td style="color:#0ff">Piura</td><td style="color:#555">10.50.0.0/24</td><td style="color:#555">PIU-DC01</td><td style="color:#fc0">RODC + GC</td><td style="color:#444">80</td><td style="color:#444">20 Mbps fibra</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="overlay" id="overlay" onclick="closeOnBg(event)">
+  <div class="modal" id="modal">
+    <div class="mc mc-tl"></div><div class="mc mc-tr"></div>
+    <div class="mc mc-bl"></div><div class="mc mc-br"></div>
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <span class="modal-icon" id="m-icon"></span>
+    <div class="modal-title" id="m-title"></div>
+    <div class="modal-phase" id="m-phase"></div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-tag" id="m-tag"></div>
+  </div>
+</div>
+
+<script>
+const DB = {
+  p1:{
+    theme:'c', icon:'🗺️',
+    title:'PASO 01 — ESTRUCTURA LÓGICA DE AD DS',
+    phase:'FASE DE DISEÑO · DECISIÓN DE DOMINIO Y OUs',
+    body:`Como ingeniero, esta es la fase más crítica: los errores aquí son costosos de revertir una vez el AD está en producción.<br><br>
+    <b>Decisión: dominio único vs multi-dominio</b><br>
+    Para RedPerú, con 5 sedes dentro del mismo país, el diseño es un <b>bosque de dominio único: redperu.com.pe</b>. Multi-dominio se justificaría si existieran jurisdicciones legales separadas, equipos TI autónomos por región, o políticas de contraseñas radicalmente distintas por ciudad.<br><br>
+    <b>Árbol de OUs diseñado para GPOs y delegación:</b>
+    <ul>
+      <li><b>OU=Usuarios</b> → Lima, Arequipa, Trujillo, Cusco, Piura</li>
+      <li><b>OU=Equipos</b> → Servidores, Laptops, Impresoras</li>
+      <li><b>OU=Grupos</b> → Seguridad, Distribución</li>
+      <li><b>OU=CuentasServicio</b> → MSA, gMSA de aplicaciones</li>
+    </ul>
+    <b>⚠ Regla de oro:</b> Nunca repliques el organigrama de RRHH. El árbol de OUs debe responder a: ¿quién administra qué? y ¿qué política aplica a qué grupo?<br><br>
+    <b>Convención de nombres aprobada:</b>
+    <ul>
+      <li>DCs: LIMA-DC01, LIMA-DC02, ARQ-DC01, TRU-DC01, CUS-DC01, PIU-DC01</li>
+      <li>Usuarios: apellido.nombre@redperu.com.pe</li>
+      <li>Grupos de seguridad: GRP-[sede]-[función] (ej: GRP-Lima-TI)</li>
+    </ul>`,
+    cmd:`# Crear estructura de OUs tras promover el primer DC
+New-ADOrganizationalUnit -Name "Usuarios" -Path "DC=redperu,DC=com,DC=pe"
+New-ADOrganizationalUnit -Name "Lima" -Path "OU=Usuarios,DC=redperu,DC=com,DC=pe"
+New-ADOrganizationalUnit -Name "Arequipa" -Path "OU=Usuarios,DC=redperu,DC=com,DC=pe"
+New-ADOrganizationalUnit -Name "Equipos" -Path "DC=redperu,DC=com,DC=pe"
+New-ADOrganizationalUnit -Name "Servidores" -Path "OU=Equipos,DC=redperu,DC=com,DC=pe"
+New-ADOrganizationalUnit -Name "Laptops" -Path "OU=Equipos,DC=redperu,DC=com,DC=pe"`,
+    tag:'ENTREGABLE: DOCUMENTO DE DISEÑO LÓGICO AD · APROBADO POR CTO'
+  },
+  p2:{
+    theme:'c', icon:'🌐',
+    title:'PASO 02 — TOPOLOGÍA DE SITIOS AD DS',
+    phase:'FASE DE DISEÑO · REPLICACIÓN Y ENLACE WAN',
+    body:`Los sitios de AD no son oficinas geográficas: son <b>conjuntos de subredes IP con buena conectividad interna</b>. Esta topología determina cuándo y cómo se replica el directorio entre DCs, y a qué DC se autentica cada cliente.<br><br>
+    <b>Inventario de enlaces WAN de RedPerú:</b>
+    <ul>
+      <li>Lima ↔ Arequipa: 100 Mbps MPLS · 18 ms → replicación cada 15 min / 24h</li>
+      <li>Lima ↔ Trujillo: 50 Mbps MPLS · 12 ms → replicación cada 15 min / 24h</li>
+      <li>Lima ↔ Cusco: 20 Mbps fibra · 28 ms → replicación cada 180 min / 23:00–06:00</li>
+      <li>Lima ↔ Piura: 20 Mbps fibra · 22 ms → replicación cada 180 min / 23:00–06:00</li>
+    </ul>
+    <b>Decisión sobre Global Catalog (GC):</b> Todas las sedes tienen un RODC con GC local. Sin GC local, cada autenticación cruzaría la WAN hacia Lima para resolver membresía de grupos universales. En un enlace de 20 Mbps con 100 usuarios simultáneos en hora pico, ese overhead sería inaceptable.<br><br>
+    <b>Site Link Bridging:</b> Habilitado solo entre Lima-HQ ↔ Arequipa y Lima-HQ ↔ Trujillo. Los sitios de Cusco y Piura replican exclusivamente a través de Lima.`,
+    cmd:`# Crear sitios AD
+New-ADReplicationSite -Name "Lima-HQ"
+New-ADReplicationSite -Name "Arequipa"
+New-ADReplicationSite -Name "Cusco"
+New-ADReplicationSite -Name "Piura"
+
+# Asociar subredes a sitios
+New-ADReplicationSubnet -Name "10.10.0.0/16" -Site "Lima-HQ"
+New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Arequipa"
+New-ADReplicationSubnet -Name "10.40.0.0/24" -Site "Cusco"
+
+# Site Link con ventana horaria para enlaces lentos
+Set-ADReplicationSiteLink -Identity "Lima-Cusco" \`
+  -ReplicationFrequencyInMinutes 180 \`
+  -ScheduleHashTable @{TimeOfDay='23:00';Duration=7}`,
+    tag:'ENTREGABLE: DIAGRAMA DE TOPOLOGÍA AD DS · SUBREDES Y SITE LINKS'
+  },
+  p3:{
+    theme:'c', icon:'⚙️',
+    title:'PASO 03 — PLANIFICACIÓN DE CAPACIDAD DE LOS DCs',
+    phase:'FASE DE DISEÑO · HARDWARE · RODC · SIZING',
+    body:`Como ingeniero debes dimensionar antes de firmar la orden de compra. AD DS es conservador en CPU pero requiere RAM e IOPS de calidad.<br><br>
+    <b>Sizing por sede:</b>
+    <ul>
+      <li><b>Lima HQ (800 usuarios):</b> 2× DC R/W — 16 GB RAM, 4 vCPU, 100 GB SSD NVMe por servidor. Alta disponibilidad activo-activo.</li>
+      <li><b>Arequipa (200 usuarios):</b> 1× RODC — 8 GB RAM, 2 vCPU, 60 GB SSD.</li>
+      <li><b>Trujillo (150 usuarios):</b> 1× RODC — 8 GB RAM, 2 vCPU, 60 GB SSD.</li>
+      <li><b>Cusco / Piura (80-100 usuarios):</b> 1× RODC — 4 GB RAM, 2 vCPU, 40 GB SSD.</li>
+    </ul>
+    <b>¿Por qué RODC en sedes regionales?</b><br>
+    Un Read-Only DC no almacena contraseñas por defecto, no acepta escrituras y puede instalarse en una sala de servidores sin seguridad física de datacenter. Si el servidor físico de Cusco es robado, el atacante no obtiene credenciales aprovechables. Los DCs R/W solo en Lima con acceso físico controlado.<br><br>
+    <b>Sizing de SYSVOL:</b> Planifica 20 GB dedicados para SYSVOL replicado por DFS-R. Con 50+ GPOs y scripts de logon, el buffer de 4 GB por defecto es insuficiente.`,
+    cmd:`# Verificar requisitos de hardware antes de instalar
+Get-PhysicalDisk | Select FriendlyName,MediaType,Size
+Get-WmiObject Win32_ComputerSystem | Select TotalPhysicalMemory
+systeminfo | findstr /i "processor"
+
+# Calcular IOPS mínimos requeridos para AD DS
+# Regla: 1 IOPS por usuario activo + overhead de replicación
+# Lima: 800 usuarios → mínimo 1000 IOPS sostenidos (disco dedicado para NTDS)`,
+    tag:'ENTREGABLE: ORDEN DE COMPRA SERVIDORES · PLANO DE RACK · ESPECIFICACIONES'
+  },
+  p4:{
+    theme:'m', icon:'🌲',
+    title:'PASO 04 — DESPLEGAR EL DOMINIO RAÍZ DEL BOSQUE',
+    phase:'FASE DE DESPLIEGUE · PRIMER DC · LIMA-DC01',
+    body:`El primer DC es el paso más delicado. Aquí se crean la partición del esquema, la partición de configuración y el dominio raíz. El nombre del dominio y el nivel funcional del bosque son muy difíciles de cambiar después.<br><br>
+    <b>Prerequisitos en LIMA-DC01 antes de ejecutar:</b>
+    <ul>
+      <li>IP estática: 10.10.0.10 / Máscara: /16 / Gateway: 10.10.0.1</li>
+      <li>DNS apuntando a sí mismo: 127.0.0.1 (se autoconfigura tras promoción)</li>
+      <li>Nombre de equipo ya configurado: LIMA-DC01 (no cambiarlo después)</li>
+      <li>Windows Server 2022 con actualizaciones aplicadas</li>
+      <li>Rol de AD DS preinstalado via Server Manager o PowerShell</li>
+    </ul>
+    <b>Nivel funcional WinThreshold (2016+):</b> Habilita PAM (Privileged Access Management), mejoras en Kerberos FAST, y soporte para Azure AD Connect. Una vez configurado no puede degradarse.<br><br>
+    <b>Tras el reinicio:</b> LIMA-DC01 tiene los 5 roles FSMO. Inmediatamente promueves LIMA-DC02 como segundo DC para alta disponibilidad y transfieres PDC Emulator y RID Pool Manager.`,
+    cmd:`# 1. Instalar rol AD DS
+Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
+
+# 2. Crear el bosque (ejecutar en LIMA-DC01)
+Install-ADDSForest \`
+  -DomainName "redperu.com.pe" \`
+  -DomainNetbiosName "REDPERU" \`
+  -ForestMode "WinThreshold" \`
+  -DomainMode "WinThreshold" \`
+  -InstallDns:$true \`
+  -DatabasePath "D:\NTDS" \`
+  -SysvolPath "D:\SYSVOL" \`
+  -LogPath "D:\NTDS\Logs" \`
+  -SafeModeAdministratorPassword (Read-Host -AsSecureString) \`
+  -Force:$true
+
+# 3. Verificar FSMO tras reinicio
+netdom query fsmo`,
+    tag:'HITO CRÍTICO: PRIMER DC OPERATIVO · DOMINIO redperu.com.pe CREADO'
+  },
+  p5:{
+    theme:'m', icon:'🏢',
+    title:'PASO 05 — DESPLEGAR DCs REGIONALES (RODCs)',
+    phase:'FASE DE DESPLIEGUE · SUCURSALES · PRP · DELEGACIÓN',
+    body:`En el modelo de RedPerú no hay "dominios regionales" separados. Son <b>DCs del mismo dominio ubicados en sitios remotos</b>: la arquitectura correcta para una empresa nacional unitaria.<br><br>
+    <b>Proceso de despliegue RODC (ejemplo Arequipa):</b><br>
+    Primero pre-creas la cuenta del RODC desde Lima. Esto permite que el admin local en Arequipa complete la promoción sin necesidad de credenciales de Domain Admin:
+    <ul>
+      <li>El admin de Lima pre-registra ARQ-DC01 en AD con delegación a adminArequipa</li>
+      <li>El técnico en Arequipa instala Windows Server, le da el nombre ARQ-DC01</li>
+      <li>Ejecuta la promoción con su cuenta local delegada (sin ser Domain Admin)</li>
+      <li>AD DS instala desde la cuenta pre-creada</li>
+    </ul>
+    <b>Password Replication Policy (PRP) — seguridad en RODC:</b><br>
+    Defines exactamente qué usuarios pueden tener su contraseña cacheada en cada RODC. Esto garantiza que ante robo físico del servidor en Cusco, solo las contraseñas de usuarios de Cusco estén comprometidas (no los Domain Admins de Lima).<br><br>
+    <b>Contraseñas NUNCA en RODC:</b> Domain Admins, Enterprise Admins, Schema Admins.`,
+    cmd:`# Desde Lima: pre-crear cuenta RODC y delegar
+Add-ADDSReadOnlyDomainControllerAccount \`
+  -DomainControllerAccountName "ARQ-DC01" \`
+  -DomainName "redperu.com.pe" \`
+  -SiteName "Arequipa" \`
+  -DelegatedAdministratorAccountName "REDPERU\adminArequipa"
+
+# En el servidor físico en Arequipa: promover
+Install-ADDSDomainController \`
+  -DomainName "redperu.com.pe" \`
+  -ReadOnlyReplica:$true \`
+  -SiteName "Arequipa" \`
+  -UseExistingAccount:$true \`
+  -Force:$true
+
+# Configurar PRP en RODC (qué contraseñas se cachean)
+Add-ADDomainControllerPasswordReplicationPolicy \`
+  -Identity "ARQ-DC01" \`
+  -AllowedList @("GRP-Arequipa-Usuarios")
+Add-ADDomainControllerPasswordReplicationPolicy \`
+  -Identity "ARQ-DC01" \`
+  -DeniedList @("Domain Admins","Enterprise Admins")`,
+    tag:'5 SITIOS AD OPERATIVOS · 6 DCs TOTAL · MÍNIMO PRIVILEGIO APLICADO'
+  },
+  p6:{
+    theme:'m', icon:'🔐',
+    title:'PASO 06 — HABILITAR CARACTERÍSTICAS AVANZADAS',
+    phase:'FASE DE DESPLIEGUE · GPOs · FSMO · ISO 27001 · DFS-R',
+    body:`Con el AD funcionando en todas las sedes, activas las capas que convierten un directorio básico en una infraestructura de gestión y seguridad completa.<br><br>
+    <b>1. Redistribución de roles FSMO:</b><br>
+    Transfiere PDCEmulator y RIDMaster a LIMA-DC02 para distribuir carga entre los dos DCs de Lima. Infrastructure Master en LIMA-DC01.<br><br>
+    <b>2. Estructura de GPOs por capas (Link Order):</b>
+    <ul>
+      <li><b>GPO-Default-Security</b> → dominio (aplica a todos · CIS Benchmark)</li>
+      <li><b>GPO-Servidores-Hardening</b> → OU=Servidores (SMBv1 deshabilitado, NTLMv1 bloqueado)</li>
+      <li><b>GPO-Usuarios-Laptops</b> → OU=Laptops (BitLocker, screensaver 5 min)</li>
+      <li><b>GPO-Lima-Impresoras</b>, <b>GPO-Arequipa-Impresoras</b> → OUs por ciudad (mapeo local)</li>
+      <li><b>GPO-TI-NoRestrictions</b> → OU=TI con Block Inheritance</li>
+    </ul>
+    <b>3. Migración SYSVOL a DFS-R:</b> FRS (legacy) → DFS-R para replicación confiable.<br><br>
+    <b>4. Auditoría ISO 27001 (A.12.4):</b> Windows Event Forwarding hacia SIEM en Lima con retención de 90 días para controles de trazabilidad de acceso.`,
+    cmd:`# Transferir roles FSMO
+Move-ADDirectoryServerOperationMasterRole \`
+  -Identity "LIMA-DC02" \`
+  -OperationMasterRole PDCEmulator,RIDMaster
+
+# Verificar migración SYSVOL a DFS-R
+dfsrmig /getglobalstate
+# Si muestra FRS: dfsrmig /setglobalstate 3 → luego 4
+
+# Activar auditoría avanzada via GPO
+auditpol /set /subcategory:"Logon" /success:enable /failure:enable
+auditpol /set /subcategory:"Account Management" /success:enable /failure:enable
+auditpol /set /subcategory:"Directory Service Changes" /success:enable /failure:enable
+
+# Configurar Event Forwarding hacia SIEM Lima
+winrm quickconfig
+wecutil cs "redperu-siem-subscription.xml"
+netdom query fsmo`,
+    tag:'AD DS REDPERU OPERATIVO · PRODUCCIÓN · CUMPLIMIENTO ISO 27001'
+  }
+};
+
+const HEX = {c:'#00ffff', m:'#ff00ff'};
+const BG  = {c:'rgba(0,255,255,.1)', m:'rgba(255,0,255,.1)'};
+
+function show(key){
+  const d=DB[key]; const h=HEX[d.theme]; const bg=BG[d.theme];
+  const modal=document.getElementById('modal');
+  modal.className='modal m-'+d.theme; modal.scrollTop=0;
+
+  document.getElementById('m-icon').textContent=d.icon;
+
+  const mt=document.getElementById('m-title');
+  mt.textContent=d.title; mt.style.color=h; mt.style.textShadow='0 0 12px '+h;
+
+  const mp=document.getElementById('m-phase');
+  mp.textContent=d.phase; mp.style.color=h;
+  mp.style.background=bg; mp.style.border='1px solid '+h; mp.style.textShadow='0 0 6px '+h;
+
+  document.getElementById('m-body').innerHTML=
+    d.body+'<code class="modal-pre'+(d.theme==='m'?' modal-pre-m':'')+'">'+d.cmd+'</code>';
+
+  const tag=document.getElementById('m-tag');
+  tag.textContent=d.tag; tag.style.color=h;
+  tag.style.background=bg; tag.style.border='1px solid '+h; tag.style.textShadow='0 0 6px '+h;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sb').textContent=
+    '[ PASO: '+d.title.substring(0,34)+' — ESC O CLIC FUERA PARA CERRAR ]';
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sb').textContent=
+    '[ SISTEMA:EN LÍNEA — AD DS:LISTO — REDPERU.COM.PE — CLIC EN CADA PASO ]';
+}
+function closeOnBg(e){if(e.target===document.getElementById('overlay'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* Ripple */
+document.querySelectorAll('.step').forEach(s=>{
+  s.addEventListener('click',function(e){
+    const r=document.createElement('span'); r.className='ripple';
+    const rect=this.getBoundingClientRect();
+    r.style.left=(e.clientX-rect.left)+'px'; r.style.top=(e.clientY-rect.top)+'px';
+    r.style.background=this.classList.contains('s-c')?'#0ff':'#f0f';
+    this.appendChild(r); setTimeout(()=>r.remove(),600);
+  });
+});
+
+/* Clock */
+setInterval(()=>{
+  if(!document.getElementById('overlay').classList.contains('open')){
+    const t=new Date().toTimeString().slice(0,8);
+    document.getElementById('sb').textContent=
+      '[ SISTEMA:EN LÍNEA — AD DS:LISTO — REDPERU.COM.PE — '+t+' — CLIC EN CADA PASO ]';
+  }
+},1000);
+</script>
+</body>
+</html>
