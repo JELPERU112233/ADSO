@@ -1,1 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autoevaluación AD DS & GPO — PUCP 1INF35</title>
+<style>
+:root {
+  --navy:#0d2240; --navy2:#13305c; --accent:#1ab5a8;
+  --red:#e21b3c; --blue:#1368ce; --yellow:#d89e00; --green:#26890c;
+  --red-l:#ff2753; --blue-l:#2196f3; --yellow-l:#ffc400; --green-l:#2ecc40;
+  --white:#fff; --gray:#c8d2e0; --dark:#080f1a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:Arial,sans-serif;background:var(--navy);color:var(--white);overflow-x:hidden;}
+
+/* ── BACKGROUND ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(26,181,168,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(26,181,168,.04) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+}
+
+/* ── LAYOUT ── */
+.screen{display:none;position:relative;z-index:1;min-height:100vh;
+  flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.screen.active{display:flex;}
+
+/* ══ WELCOME ══ */
+.welcome-box{text-align:center;max-width:640px;width:100%;}
+.logo-bar{
+  background:var(--navy2);border:1px solid rgba(26,181,168,.3);
+  border-radius:10px;padding:10px 24px;margin-bottom:28px;
+  display:inline-flex;align-items:center;gap:14px;
+  box-shadow:0 0 20px rgba(26,181,168,.1);}
+.logo-badge{
+  background:var(--accent);color:var(--navy);font-size:11px;
+  font-weight:bold;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;}
+.logo-text{font-size:13px;color:var(--gray);letter-spacing:1px;}
+.w-title{font-size:clamp(22px,5vw,34px);font-weight:900;letter-spacing:-0.5px;
+  line-height:1.15;margin-bottom:12px;}
+.w-title span{color:var(--accent);}
+.w-sub{font-size:14px;color:var(--gray);margin-bottom:8px;line-height:1.6;}
+.w-meta{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+  margin:22px 0 28px;}
+.w-badge{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+  border-radius:20px;padding:6px 14px;font-size:12px;color:var(--gray);
+  display:flex;align-items:center;gap:5px;}
+.w-badge b{color:var(--white);}
+
+/* ── START BUTTON ── */
+.btn-start,.btn-retry{
+  background:var(--accent);color:var(--navy);
+  border:none;border-radius:8px;padding:15px 48px;
+  font-size:16px;font-weight:900;letter-spacing:1px;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 20px rgba(26,181,168,.35);}
+.btn-start:hover,.btn-retry:hover{transform:scale(1.04);box-shadow:0 6px 30px rgba(26,181,168,.5);}
+.btn-retry{margin-top:16px;background:var(--navy2);color:var(--accent);
+  border:2px solid var(--accent);}
+
+/* ══ QUESTION SCREEN ══ */
+.q-header{width:100%;max-width:780px;margin-bottom:18px;}
+
+/* Top bar */
+.q-topbar{
+  display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.q-num{font-size:12px;letter-spacing:1.5px;color:var(--gray);}
+.q-progress{flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;}
+.q-progress-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease;}
+.q-score-chip{
+  background:rgba(26,181,168,.15);border:1px solid rgba(26,181,168,.4);
+  border-radius:20px;padding:4px 12px;font-size:12px;font-weight:bold;
+  color:var(--accent);white-space:nowrap;}
+
+/* Timer */
+.timer-wrap{display:flex;justify-content:center;margin-bottom:16px;}
+.timer-ring{position:relative;width:68px;height:68px;}
+.timer-svg{transform:rotate(-90deg);}
+.timer-track{fill:none;stroke:rgba(255,255,255,.1);stroke-width:6;}
+.timer-arc{fill:none;stroke:var(--accent);stroke-width:6;stroke-linecap:round;
+  stroke-dasharray:188.5;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear,stroke .3s;}
+.timer-num{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:900;color:var(--white);}
+
+/* Question card */
+.q-card{
+  background:var(--navy2);border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;padding:24px 28px;width:100%;max-width:780px;
+  margin-bottom:20px;text-align:center;}
+.q-text{font-size:clamp(15px,3vw,20px);font-weight:700;line-height:1.45;color:var(--white);}
+
+/* Answers grid */
+.answers-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  width:100%;max-width:780px;}
+.ans-btn{
+  display:flex;align-items:center;gap:12px;
+  border:none;border-radius:10px;padding:14px 18px;cursor:pointer;
+  font-size:14px;font-weight:700;color:var(--white);
+  text-align:left;line-height:1.3;
+  transition:transform .12s,box-shadow .15s,filter .15s;
+  min-height:68px;}
+.ans-btn:hover:not(:disabled){transform:scale(1.03);filter:brightness(1.12);}
+.ans-btn:active:not(:disabled){transform:scale(0.97);}
+.ans-btn:disabled{cursor:not-allowed;}
+.ans-icon{
+  width:34px;height:34px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.25);font-size:16px;font-weight:900;}
+.ans-btn.a{background:var(--red);}
+.ans-btn.b{background:var(--blue);}
+.ans-btn.c{background:var(--yellow);color:var(--navy);}
+.ans-btn.d{background:var(--green);}
+.ans-btn.c .ans-icon{color:var(--navy);}
+
+/* Answer states */
+.ans-btn.correct{
+  filter:brightness(1.3);
+  box-shadow:0 0 0 3px #fff, 0 0 20px rgba(255,255,255,.3);}
+.ans-btn.wrong{filter:brightness(.45);}
+.ans-btn.highlight{filter:brightness(1.3);}
+
+/* ══ FEEDBACK ══ */
+.feedback-overlay{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(8,15,26,.85);backdrop-filter:blur(6px);}
+.feedback-box{
+  background:var(--navy2);border-radius:16px;padding:32px 36px;
+  max-width:520px;width:92%;text-align:center;
+  border:2px solid;animation:fbIn .25s ease;}
+@keyframes fbIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.fb-icon{font-size:48px;margin-bottom:12px;}
+.fb-verdict{font-size:20px;font-weight:900;margin-bottom:10px;}
+.fb-explanation{font-size:14px;color:var(--gray);line-height:1.7;margin-bottom:20px;}
+.fb-points{
+  display:inline-block;font-size:13px;font-weight:bold;
+  padding:4px 14px;border-radius:20px;margin-bottom:20px;}
+.fb-next{
+  background:var(--accent);color:var(--navy);
+  border:none;border-radius:8px;padding:12px 36px;
+  font-size:14px;font-weight:900;cursor:pointer;letter-spacing:.5px;
+  transition:transform .12s;}
+.fb-next:hover{transform:scale(1.04);}
+
+/* ══ RESULTS ══ */
+.results-box{text-align:center;max-width:640px;width:100%;}
+.r-circle{
+  width:140px;height:140px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;margin:0 auto 24px;
+  border:4px solid;position:relative;}
+.r-circle::before{
+  content:'';position:absolute;inset:-8px;border-radius:50%;
+  border:2px solid;opacity:.3;}
+.r-score{font-size:42px;font-weight:900;line-height:1;}
+.r-denom{font-size:16px;font-weight:bold;opacity:.7;}
+.r-title{font-size:26px;font-weight:900;margin-bottom:8px;}
+.r-level{font-size:15px;color:var(--gray);margin-bottom:6px;}
+.r-level span{font-weight:bold;}
+.r-detail{font-size:13px;color:var(--gray);margin-bottom:28px;line-height:1.6;}
+.r-breakdown{
+  background:var(--navy2);border-radius:12px;
+  padding:18px 20px;margin-bottom:24px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;}
+.rb-item{} 
+.rb-val{font-size:24px;font-weight:900;}
+.rb-lbl{font-size:11px;color:var(--gray);letter-spacing:.5px;margin-top:2px;}
+.r-history{
+  background:rgba(255,255,255,.04);border-radius:10px;
+  padding:14px;margin-bottom:20px;max-height:180px;overflow-y:auto;}
+.rh-row{display:flex;align-items:center;gap:10px;padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;}
+.rh-row:last-child{border:none;}
+.rh-num{color:var(--gray);width:22px;flex-shrink:0;}
+.rh-q{flex:1;text-align:left;color:var(--gray);}
+.rh-dot{width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;}
+
+.btn-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:520px){
+  .answers-grid{grid-template-columns:1fr;}
+  .r-breakdown{grid-template-columns:1fr 1fr;}
+  .feedback-box{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ WELCOME ══ -->
+<div class="screen active" id="scr-welcome">
+  <div class="welcome-box">
+    <div class="logo-bar">
+      <div class="logo-badge">PUCP</div>
+      <div class="logo-text">ADMINISTRACIÓN DE SISTEMAS OPERATIVOS · 1INF35</div>
+    </div>
+    <div class="w-title">Autoevaluación<br><span>AD DS &amp; GPO</span></div>
+    <div class="w-sub">Capítulo 5 — Semana 11 · 2026-1<br>
+    Pon a prueba tu comprensión del Directorio Activo, las políticas de grupo y los roles FSMO.</div>
+    <div class="w-meta">
+      <div class="w-badge">⏱ <b>30 seg</b> por pregunta</div>
+      <div class="w-badge">📋 <b>10</b> preguntas</div>
+      <div class="w-badge">🎓 Sistema <b>vigesimal</b></div>
+      <div class="w-badge">💡 Feedback inmediato</div>
+    </div>
+    <button class="btn-start" onclick="startQuiz()">▶ COMENZAR</button>
+  </div>
+</div>
+
+<!-- ══ QUESTION ══ -->
+<div class="screen" id="scr-question">
+  <div class="q-header">
+    <div class="q-topbar">
+      <span class="q-num" id="q-num">Pregunta 1 de 10</span>
+      <div class="q-progress"><div class="q-progress-fill" id="q-prog" style="width:0%"></div></div>
+      <div class="q-score-chip">⭐ <span id="live-score">0</span>/20</div>
+    </div>
+  </div>
+
+  <div class="timer-wrap">
+    <div class="timer-ring">
+      <svg class="timer-svg" width="68" height="68" viewBox="0 0 68 68">
+        <circle class="timer-track" cx="34" cy="34" r="30"/>
+        <circle class="timer-arc" id="timer-arc" cx="34" cy="34" r="30"/>
+      </svg>
+      <div class="timer-num" id="timer-num">30</div>
+    </div>
+  </div>
+
+  <div class="q-card">
+    <div class="q-text" id="q-text">Cargando pregunta...</div>
+  </div>
+
+  <div class="answers-grid">
+    <button class="ans-btn a" id="btn-a" onclick="answer(0)">
+      <div class="ans-icon">A</div><span id="opt-a"></span>
+    </button>
+    <button class="ans-btn b" id="btn-b" onclick="answer(1)">
+      <div class="ans-icon">B</div><span id="opt-b"></span>
+    </button>
+    <button class="ans-btn c" id="btn-c" onclick="answer(2)">
+      <div class="ans-icon">C</div><span id="opt-c"></span>
+    </button>
+    <button class="ans-btn d" id="btn-d" onclick="answer(3)">
+      <div class="ans-icon">D</div><span id="opt-d"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ══ FEEDBACK OVERLAY ══ -->
+<div class="feedback-overlay" id="fb-overlay" style="display:none;">
+  <div class="feedback-box" id="fb-box">
+    <div class="fb-icon" id="fb-icon"></div>
+    <div class="fb-verdict" id="fb-verdict"></div>
+    <div class="fb-points" id="fb-pts"></div>
+    <div class="fb-explanation" id="fb-expl"></div>
+    <button class="fb-next" id="fb-btn" onclick="nextQuestion()">SIGUIENTE →</button>
+  </div>
+</div>
+
+<!-- ══ RESULTS ══ -->
+<div class="screen" id="scr-results">
+  <div class="results-box">
+    <div class="r-circle" id="r-circle">
+      <div class="r-score" id="r-score">0</div>
+      <div class="r-denom">/20</div>
+    </div>
+    <div class="r-title" id="r-title"></div>
+    <div class="r-level">Nivel de comprensión: <span id="r-level"></span></div>
+    <div class="r-detail" id="r-detail"></div>
+    <div class="r-breakdown">
+      <div class="rb-item">
+        <div class="rb-val" id="rb-correct" style="color:#2ecc40">0</div>
+        <div class="rb-lbl">CORRECTAS</div>
+      </div>
+      <div class="rb-item">
+        <div class="rb-val" id="rb-wrong" style="color:#e21b3c">0</div>
+        <div class="rb-lbl">INCORRECTAS</div>
+      </div>
+      <div class="rb-item">
+        <div class="rb-val" id="rb-pct" style="color:#ffc400">0%</div>
+        <div class="rb-lbl">RENDIMIENTO</div>
+      </div>
+    </div>
+    <div class="r-history" id="r-history"></div>
+    <div class="btn-row">
+      <button class="btn-retry" onclick="retryQuiz()">🔄 VOLVER A RENDIR</button>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:rgba(200,210,224,.4);letter-spacing:1px;">
+      PUCP · 1INF35 · Administración de Sistemas Operativos · 2026-1
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    q: "¿Cuántos puntos críticos contiene el 'Checklist previo a instalar AD DS' presentado en la sesión?",
+    opts: ["4 puntos críticos", "5 puntos críticos", "6 puntos críticos", "8 puntos críticos"],
+    ans: 2,
+    fb: "El checklist contiene exactamente 6 puntos: IP Estática, DNS Correcto, Nombre del Servidor, Actualizaciones, Tiempo Sincronizado y Hardware Mínimo. Todos deben cumplirse antes de ejecutar el asistente de configuración.",
+    cat: "Prerequisitos AD DS"
+  },
+  {
+    q: "¿Cuál es el requisito mínimo de RAM para implementar AD DS según la tabla de requisitos de la sesión?",
+    opts: ["512 MB", "1 GB", "2 GB", "4 GB"],
+    ans: 2,
+    fb: "El requisito mínimo es 2 GB de RAM, aunque se recomienda entre 4–8 GB dependiendo del número de usuarios y objetos. El disco mínimo es 40 GB libres para NTDS.DIT y logs.",
+    cat: "Requisitos mínimos"
+  },
+  {
+    q: "Según la jerarquía LSDOU, ¿cuál GPO tiene MAYOR precedencia y puede sobreescribir a todas las demás?",
+    opts: ["Local Group Policy (GPEDIT)", "GPO vinculado al Sitio (Site)", "GPO vinculado al Dominio (Domain)", "GPO vinculado a la OU"],
+    ans: 3,
+    fb: "Las GPOs se procesan en orden Local→Site→Domain→OU. La última en aplicarse es la de la OU, por lo que tiene la mayor precedencia y sobreescribe los ajustes en conflicto de las anteriores. La Local tiene la menor precedencia.",
+    cat: "Precedencia GPO"
+  },
+  {
+    q: "En el procesamiento SINCRÓNICO de GPOs, ¿qué garantiza el sistema antes de mostrar la pantalla de login?",
+    opts: ["Las GPOs de usuario se aplican en segundo plano", "Todas las GPOs de equipo están completamente aplicadas", "El usuario puede iniciar sesión inmediatamente", "Solo se aplica la Default Domain Policy"],
+    ans: 1,
+    fb: "En el procesamiento sincrónico, la pantalla de login NO aparece hasta que todas las Computer GPOs estén completamente procesadas. Esto garantiza un entorno 100% configurado al primer login, a diferencia del modo asíncrono.",
+    cat: "Procesamiento GPO"
+  },
+  {
+    q: "¿Cuántos roles FSMO (Flexible Single Master Operations) existen en Active Directory?",
+    opts: ["3 roles", "4 roles", "5 roles", "7 roles"],
+    ans: 2,
+    fb: "Existen exactamente 5 roles FSMO. Dos de ámbito de bosque: Schema Master y Domain Naming Master. Tres de ámbito de dominio: PDC Emulator, RID Pool Manager e Infrastructure Master.",
+    cat: "Roles FSMO"
+  },
+  {
+    q: "¿Cuál es el PRIMER paso al implementar AD DS en un entorno sin Directorio Activo ('Pasos en un entorno sin un DA')?",
+    opts: ["Desplegar el dominio raíz del bosque", "Planificar la capacidad de los DCs", "Diseñar la estructura lógica de AD", "Habilitar características avanzadas"],
+    ans: 2,
+    fb: "El primer paso es diseñar la estructura lógica: decidir dominios, OUs y árboles. Luego viene la topología de sitios, la capacidad de DCs, el despliegue del dominio raíz, los dominios regionales y finalmente las características avanzadas.",
+    cat: "Pasos de implementación"
+  },
+  {
+    q: "¿En cuál de estos momentos NO se aplica automáticamente la Política de grupo?",
+    opts: ["Al encender o apagar el equipo", "Al instalar manualmente una aplicación", "En intervalos periódicos definidos (~90 min)", "Al ejecutar GPUpdate.exe /force"],
+    ans: 1,
+    fb: "La Política de grupo se aplica en encendido/apagado, conexión/desconexión de usuario, intervalos periódicos (~90 min ± offset), y al forzarse con GPUpdate.exe. La instalación manual de aplicaciones NO activa automáticamente las GPOs.",
+    cat: "Aplicación GPO"
+  },
+  {
+    q: "¿Cuál es el cmdlet de PowerShell correcto para CREAR un nuevo GPO en el dominio?",
+    opts: ["Create-GPO -Name \"MiGPO\"", "Add-GPO -Name \"MiGPO\"", "New-GPO -Name \"MiGPO\"", "Set-GPO -Name \"MiGPO\""],
+    ans: 2,
+    fb: "El cmdlet correcto es New-GPO. Ejemplo real de la sesión: New-GPO -Name \"Bloqueo_USB\" -Comment \"Restringe el uso de dispositivos USB\". Para vincularlo a una OU se usa New-GPLink.",
+    cat: "GPOs con PowerShell"
+  },
+  {
+    q: "¿Qué escenario de uso de PC describe 'estación de trabajo pública desatendida, aplicación y usuario únicos, siempre encendida, sin cambio de usuarios'?",
+    opts: ["TaskStation", "AppStation", "Multi-usuario", "Kiosco"],
+    ans: 3,
+    fb: "El escenario Kiosco es la estación más restrictiva: pública, desatendida, con aplicación y usuario únicos, seguridad mejorada, sin cambio de usuarios ni acceso de escritura, y siempre encendida. Ejemplo: cajeros automáticos o terminales de autoservicio.",
+    cat: "Escenarios de uso"
+  },
+  {
+    q: "Cuando dos GPOs vinculadas a distintos niveles (ej. Dominio y OU) NO tienen configuraciones en conflicto, ¿qué ocurre?",
+    opts: ["Solo se aplica el GPO de mayor precedencia (OU)", "Se suspenden hasta que un admin defina prioridad", "Ambos GPOs se fusionan y aplican sus configuraciones", "El GPO de menor nivel (Dominio) sobreescribe al de mayor"],
+    ans: 2,
+    fb: "Cuando no hay conflicto, los GPOs se FUSIONAN: todas sus configuraciones se aplican como si fueran una sola política. Solo cuando existe un ajuste en conflicto, el GPO de mayor precedencia (OU > Domain > Site > Local) sobreescribe al de menor.",
+    cat: "Precedencia GPO"
+  }
+];
+
+let currentQ = 0;
+let score = 0;
+let correctCount = 0;
+let timerInterval = null;
+let timeLeft = 30;
+let answered = false;
+let history = [];
+const TOTAL = QUESTIONS.length;
+const POINTS_EACH = 2;
+const CIRCUMFERENCE = 2 * Math.PI * 30; // 188.5
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startQuiz() {
+  currentQ = 0; score = 0; correctCount = 0; history = [];
+  show('scr-question');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const data = QUESTIONS[currentQ];
+  answered = false;
+
+  document.getElementById('q-num').textContent = `Pregunta ${currentQ+1} de ${TOTAL}`;
+  document.getElementById('q-prog').style.width = `${(currentQ/TOTAL)*100}%`;
+  document.getElementById('live-score').textContent = score.toFixed(0);
+  document.getElementById('q-text').textContent = data.q;
+
+  ['a','b','c','d'].forEach((l,i) => {
+    const btn = document.getElementById(`btn-${l}`);
+    const span = document.getElementById(`opt-${l}`);
+    span.textContent = data.opts[i];
+    btn.disabled = false;
+    btn.className = `ans-btn ${l}`;
+  });
+
+  startTimer();
+}
+
+function startTimer() {
+  timeLeft = 30;
+  updateTimerUI();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timeExpired();
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const num = document.getElementById('timer-num');
+  const arc = document.getElementById('timer-arc');
+  num.textContent = timeLeft;
+  const offset = CIRCUMFERENCE * (1 - timeLeft/30);
+  arc.style.strokeDashoffset = offset;
+  if (timeLeft <= 10) {
+    arc.style.stroke = '#e21b3c';
+    num.style.color = '#ff4466';
+  } else if (timeLeft <= 20) {
+    arc.style.stroke = '#d89e00';
+    num.style.color = '#ffc400';
+  } else {
+    arc.style.stroke = 'var(--accent)';
+    num.style.color = 'var(--white)';
+  }
+}
+
+function timeExpired() {
+  if (answered) return;
+  answered = true;
+  disableAll();
+  highlightCorrect();
+  history.push({q: QUESTIONS[currentQ].q.substring(0,50)+'...', correct: false});
+  showFeedback(false, true);
+}
+
+function answer(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  disableAll();
+
+  const data = QUESTIONS[currentQ];
+  const isCorrect = idx === data.ans;
+
+  // Highlight answers
+  const btns = ['btn-a','btn-b','btn-c','btn-d'];
+  btns.forEach((id, i) => {
+    const btn = document.getElementById(id);
+    if (i === data.ans) {
+      btn.classList.add('correct');
+    } else if (i === idx && !isCorrect) {
+      btn.classList.add('wrong');
+    } else {
+      btn.classList.add('wrong');
+    }
+  });
+
+  if (isCorrect) {
+    score += POINTS_EACH;
+    correctCount++;
+  }
+
+  history.push({q: QUESTIONS[currentQ].q.substring(0,55)+'...', correct: isCorrect});
+  document.getElementById('live-score').textContent = score.toFixed(0);
+
+  setTimeout(() => showFeedback(isCorrect, false), 500);
+}
+
+function disableAll() {
+  ['btn-a','btn-b','btn-c','btn-d'].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+}
+
+function highlightCorrect() {
+  const correct = QUESTIONS[currentQ].ans;
+  const ids = ['btn-a','btn-b','btn-c','btn-d'];
+  ids.forEach((id, i) => {
+    document.getElementById(id).classList.add(i === correct ? 'correct' : 'wrong');
+  });
+}
+
+function showFeedback(isCorrect, expired) {
+  const fb = document.getElementById('fb-overlay');
+  const box = document.getElementById('fb-box');
+  const data = QUESTIONS[currentQ];
+
+  document.getElementById('fb-icon').textContent = isCorrect ? '✅' : (expired ? '⏰' : '❌');
+  document.getElementById('fb-verdict').textContent = isCorrect ? '¡Correcto!' : (expired ? 'Tiempo agotado' : 'Incorrecto');
+  document.getElementById('fb-verdict').style.color = isCorrect ? '#2ecc40' : '#ff4466';
+
+  const pts = document.getElementById('fb-pts');
+  pts.textContent = isCorrect ? `+${POINTS_EACH} puntos · Total: ${score}/20` : `+0 puntos · Total: ${score}/20`;
+  pts.style.background = isCorrect ? 'rgba(46,204,64,.15)' : 'rgba(226,27,60,.15)';
+  pts.style.color = isCorrect ? '#2ecc40' : '#ff4466';
+  pts.style.border = `1px solid ${isCorrect ? '#2ecc40' : '#ff4466'}`;
+
+  document.getElementById('fb-expl').textContent = data.fb;
+
+  const isLast = currentQ === TOTAL - 1;
+  document.getElementById('fb-btn').textContent = isLast ? 'VER RESULTADOS →' : 'SIGUIENTE PREGUNTA →';
+
+  box.style.borderColor = isCorrect ? '#2ecc40' : '#e21b3c';
+  fb.style.display = 'flex';
+}
+
+function nextQuestion() {
+  document.getElementById('fb-overlay').style.display = 'none';
+  currentQ++;
+  if (currentQ < TOTAL) {
+    loadQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  show('scr-results');
+
+  // Score circle
+  const circle = document.getElementById('r-circle');
+  const scoreEl = document.getElementById('r-score');
+  scoreEl.textContent = score;
+
+  let color, level, title, detail;
+  const pct = (score/20)*100;
+
+  if (score >= 18) {
+    color = '#2ecc40'; level = 'EXCELENTE'; title = '🏆 ¡Dominio sobresaliente!';
+    detail = 'Demuestras un dominio sólido y completo de AD DS, GPOs y roles FSMO. Estás listo para implementar y administrar entornos de Directorio Activo en producción.';
+  } else if (score >= 14) {
+    color = '#1ab5a8'; level = 'BUENO'; title = '🎯 Buen nivel de comprensión';
+    detail = 'Tienes una comprensión sólida de los conceptos. Repasa los temas donde tuviste errores para consolidar tu conocimiento sobre precedencia de GPOs y roles FSMO.';
+  } else if (score >= 11) {
+    color = '#ffc400'; level = 'ACEPTABLE'; title = '📚 Comprensión parcial';
+    detail = 'Comprendes los conceptos básicos, pero hay áreas por reforzar. Revisa especialmente el orden LSDOU, el procesamiento sincrónico/asíncrono y los requisitos de AD DS.';
+  } else if (score >= 7) {
+    color = '#e67e22'; level = 'BÁSICO'; title = '📖 Necesitas reforzar';
+    detail = 'Tienes nociones generales pero es necesario estudiar con más profundidad. Revisa el Capítulo 5 completo, especialmente los pasos de implementación y la estructura de GPOs.';
+  } else {
+    color = '#e21b3c'; level = 'INSUFICIENTE'; title = '🔄 Requiere estudio adicional';
+    detail = 'Es necesario repasar los contenidos del Capítulo 5 desde el inicio. Te recomendamos revisar el PDF de la sesión y los recursos del case study RedPerú antes de volver a rendir.';
+  }
+
+  circle.style.borderColor = color;
+  circle.style.color = color;
+  circle.querySelector('.r-denom').style.color = color;
+  circle.style.boxShadow = `0 0 30px ${color}40`;
+  circle.querySelector('.r-score').style.color = color;
+
+  document.getElementById('r-title').textContent = title;
+  document.getElementById('r-level').textContent = level;
+  document.getElementById('r-level').style.color = color;
+  document.getElementById('r-detail').textContent = detail;
+  document.getElementById('rb-correct').textContent = correctCount;
+  document.getElementById('rb-wrong').textContent = TOTAL - correctCount;
+  document.getElementById('rb-pct').textContent = `${Math.round(pct)}%`;
+
+  // History
+  const hist = document.getElementById('r-history');
+  hist.innerHTML = history.map((h,i) => `
+    <div class="rh-row">
+      <span class="rh-num">${i+1}</span>
+      <span class="rh-q">${h.q}</span>
+      <div class="rh-dot" style="background:${h.correct?'#2ecc40':'#e21b3c'}">
+        ${h.correct?'✓':'✗'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function retryQuiz() {
+  // Shuffle questions for retry variety
+  for (let i = QUESTIONS.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [QUESTIONS[i], QUESTIONS[j]] = [QUESTIONS[j], QUESTIONS[i]];
+  }
+  startQuiz();
+}
+</script>
+</body>
+</html>
 
