@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSMO Roles — AR Neon Visualization</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#000;font-family:Arial,sans-serif;color:#fff;min-height:100vh;overflow-x:hidden;}
+
+/* ── AR GRID ── */
+.ar-grid{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,255,.035) 1px,transparent 1px);
+  background-size:44px 44px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── SCANLINE ── */
+@keyframes scan{0%{top:-4px}100%{top:100%}}
+.scanline{position:fixed;left:0;width:100%;height:3px;
+  background:linear-gradient(transparent,rgba(0,255,255,.16),transparent);
+  animation:scan 5s linear infinite;pointer-events:none;z-index:1;}
+
+/* ── HUD CORNERS ── */
+.hud{position:fixed;width:40px;height:40px;z-index:2;}
+.hud::before,.hud::after{content:'';position:absolute;background:#0ff;box-shadow:0 0 6px #0ff;}
+.hud-tl{top:10px;left:10px;} .hud-tr{top:10px;right:10px;}
+.hud-bl{bottom:10px;left:10px;} .hud-br{bottom:10px;right:10px;}
+.hud-tl::before,.hud-tr::before,.hud-bl::before,.hud-br::before{width:2px;height:20px;}
+.hud-tl::after,.hud-tr::after,.hud-bl::after,.hud-br::after{width:20px;height:2px;}
+.hud-tl::before{top:0;left:0} .hud-tl::after{top:0;left:0}
+.hud-tr::before{top:0;right:0} .hud-tr::after{top:0;right:0}
+.hud-bl::before{bottom:0;left:0} .hud-bl::after{bottom:0;left:0}
+.hud-br::before{bottom:0;right:0} .hud-br::after{bottom:0;right:0}
+
+/* ── STATUS BAR ── */
+.statusbar{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:3px;color:rgba(0,255,255,.4);
+  z-index:3;text-shadow:0 0 6px #0ff;white-space:nowrap;}
+
+/* ── WRAPPER ── */
+.wrap{position:relative;z-index:2;max-width:1000px;margin:0 auto;padding:22px 18px 80px;}
+
+/* ── TITLE ── */
+.main-title{text-align:center;font-size:21px;font-weight:bold;letter-spacing:4px;
+  color:#0ff;text-shadow:0 0 8px #0ff,0 0 22px #0ff,0 0 44px rgba(0,255,255,.4);
+  padding:14px 0 4px;}
+.main-sub{text-align:center;font-size:10px;letter-spacing:3px;color:rgba(0,255,136,.7);
+  text-shadow:0 0 8px #0f8;margin-bottom:10px;}
+.netdom{text-align:center;font-size:11px;letter-spacing:1px;color:#444;
+  margin-bottom:24px;font-family:'Courier New',monospace;}
+.netdom span{color:#0ff;text-shadow:0 0 5px #0ff;}
+
+/* ── PANEL ── */
+.panel{position:relative;border-radius:8px;padding:16px 16px 18px;margin-bottom:18px;
+  background:rgba(255,255,255,.012);}
+.panel-forest{border:1px solid rgba(0,255,255,.32);box-shadow:inset 0 0 30px rgba(0,255,255,.025),0 0 18px rgba(0,255,255,.05);}
+.panel-domain{border:1px solid rgba(255,0,255,.32);box-shadow:inset 0 0 30px rgba(255,0,255,.025),0 0 18px rgba(255,0,255,.05);}
+.panel-server{border:1px solid rgba(0,255,136,.28);box-shadow:inset 0 0 24px rgba(0,255,136,.02),0 0 14px rgba(0,255,136,.04);}
+
+/* ── BRACKET CORNERS ── */
+.bc{position:absolute;width:14px;height:14px;}
+.bc::before,.bc::after{content:'';position:absolute;}
+.bc::before{width:2px;height:14px;top:0;}
+.bc::after{width:14px;height:2px;top:0;}
+.bc-tl{top:-1px;left:-1px;} .bc-tl::before{left:0;} .bc-tl::after{left:0;}
+.bc-tr{top:-1px;right:-1px;} .bc-tr::before{right:0;} .bc-tr::after{right:0;}
+.bc-bl{bottom:-1px;left:-1px;} .bc-bl::before{left:0;bottom:0;top:auto;} .bc-bl::after{left:0;bottom:0;top:auto;}
+.bc-br{bottom:-1px;right:-1px;} .bc-br::before{right:0;bottom:0;top:auto;} .bc-br::after{right:0;bottom:0;top:auto;}
+.bc-c::before,.bc-c::after{background:#0ff;box-shadow:0 0 6px #0ff;}
+.bc-m::before,.bc-m::after{background:#f0f;box-shadow:0 0 6px #f0f;}
+.bc-g::before,.bc-g::after{background:#0f8;box-shadow:0 0 6px #0f8;}
+
+/* ── SECTION LABEL ── */
+.sec-label{font-size:11px;font-weight:bold;letter-spacing:2px;
+  margin-bottom:12px;padding:3px 10px;display:inline-flex;align-items:center;gap:8px;}
+.sec-c{color:#0ff;border-left:2px solid #0ff;text-shadow:0 0 8px #0ff;}
+.sec-m{color:#f0f;border-left:2px solid #f0f;text-shadow:0 0 8px #f0f;}
+.sec-g{color:#0f8;border-left:2px solid #0f8;text-shadow:0 0 8px #0f8;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.blink{animation:blink 1.4s step-end infinite;}
+
+/* ── SCOPE BADGE ── */
+.scope-badge{display:inline-block;font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:3px;
+  font-weight:bold;margin-bottom:12px;}
+.badge-c{background:rgba(0,255,255,.07);border:1px solid rgba(0,255,255,.4);
+  color:#0ff;text-shadow:0 0 5px #0ff;}
+.badge-m{background:rgba(255,0,255,.07);border:1px solid rgba(255,0,255,.4);
+  color:#f0f;text-shadow:0 0 5px #f0f;}
+
+/* ── CARDS ROW ── */
+.cards-row{display:flex;gap:14px;flex-wrap:wrap;}
+
+/* ── NODE CARD ── */
+.node{cursor:pointer;border-radius:6px;padding:12px 14px;flex:1;min-width:160px;
+  text-align:center;position:relative;overflow:hidden;
+  transition:transform .18s,box-shadow .18s;}
+.node::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.04),transparent);pointer-events:none;}
+.node:hover{transform:scale(1.05);}
+.node:active{transform:scale(.97);}
+.node-title{font-size:11px;font-weight:bold;letter-spacing:.8px;margin-bottom:4px;}
+.node-sub{font-size:9px;opacity:.7;letter-spacing:.3px;}
+.node-badge{display:inline-block;font-size:8px;letter-spacing:1px;padding:1px 5px;
+  border-radius:2px;margin-top:5px;opacity:.8;}
+.node-hint{position:absolute;bottom:4px;right:5px;font-size:8px;opacity:.35;letter-spacing:.5px;}
+
+/* Neon variants */
+.n-cyan{background:rgba(0,255,255,.055);border:1px solid rgba(0,255,255,.65);
+  color:#0ff;box-shadow:0 0 10px rgba(0,255,255,.3),inset 0 0 10px rgba(0,255,255,.03);text-shadow:0 0 6px #0ff;}
+.n-cyan:hover{box-shadow:0 0 20px #0ff,0 0 36px rgba(0,255,255,.4),inset 0 0 14px rgba(0,255,255,.08);}
+
+.n-magenta{background:rgba(255,0,255,.055);border:1px solid rgba(255,0,255,.65);
+  color:#f0f;box-shadow:0 0 10px rgba(255,0,255,.3),inset 0 0 10px rgba(255,0,255,.03);text-shadow:0 0 6px #f0f;}
+.n-magenta:hover{box-shadow:0 0 20px #f0f,0 0 36px rgba(255,0,255,.4),inset 0 0 14px rgba(255,0,255,.08);}
+
+.n-red{background:rgba(255,80,0,.055);border:1px solid rgba(255,80,0,.7);
+  color:#ff5000;box-shadow:0 0 10px rgba(255,80,0,.35),inset 0 0 10px rgba(255,80,0,.03);text-shadow:0 0 6px #ff5000;}
+.n-red:hover{box-shadow:0 0 20px #ff5000,0 0 36px rgba(255,80,0,.45),inset 0 0 14px rgba(255,80,0,.1);}
+
+.n-amber{background:rgba(255,200,0,.055);border:1px solid rgba(255,200,0,.65);
+  color:#fc0;box-shadow:0 0 10px rgba(255,200,0,.3),inset 0 0 10px rgba(255,200,0,.03);text-shadow:0 0 6px #fc0;}
+.n-amber:hover{box-shadow:0 0 20px #fc0,0 0 36px rgba(255,200,0,.4);}
+
+.n-green{background:rgba(0,255,136,.055);border:1px solid rgba(0,255,136,.65);
+  color:#0f8;box-shadow:0 0 10px rgba(0,255,136,.3),inset 0 0 10px rgba(0,255,136,.03);text-shadow:0 0 6px #0f8;}
+.n-green:hover{box-shadow:0 0 20px #0f8,0 0 36px rgba(0,255,136,.4);}
+
+.n-violet{background:rgba(160,80,255,.055);border:1px solid rgba(160,80,255,.65);
+  color:#a050ff;box-shadow:0 0 10px rgba(160,80,255,.3),inset 0 0 10px rgba(160,80,255,.03);text-shadow:0 0 6px #a050ff;}
+.n-violet:hover{box-shadow:0 0 20px #a050ff,0 0 36px rgba(160,80,255,.4);}
+
+/* Pulse animations */
+@keyframes pulse-c{0%,100%{box-shadow:0 0 10px rgba(0,255,255,.3),inset 0 0 10px rgba(0,255,255,.03)}50%{box-shadow:0 0 22px #0ff,0 0 44px rgba(0,255,255,.5),inset 0 0 16px rgba(0,255,255,.1)}}
+@keyframes pulse-r{0%,100%{box-shadow:0 0 10px rgba(255,80,0,.35),inset 0 0 10px rgba(255,80,0,.03)}50%{box-shadow:0 0 22px #ff5000,0 0 44px rgba(255,80,0,.5),inset 0 0 16px rgba(255,80,0,.12)}}
+.pulse-c{animation:pulse-c 2.4s ease-in-out infinite;}
+.pulse-r{animation:pulse-r 1.8s ease-in-out infinite;}
+
+/* Ripple */
+@keyframes ripple{0%{transform:scale(0);opacity:.4}100%{transform:scale(3);opacity:0}}
+.ripple{position:absolute;border-radius:50%;width:60px;height:60px;margin:-30px;
+  animation:ripple .5s ease-out forwards;pointer-events:none;}
+
+/* ── TRANSFER TABLE ── */
+.trans-panel{border:1px solid #111;border-radius:6px;padding:14px;
+  background:rgba(255,255,255,.006);margin-bottom:18px;}
+.trans-title{font-size:10px;letter-spacing:2px;color:#333;margin-bottom:10px;}
+.trans-table{width:100%;border-collapse:collapse;font-size:11px;}
+.trans-table th{padding:8px 10px;text-align:left;letter-spacing:1px;border-bottom:1px solid #1a1a1a;}
+.trans-table td{padding:7px 10px;border-bottom:1px solid #0d0d0d;color:#777;}
+.trans-table tr:hover td{background:rgba(255,255,255,.015);}
+
+/* ── MODAL OVERLAY ── */
+.overlay{display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+
+@keyframes modal-in{0%{opacity:0;transform:scale(.93) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.modal{position:relative;background:#000;border-radius:10px;
+  padding:28px 30px 24px;max-width:540px;width:92%;
+  animation:modal-in .22s ease-out;font-family:Arial,sans-serif;}
+.mc{position:absolute;width:16px;height:16px;}
+.mc::before,.mc::after{content:'';position:absolute;}
+.mc::before{width:2px;height:16px;top:0;}
+.mc::after{width:16px;height:2px;top:0;}
+.mc-tl{top:-1px;left:-1px;} .mc-tl::before{left:0} .mc-tl::after{left:0}
+.mc-tr{top:-1px;right:-1px;} .mc-tr::before{right:0} .mc-tr::after{right:0}
+.mc-bl{bottom:-1px;left:-1px;} .mc-bl::before{left:0;bottom:0;top:auto} .mc-bl::after{left:0;bottom:0;top:auto}
+.mc-br{bottom:-1px;right:-1px;} .mc-br::before{right:0;bottom:0;top:auto} .mc-br::after{right:0;bottom:0;top:auto}
+
+.modal-icon{font-size:28px;margin-bottom:8px;display:block;}
+.modal-title{font-size:15px;font-weight:bold;letter-spacing:1.5px;margin-bottom:12px;}
+.modal-body{font-size:12px;line-height:1.85;color:#aaa;}
+.modal-body b{font-weight:bold;}
+.modal-body ul{margin:6px 0 6px 16px;}
+.modal-body li{margin-bottom:3px;}
+.modal-body code{font-family:'Courier New',monospace;font-size:11px;
+  background:rgba(255,255,255,.06);padding:1px 5px;border-radius:2px;}
+.modal-scope{display:inline-block;font-size:9px;letter-spacing:2px;padding:3px 10px;
+  border-radius:3px;font-weight:bold;margin-top:4px;}
+.modal-cmd{display:block;font-family:'Courier New',monospace;font-size:10px;
+  background:rgba(255,255,255,.06);padding:8px 12px;border-radius:4px;
+  margin-top:10px;color:#aaa;letter-spacing:.5px;}
+.close-btn{position:absolute;top:12px;right:14px;background:none;border:none;
+  color:#444;font-size:18px;cursor:pointer;font-family:Arial;transition:color .15s;}
+.close-btn:hover{color:#fff;}
+
+/* Modal themes */
+.m-cyan{border:1px solid rgba(0,255,255,.55);box-shadow:0 0 40px rgba(0,255,255,.22),0 0 80px rgba(0,255,255,.07);}
+.m-cyan .mc::before,.m-cyan .mc::after{background:#0ff;box-shadow:0 0 6px #0ff;}
+.m-magenta{border:1px solid rgba(255,0,255,.55);box-shadow:0 0 40px rgba(255,0,255,.22),0 0 80px rgba(255,0,255,.07);}
+.m-magenta .mc::before,.m-magenta .mc::after{background:#f0f;box-shadow:0 0 6px #f0f;}
+.m-red{border:1px solid rgba(255,80,0,.6);box-shadow:0 0 40px rgba(255,80,0,.25),0 0 80px rgba(255,80,0,.08);}
+.m-red .mc::before,.m-red .mc::after{background:#ff5000;box-shadow:0 0 6px #ff5000;}
+.m-amber{border:1px solid rgba(255,200,0,.55);box-shadow:0 0 40px rgba(255,200,0,.22),0 0 80px rgba(255,200,0,.07);}
+.m-amber .mc::before,.m-amber .mc::after{background:#fc0;box-shadow:0 0 6px #fc0;}
+.m-green{border:1px solid rgba(0,255,136,.55);box-shadow:0 0 40px rgba(0,255,136,.22),0 0 80px rgba(0,255,136,.07);}
+.m-green .mc::before,.m-green .mc::after{background:#0f8;box-shadow:0 0 6px #0f8;}
+.m-violet{border:1px solid rgba(160,80,255,.55);box-shadow:0 0 40px rgba(160,80,255,.22),0 0 80px rgba(160,80,255,.07);}
+.m-violet .mc::before,.m-violet .mc::after{background:#a050ff;box-shadow:0 0 6px #a050ff;}
+</style>
+</head>
+<body>
+
+<div class="ar-grid"></div>
+<div class="scanline"></div>
+<div class="hud hud-tl"></div>
+<div class="hud hud-tr"></div>
+<div class="hud hud-bl"></div>
+<div class="hud hud-br"></div>
+<div class="statusbar" id="statusbar">[ SYS:ONLINE — AD:CONNECTED — FSMO:READY — CLICK NODE FOR INFO ]</div>
+
+<div class="wrap">
+
+  <div class="main-title">FLEXIBLE SINGLE MASTER OPERATIONS</div>
+  <div class="main-sub">[ ACTIVE DIRECTORY · 5 ROLES FSMO · AR VISUALIZATION · HAZ CLIC EN CADA NODO ]</div>
+  <div class="netdom">C:\Users\Administrator&gt; <span>netdom query fsmo</span> &nbsp;→&nbsp; SERVER_DC.ADSO.COM (todos los roles)</div>
+
+  <!-- ══ PANEL BOSQUE ══ -->
+  <div class="panel panel-forest">
+    <div class="bc bc-tl bc-c"></div><div class="bc bc-tr bc-c"></div>
+    <div class="bc bc-bl bc-c"></div><div class="bc bc-br bc-c"></div>
+    <div class="sec-label sec-c"><span class="blink">▌</span> ÁMBITO DE BOSQUE — 1 POR BOSQUE</div>
+    <div class="scope-badge badge-c">FOREST-WIDE · ÚNICOS EN TODO EL BOSQUE AD</div>
+    <div class="cards-row">
+
+      <div class="node n-cyan pulse-c" onclick="show('schema')">
+        <div class="node-title">SCHEMA MASTER</div>
+        <div class="node-sub">Esquema del bosque</div>
+        <div class="node-badge" style="background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.3);color:#0ff;">Extensiones de esquema</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+      <div class="node n-cyan" onclick="show('dnm')">
+        <div class="node-title">DOMAIN NAMING MASTER</div>
+        <div class="node-sub">Nombres de dominios</div>
+        <div class="node-badge" style="background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.3);color:#0ff;">Agregar / quitar dominios</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANEL DOMINIO ══ -->
+  <div class="panel panel-domain">
+    <div class="bc bc-tl bc-m"></div><div class="bc bc-tr bc-m"></div>
+    <div class="bc bc-bl bc-m"></div><div class="bc bc-br bc-m"></div>
+    <div class="sec-label sec-m"><span class="blink">▌</span> ÁMBITO DE DOMINIO — 1 POR DOMINIO</div>
+    <div class="scope-badge badge-m">DOMAIN-WIDE · DOMINIO: ADSO.COM</div>
+    <div class="cards-row">
+
+      <div class="node n-red pulse-r" onclick="show('pdc')">
+        <div class="node-title">PDC EMULATOR</div>
+        <div class="node-sub">Contraseñas · Tiempo · Auth</div>
+        <div class="node-badge" style="background:rgba(255,80,0,.08);border:1px solid rgba(255,80,0,.35);color:#ff5000;">⚠ ROL MÁS CRÍTICO</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+      <div class="node n-amber" onclick="show('rid')">
+        <div class="node-title">RID POOL MANAGER</div>
+        <div class="node-sub">SIDs únicos</div>
+        <div class="node-badge" style="background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.3);color:#fc0;">Bloques de 500 RIDs</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+      <div class="node n-violet" onclick="show('infra')">
+        <div class="node-title">INFRASTRUCTURE MASTER</div>
+        <div class="node-sub">Referencias entre dominios</div>
+        <div class="node-badge" style="background:rgba(160,80,255,.08);border:1px solid rgba(160,80,255,.3);color:#a050ff;">Phantom objects</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANEL SERVIDOR ══ -->
+  <div class="panel panel-server">
+    <div class="bc bc-tl bc-g"></div><div class="bc bc-tr bc-g"></div>
+    <div class="bc bc-bl bc-g"></div><div class="bc bc-br bc-g"></div>
+    <div class="sec-label sec-g"><span class="blink">▌</span> TITULAR ACTUAL — SINGLE DC TOPOLOGY</div>
+    <div class="cards-row">
+
+      <div class="node n-green" onclick="show('serverdc')">
+        <div class="node-title">SERVER_DC.ADSO.COM</div>
+        <div class="node-sub">Windows Server 2016 · Build 14393</div>
+        <div class="node-badge" style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:#0f8;">5 / 5 roles FSMO · DC único</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+      <div class="node n-magenta" onclick="show('transfer')">
+        <div class="node-title">TRANSFERENCIA DE ROLES</div>
+        <div class="node-sub">Move / Seize operations</div>
+        <div class="node-badge" style="background:rgba(255,0,255,.08);border:1px solid rgba(255,0,255,.3);color:#f0f;">ntdsutil · PowerShell</div>
+        <div class="node-hint">TAP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ TABLA COMPARATIVA ══ -->
+  <div class="trans-panel">
+    <div class="trans-title">// TABLA COMPARATIVA DE ROLES FSMO</div>
+    <table class="trans-table">
+      <thead>
+        <tr>
+          <th style="color:#555">ROL</th>
+          <th style="color:#555">ÁMBITO</th>
+          <th style="color:#555">IMPACTO SI FALLA</th>
+          <th style="color:#555">OPERACIÓN AFECTADA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="color:#0ff">Schema Master</td><td style="color:#333">Bosque</td><td style="color:#444">Bajo (diario)</td><td style="color:#666">Extensiones de esquema</td></tr>
+        <tr><td style="color:#0ff">Domain Naming Master</td><td style="color:#333">Bosque</td><td style="color:#444">Bajo (diario)</td><td style="color:#666">Agregar/quitar dominios</td></tr>
+        <tr><td style="color:#ff5000">PDC Emulator</td><td style="color:#333">Dominio</td><td style="color:#ff5000">CRÍTICO (inmediato)</td><td style="color:#666">Contraseñas, tiempo, login</td></tr>
+        <tr><td style="color:#fc0">RID Pool Manager</td><td style="color:#333">Dominio</td><td style="color:#777">Medio</td><td style="color:#666">Crear objetos de seguridad</td></tr>
+        <tr><td style="color:#a050ff">Infrastructure Master</td><td style="color:#333">Dominio</td><td style="color:#777">Bajo–Medio</td><td style="color:#666">Refs. entre dominios</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="overlay" id="overlay" onclick="closeOnBg(event)">
+  <div class="modal" id="modal">
+    <div class="mc mc-tl" id="mc-tl"></div><div class="mc mc-tr" id="mc-tr"></div>
+    <div class="mc mc-bl" id="mc-bl"></div><div class="mc mc-br" id="mc-br"></div>
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <span class="modal-icon" id="m-icon"></span>
+    <div class="modal-title" id="m-title"></div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-scope" id="m-scope"></div>
+    <code class="modal-cmd" id="m-cmd"></code>
+  </div>
+</div>
+
+<script>
+const DB = {
+  schema:{
+    color:'cyan', icon:'🗂️',
+    title:'SCHEMA MASTER',
+    body:`El Schema Master es el único DC autorizado para realizar <b>modificaciones al esquema del bosque de Active Directory</b>. El esquema define las clases de objetos (user, computer, group, organizationalUnit) y los atributos que cada clase puede contener (sAMAccountName, mail, memberOf, etc.).<br><br>
+    <b>¿Cuándo se utiliza?</b>
+    <ul>
+      <li>Instalación de Exchange Server (<code>adprep /forestprep</code>)</li>
+      <li>Instalación de Lync / Skype for Business</li>
+      <li>Instalación de System Center Configuration Manager</li>
+      <li>Extensión manual del esquema con <code>ldifde</code> o ADSI Edit</li>
+      <li>Upgrading del nivel funcional del bosque</li>
+    </ul>
+    <b>Impacto si falla:</b> Bajo en operación diaria. Solo afecta si necesitas extender el esquema. Los DCs reeplican el esquema existente sin problema.<br><br>
+    <b>Verificar titular:</b> <code>netdom query fsmo</code> o el MMC de AD Schema.`,
+    scope:'ÁMBITO: BOSQUE · 1 POR BOSQUE · BAJO RIESGO DIARIO',
+    cmd:'netdom query fsmo | findstr /i schema\nMove-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole SchemaMaster'
+  },
+  dnm:{
+    color:'cyan', icon:'🌐',
+    title:'DOMAIN NAMING MASTER',
+    body:`El Domain Naming Master garantiza la <b>unicidad de los nombres de dominio dentro del bosque</b>. Es consultado cada vez que se altera la estructura de dominios del bosque.<br><br>
+    <b>¿Cuándo se utiliza?</b>
+    <ul>
+      <li>Agregar un nuevo dominio hijo (ej: <code>filial.adso.com</code>)</li>
+      <li>Eliminar un dominio existente del bosque</li>
+      <li>Cambiar el nombre de un dominio</li>
+      <li>Crear o eliminar trust relationships entre dominios</li>
+      <li>Agregar application directory partitions</li>
+    </ul>
+    <b>Impacto si falla:</b> Bajo en operación diaria. Solo afecta operaciones estructurales del bosque. En un bosque de dominio único (caso ADSO.COM) el impacto es prácticamente nulo en el día a día.<br><br>
+    <b>Recomendación:</b> Debe estar en el mismo DC que el Global Catalog para verificar unicidad de nombres UPN.`,
+    scope:'ÁMBITO: BOSQUE · 1 POR BOSQUE · OPERACIONES ESTRUCTURALES',
+    cmd:'netdom query fsmo | findstr /i "naming"\nMove-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole DomainNamingMaster'
+  },
+  pdc:{
+    color:'red', icon:'⚡',
+    title:'PDC EMULATOR — ROL MÁS CRÍTICO',
+    body:`El PDC Emulator es el rol FSMO con mayor impacto en la operación cotidiana del dominio. Cumple <b>múltiples funciones simultáneas</b> que afectan directamente a usuarios y sistemas.<br><br>
+    <b>Funciones críticas:</b>
+    <ul>
+      <li><b>Fuente de tiempo (NTP):</b> Es la fuente autoritativa de tiempo para todos los DCs del dominio. Cadena: Clientes → DCs → PDC Emulator → fuente NTP externa. Diferencias mayores a 5 minutos rompen la autenticación Kerberos.</li>
+      <li><b>Cambios de contraseña urgentes:</b> Cuando un usuario cambia su contraseña, el cambio se replica inmediatamente al PDC Emulator (sin esperar el ciclo de replicación de 15 min). Así, si el usuario intenta autenticarse en otro DC antes de que replique, ese DC consulta al PDC Emulator.</li>
+      <li><b>Bloqueos de cuenta:</b> Los intentos de login fallidos se reportan al PDC Emulator, que toma la decisión de bloquear la cuenta de forma centralizada.</li>
+      <li><b>Emulación BDC:</b> Para clientes Windows NT 3.x / 4.0 heredados actúa como PDC clásico.</li>
+      <li><b>GPO edición:</b> El GPMC conecta al PDC Emulator por defecto para editar GPOs.</li>
+    </ul>
+    <b>Impacto si falla:</b> CRÍTICO. Inconsistencias de contraseñas, bloqueos erróneos, posible fallo de autenticación Kerberos por drift de tiempo.`,
+    scope:'ÁMBITO: DOMINIO: ADSO.COM · 1 POR DOMINIO · IMPACTO CRÍTICO INMEDIATO',
+    cmd:'w32tm /query /source  ← verificar sincronización NTP\nnetdom query fsmo | findstr PDC\nMove-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole PDCEmulator'
+  },
+  rid:{
+    color:'amber', icon:'🔢',
+    title:'RID POOL MANAGER',
+    body:`Cada objeto de seguridad en Active Directory (usuario, grupo, equipo, cuenta de servicio) posee un <b>Security Identifier (SID) globalmente único</b>, compuesto por:<br><br>
+    <code>SID = S-1-5-21-[dominio]-[RID]</code><br><br>
+    El componente <b>RID (Relative Identifier)</b> debe ser único dentro del dominio. El RID Pool Manager distribuye bloques de 500 RIDs consecutivos a cada DC del dominio. Cuando un DC agota su bloque (tras crear 500 objetos), solicita un nuevo bloque al RID Pool Manager.<br><br>
+    <b>¿Cuándo se usa?</b>
+    <ul>
+      <li>Cada vez que se crea un nuevo objeto de seguridad (usuario, grupo, equipo)</li>
+      <li>Cuando un DC solicita reposición de su pool de RIDs</li>
+      <li>Durante la recuperación de objetos eliminados (tombstone)</li>
+    </ul>
+    <b>Impacto si falla:</b> Medio. Los DCs pueden seguir creando objetos hasta agotar su bloque actual (hasta 500). Después no pueden crear nuevos objetos de seguridad hasta que el RID Pool Manager esté disponible.<br><br>
+    <b>Precaución:</b> No restaurar una copia de AD anterior al último punto de distribución de RIDs para evitar SIDs duplicados.`,
+    scope:'ÁMBITO: DOMINIO: ADSO.COM · 1 POR DOMINIO · IMPACTO MEDIO',
+    cmd:'dcdiag /test:ridmanager /v\nGet-ADDomain | Select-Object RIDMaster\nMove-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole RIDMaster'
+  },
+  infra:{
+    color:'violet', icon:'🔗',
+    title:'INFRASTRUCTURE MASTER',
+    body:`El Infrastructure Master mantiene actualizadas las <b>referencias fantasma (phantom objects)</b>: registros locales que un dominio guarda sobre objetos pertenecientes a otros dominios del mismo bosque.<br><br>
+    <b>Ejemplo práctico:</b> El grupo <code>Ventas</code> del dominio <code>ADSO.COM</code> tiene como miembro al usuario <code>juan@filial.adso.com</code>. Si Juan cambia de nombre en su dominio, el Infrastructure Master de ADSO.COM debe actualizar esa referencia fantasma.<br><br>
+    <b>⚠ Regla crítica del Global Catalog:</b><br>
+    El Infrastructure Master <b>no debe estar en el mismo DC que un Global Catalog (GC)</b>, excepto cuando:<br>
+    <ul>
+      <li>Todos los DCs del bosque son Global Catalogs (caso más común hoy en día)</li>
+      <li>El bosque tiene un único dominio (caso ADSO.COM)</li>
+    </ul>
+    Si el Infrastructure Master está en un GC y no todos los DCs son GC, las referencias entre dominios nunca se actualizarán, porque el GC ya tiene la información actualizada y el Infrastructure Master nunca detecta los cambios.<br><br>
+    <b>Impacto si falla:</b> Bajo en bosques de un único dominio (caso actual). En bosques multi-dominio puede causar SIDs huérfanos en grupos.`,
+    scope:'ÁMBITO: DOMINIO: ADSO.COM · 1 POR DOMINIO · REGLA DEL GC OBLIGATORIA',
+    cmd:'repadmin /showattr * dc=adso,dc=com /filter:"(objectClass=group)" /attrs:member\nMove-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole InfrastructureMaster'
+  },
+  serverdc:{
+    color:'green', icon:'🖥️',
+    title:'SERVER_DC.ADSO.COM — DC ÚNICO',
+    body:`La salida de <code>netdom query fsmo</code> confirma que <b>SERVER_DC.ADSO.COM concentra los 5 roles FSMO</b>, condición normal y válida cuando el bosque tiene un único Domain Controller.<br><br>
+    <b>Sistema identificado:</b>
+    <ul>
+      <li>Windows Server 2016 · Build 10.0.14393</li>
+      <li>Dominio: ADSO.COM</li>
+      <li>Roles: Schema Master, Domain Naming Master, PDC Emulator, RID Pool Manager, Infrastructure Master</li>
+    </ul>
+    <b>Riesgo del DC único:</b> Si SERVER_DC falla, <b>todo el dominio falla</b>. No hay autenticación, no hay GPOs, no hay DNS AD-integrado. Este es el escenario de mayor riesgo operacional.<br><br>
+    <b>Plan de resiliencia recomendado:</b>
+    <ul>
+      <li>Promover un segundo DC (DC2)</li>
+      <li>Transferir Schema Master y Domain Naming Master a DC2 (o mantenerlos en DC principal)</li>
+      <li>PDC Emulator y RID Pool Manager → DC de mejor conectividad</li>
+      <li>Infrastructure Master → DC que NO sea GC (si no todos son GC)</li>
+    </ul>`,
+    scope:'SERVER_DC.ADSO.COM · WINDOWS SERVER 2016 · SINGLE DC',
+    cmd:'Get-ADDomainController -Filter * | Select Name,OperationMasterRoles\nnetdom query fsmo'
+  },
+  transfer:{
+    color:'magenta', icon:'🔄',
+    title:'TRANSFERENCIA Y INCAUTACIÓN DE ROLES FSMO',
+    body:`Existen dos operaciones para cambiar el titular de un rol FSMO:<br><br>
+    <b>1. Transferencia (Transfer) — DC origen disponible:</b><br>
+    Proceso graceful. El DC origen sincroniza todo con el destino antes de ceder el rol. Siempre preferida.
+    <ul>
+      <li>PowerShell: <code>Move-ADDirectoryServerOperationMasterRole</code></li>
+      <li>MMC: AD Users and Computers → clic derecho DC → Operations Master</li>
+      <li>ntdsutil: <code>roles → connections → connect to server DC2 → quit → transfer pdc</code></li>
+    </ul>
+    <b>2. Incautación (Seize) — DC origen caído:</b><br>
+    Operación de emergencia. El DC origen NO debe volver a encenderse nunca tras una seizure (o debe ser limpiado del AD con <code>ntdsutil metadata cleanup</code>).
+    <ul>
+      <li>Solo vía ntdsutil: <code>seize pdc</code>, <code>seize rid master</code>, etc.</li>
+      <li>PowerShell con <code>-Force</code>: <code>Move-ADDirectoryServerOperationMasterRole -Force</code></li>
+    </ul>
+    <b>Orden de transferencia recomendado:</b> RID → PDC → Infrastructure → Domain Naming → Schema`,
+    scope:'TRANSFER: DC VIVO · SEIZE: DC CAÍDO · IRREVERSIBLE',
+    cmd:'Move-ADDirectoryServerOperationMasterRole -Identity "DC2" -OperationMasterRole PDCEmulator,RIDMaster,InfrastructureMaster,DomainNamingMaster,SchemaMaster'
+  }
+};
+
+const CLR = {
+  cyan:   {cls:'m-cyan',    hex:'#00ffff', tagBg:'rgba(0,255,255,.1)'},
+  red:    {cls:'m-red',     hex:'#ff5000', tagBg:'rgba(255,80,0,.12)'},
+  amber:  {cls:'m-amber',   hex:'#ffcc00', tagBg:'rgba(255,200,0,.1)'},
+  violet: {cls:'m-violet',  hex:'#a050ff', tagBg:'rgba(160,80,255,.1)'},
+  green:  {cls:'m-green',   hex:'#00ff88', tagBg:'rgba(0,255,136,.1)'},
+  magenta:{cls:'m-magenta', hex:'#ff00ff', tagBg:'rgba(255,0,255,.1)'},
+};
+
+function show(key){
+  const d=DB[key]; const c=CLR[d.color];
+  const modal=document.getElementById('modal');
+  modal.className='modal '+c.cls;
+  document.getElementById('m-icon').textContent=d.icon;
+  const title=document.getElementById('m-title');
+  title.textContent=d.title; title.style.color=c.hex; title.style.textShadow='0 0 12px '+c.hex;
+  document.getElementById('m-body').innerHTML=d.body;
+  const scope=document.getElementById('m-scope');
+  scope.textContent=d.scope; scope.style.color=c.hex;
+  scope.style.background=c.tagBg; scope.style.border='1px solid '+c.hex;
+  scope.style.textShadow='0 0 6px '+c.hex;
+  const cmd=document.getElementById('m-cmd');
+  cmd.textContent=d.cmd; cmd.style.display=d.cmd?'block':'none';
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('statusbar').textContent=
+    '[ NODE: '+d.title.substring(0,32)+' — ESC O CLIC FUERA PARA CERRAR ]';
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('statusbar').textContent=
+    '[ SYS:ONLINE — AD:CONNECTED — FSMO:READY — CLICK NODE FOR INFO ]';
+}
+function closeOnBg(e){if(e.target===document.getElementById('overlay'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* Ripple */
+document.querySelectorAll('.node').forEach(n=>{
+  n.addEventListener('click',function(e){
+    const r=document.createElement('span'); r.className='ripple';
+    const rect=this.getBoundingClientRect();
+    r.style.left=(e.clientX-rect.left)+'px'; r.style.top=(e.clientY-rect.top)+'px';
+    r.style.background=this.classList.contains('n-cyan')?'#0ff':
+      this.classList.contains('n-red')?'#ff5000':
+      this.classList.contains('n-amber')?'#fc0':
+      this.classList.contains('n-violet')?'#a050ff':
+      this.classList.contains('n-green')?'#0f8':'#f0f';
+    this.appendChild(r); setTimeout(()=>r.remove(),600);
+  });
+});
+
+/* Clock */
+setInterval(()=>{
+  if(!document.getElementById('overlay').classList.contains('open')){
+    const t=new Date().toTimeString().slice(0,8);
+    document.getElementById('statusbar').textContent=
+      '[ SYS:ONLINE — AD:CONNECTED — FSMO:READY — '+t+' — CLICK NODE FOR INFO ]';
+  }
+},1000);
+</script>
+</body>
+</html>
