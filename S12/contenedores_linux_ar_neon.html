@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contenedores Linux — AR Neon</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #000;
+  color: #e0e0e0;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#bgCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+body::after {
+  content:'';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.wrapper {
+  position: relative;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+
+/* ── HEADER ── */
+header { text-align: center; margin-bottom: 36px; }
+
+.eyebrow {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 5px;
+  color: #00f5ff;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  opacity: .6;
+}
+
+h1 {
+  font-family: Arial, sans-serif;
+  font-size: clamp(26px, 4vw, 44px);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 12px #00f5ff, 0 0 32px rgba(0,245,255,.35);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  color: rgba(0,245,255,.45);
+  letter-spacing: 3px;
+}
+
+/* ── HUD ── */
+.hud {
+  position: fixed;
+  top: 14px; right: 18px;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  color: rgba(0,245,255,.28);
+  letter-spacing: 2px;
+  z-index: 10;
+  text-align: right;
+  line-height: 1.7;
+}
+
+/* ── MAIN LAYOUT ── */
+.main-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 780px) {
+  .main-layout { grid-template-columns: 1fr; }
+}
+
+/* ── DIAGRAM PANEL ── */
+.diagram-panel {
+  position: sticky;
+  top: 24px;
+}
+
+.diagram-title {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: rgba(0,245,255,.4);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ── INFO PANEL ── */
+.info-panel { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── COMPONENT CARD ── */
+.comp-card {
+  border: 1px solid rgba(0,245,255,.18);
+  border-radius: 3px;
+  background: rgba(0,245,255,.025);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color .25s, background .25s, transform .25s, box-shadow .25s;
+  position: relative;
+  overflow: hidden;
+}
+
+.comp-card::before {
+  content:'';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--c, #00f5ff);
+  box-shadow: 0 0 8px var(--c, #00f5ff);
+  opacity: .6;
+  transition: opacity .25s;
+}
+
+.comp-card:hover,
+.comp-card.active {
+  border-color: var(--c, #00f5ff);
+  background: rgba(var(--cr, 0,245,255), .07);
+  transform: translateX(4px);
+  box-shadow: 0 0 20px rgba(var(--cr, 0,245,255), .15), inset 0 0 30px rgba(var(--cr, 0,245,255), .04);
+}
+
+.comp-card:hover::before,
+.comp-card.active::before { opacity: 1; }
+
+/* colores por componente */
+.comp-card.kernel    { --c:#00f5ff; --cr:0,245,255; }
+.comp-card.userspace { --c:#bf00ff; --cr:191,0,255; }
+.comp-card.jailed    { --c:#00ff88; --cr:0,255,136; }
+.comp-card.namespaces{ --c:#ff8c00; --cr:255,140,0; }
+.comp-card.cgroups   { --c:#ff3c78; --cr:255,60,120; }
+.comp-card.hardware  { --c:#f0e040; --cr:240,224,64; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.card-icon {
+  width: 34px; height: 34px;
+  border: 1px solid var(--c, #00f5ff);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  background: rgba(var(--cr,0,245,255),.07);
+  box-shadow: 0 0 6px rgba(var(--cr,0,245,255),.2);
+  transition: box-shadow .3s;
+}
+
+.comp-card:hover .card-icon,
+.comp-card.active .card-icon {
+  box-shadow: 0 0 14px rgba(var(--cr,0,245,255),.5);
+}
+
+.card-meta { flex: 1; }
+
+.card-num {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  color: var(--c);
+  letter-spacing: 3px;
+  opacity: .55;
+  margin-bottom: 2px;
+}
+
+.card-name {
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 6px var(--c);
+}
+
+.card-eng {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  color: var(--c);
+  opacity: .6;
+  letter-spacing: 1px;
+}
+
+/* detail body */
+.card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .45s cubic-bezier(.4,0,.2,1), opacity .35s;
+  opacity: 0;
+}
+
+.comp-card.active .card-body {
+  max-height: 500px;
+  opacity: 1;
+}
+
+.card-body-inner {
+  padding-top: 14px;
+  border-top: 1px dashed rgba(var(--cr,0,245,255),.2);
+  margin-top: 14px;
+}
+
+.card-body p {
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(255,255,255,.72);
+  margin-bottom: 10px;
+}
+
+.card-body p:last-child { margin-bottom: 0; }
+
+/* keyword highlight */
+.kw { color: var(--c); font-weight: 700; }
+
+/* mini tags */
+.mini-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.mini-tag {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  padding: 3px 9px;
+  border: 1px solid var(--c);
+  border-radius: 2px;
+  color: var(--c);
+  background: rgba(var(--cr,0,245,255),.05);
+  letter-spacing: 1px;
+}
+
+/* tech row */
+.tech-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.tech-item {
+  font-family: Arial, monospace;
+  font-size: 11px;
+  background: rgba(var(--cr,0,245,255),.1);
+  border: 1px solid rgba(var(--cr,0,245,255),.3);
+  border-radius: 2px;
+  padding: 2px 8px;
+  color: var(--c);
+}
+
+/* progress bar */
+.perf-row { margin-top: 10px; }
+.perf-label-sm {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,.35);
+  margin-bottom: 3px;
+}
+.bar { height: 3px; background: rgba(255,255,255,.07); border-radius: 2px; overflow:hidden; margin-bottom:6px; }
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c), transparent);
+  border-radius: 2px;
+  width: 0;
+  transition: width 1s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 5px var(--c);
+}
+
+/* ── SVG DIAGRAM STYLES ── */
+.svg-wrapper { width: 100%; }
+
+.node-group { cursor: pointer; }
+.node-group:hover rect, .node-group:hover .node-rect { filter: brightness(1.3); }
+
+/* ── SECTION SEPARATOR ── */
+.sep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 16px;
+}
+.sep-line { flex:1; height:1px; background: rgba(0,245,255,.1); }
+.sep-label {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: rgba(0,245,255,.35);
+  text-transform: uppercase;
+}
+
+/* ── FLOW DIAGRAM bottom ── */
+.flow-section {
+  margin-top: 32px;
+  border: 1px solid rgba(0,245,255,.12);
+  border-radius: 3px;
+  padding: 22px 20px;
+  background: rgba(0,245,255,.015);
+  position: relative;
+}
+.flow-section::before {
+  content: 'FLUJO DE AISLAMIENTO';
+  position: absolute;
+  top: -8px; left: 16px;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: #00f5ff;
+  background: #000;
+  padding: 0 8px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="hud">
+  ADSO · 1INF35<br>
+  CONTENEDORES LINUX<br>
+  <span id="clock">--:--:--</span>
+</div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="eyebrow">Administración de Sistemas Operativos</div>
+    <h1>Contenedores Linux</h1>
+    <div class="subtitle">// ARQUITECTURA · FUNCIONES · MECANISMOS //</div>
+  </header>
+
+  <div class="main-layout">
+
+    <!-- ── DIAGRAMA SVG ── -->
+    <div class="diagram-panel">
+      <div class="diagram-title">// DIAGRAMA INTERACTIVO — click en componente</div>
+      <div class="svg-wrapper">
+        <svg id="mainSVG" viewBox="0 0 420 460" width="100%" style="overflow:visible">
+          <defs>
+            <filter id="glow-cyan">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-green">
+              <feGaussianBlur stdDeviation="2.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- ══ HARDWARE LAYER ══ -->
+          <g class="node-group" onclick="activateCard('hardware')" id="svg-hardware">
+            <rect x="20" y="370" width="380" height="74" rx="4" fill="rgba(240,224,64,.06)" stroke="#f0e040" stroke-width="1" opacity=".7"/>
+            <text x="210" y="388" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" letter-spacing="3" fill="#f0e040" opacity=".5">CAPA</text>
+            <text x="210" y="402" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#f0e040">Hardware</text>
+
+            <!-- Memory -->
+            <rect x="38" y="412" width="86" height="22" rx="2" fill="rgba(240,224,64,.08)" stroke="#f0e040" stroke-width="1" opacity=".8"/>
+            <text x="81" y="428" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#f0e040">Memory</text>
+
+            <!-- I/O -->
+            <rect x="167" y="412" width="86" height="22" rx="2" fill="rgba(240,224,64,.08)" stroke="#f0e040" stroke-width="1" opacity=".8"/>
+            <text x="210" y="428" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#f0e040">I / O</text>
+
+            <!-- CPUs -->
+            <rect x="296" y="412" width="86" height="22" rx="2" fill="rgba(240,224,64,.08)" stroke="#f0e040" stroke-width="1" opacity=".8"/>
+            <text x="339" y="428" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#f0e040">CPUs</text>
+          </g>
+
+          <!-- ══ KERNEL ══ -->
+          <g class="node-group" onclick="activateCard('kernel')" id="svg-kernel">
+            <rect x="20" y="300" width="380" height="58" rx="3" fill="rgba(0,245,255,.1)" stroke="#00f5ff" stroke-width="1.5"/>
+            <text x="210" y="322" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" letter-spacing="3" fill="#00f5ff" opacity=".5">OS</text>
+            <text x="210" y="343" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#00f5ff" filter="url(#glow-cyan)">Host OS Kernel</text>
+            <!-- pulse dot -->
+            <circle cx="38" cy="329" r="4" fill="#00f5ff" opacity=".6">
+              <animate attributeName="opacity" values="0.6;0.1;0.6" dur="1.8s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="382" cy="329" r="4" fill="#00f5ff" opacity=".6">
+              <animate attributeName="opacity" values="0.1;0.6;0.1" dur="1.8s" repeatCount="indefinite"/>
+            </circle>
+          </g>
+
+          <!-- vertical connector kernel→hardware -->
+          <line x1="210" y1="358" x2="210" y2="370" stroke="#f0e040" stroke-width="1" stroke-dasharray="3,3" opacity=".3"/>
+
+          <!-- ══ USERSPACE WRAPPER ══ -->
+          <rect x="20" y="20" width="380" height="270" rx="4" fill="rgba(255,255,255,.015)" stroke="rgba(255,255,255,.15)" stroke-width="1" stroke-dasharray="4,4"/>
+
+          <!-- ══ USER SPACE HOST ══ -->
+          <g class="node-group" onclick="activateCard('userspace')" id="svg-userspace">
+            <rect x="34" y="36" width="132" height="100" rx="4" fill="rgba(191,0,255,.07)" stroke="#bf00ff" stroke-width="1" stroke-dasharray="5,3" opacity=".85"/>
+            <text x="100" y="75" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" letter-spacing="1" fill="#bf00ff" opacity=".6">User space</text>
+            <text x="100" y="92" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" letter-spacing="1" fill="#bf00ff" opacity=".6">host</text>
+            <text x="100" y="109" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" letter-spacing="1" fill="#bf00ff" opacity=".6">processes</text>
+          </g>
+
+          <!-- ══ JAILED PROCESSES (3) ══ -->
+          <!-- Container 1 -->
+          <g class="node-group" onclick="activateCard('jailed')" id="svg-jailed1">
+            <rect x="194" y="44" width="190" height="34" rx="3" fill="rgba(0,255,136,.07)" stroke="#00ff88" stroke-width="1" opacity=".85"/>
+            <text x="289" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#00ff88" filter="url(#glow-green)">Jailed processes</text>
+            <text x="370" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#00ff88" opacity=".4">①</text>
+          </g>
+
+          <!-- Container 2 -->
+          <g class="node-group" onclick="activateCard('jailed')" id="svg-jailed2">
+            <rect x="194" y="88" width="190" height="34" rx="3" fill="rgba(0,255,136,.07)" stroke="#00ff88" stroke-width="1" opacity=".85"/>
+            <text x="289" y="110" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#00ff88" filter="url(#glow-green)">Jailed processes</text>
+            <text x="370" y="110" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#00ff88" opacity=".4">②</text>
+          </g>
+
+          <!-- Container 3 -->
+          <g class="node-group" onclick="activateCard('jailed')" id="svg-jailed3">
+            <rect x="194" y="132" width="190" height="34" rx="3" fill="rgba(0,255,136,.07)" stroke="#00ff88" stroke-width="1" opacity=".85"/>
+            <text x="289" y="154" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#00ff88" filter="url(#glow-green)">Jailed processes</text>
+            <text x="370" y="154" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#00ff88" opacity=".4">③</text>
+          </g>
+
+          <!-- ══ NAMESPACES badge ══ -->
+          <g class="node-group" onclick="activateCard('namespaces')" id="svg-ns">
+            <rect x="34" y="176" width="350" height="38" rx="3" fill="rgba(255,140,0,.07)" stroke="#ff8c00" stroke-width="1" opacity=".8"/>
+            <text x="60" y="200" font-family="Arial,sans-serif" font-size="9" letter-spacing="2" fill="#ff8c00" opacity=".5">MECANISMO</text>
+            <text x="180" y="200" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#ff8c00">Namespaces</text>
+            <text x="290" y="200" font-family="Arial,sans-serif" font-size="9" fill="#ff8c00" opacity=".55">PID · NET · MNT · UTS · IPC</text>
+          </g>
+
+          <!-- ══ CGROUPS badge ══ -->
+          <g class="node-group" onclick="activateCard('cgroups')" id="svg-cg">
+            <rect x="34" y="224" width="350" height="38" rx="3" fill="rgba(255,60,120,.07)" stroke="#ff3c78" stroke-width="1" opacity=".8"/>
+            <text x="60" y="248" font-family="Arial,sans-serif" font-size="9" letter-spacing="2" fill="#ff3c78" opacity=".5">MECANISMO</text>
+            <text x="180" y="248" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#ff3c78">Control Groups</text>
+            <text x="310" y="248" font-family="Arial,sans-serif" font-size="9" fill="#ff3c78" opacity=".55">CPU · RAM · I/O</text>
+          </g>
+
+          <!-- connector lines host→kernel -->
+          <line x1="100" y1="136" x2="100" y2="272" stroke="#bf00ff" stroke-width="0.7" stroke-dasharray="3,3" opacity=".3"/>
+          <line x1="289" y1="166" x2="289" y2="272" stroke="#00ff88" stroke-width="0.7" stroke-dasharray="3,3" opacity=".3"/>
+          <line x1="210" y1="262" x2="210" y2="300" stroke="#00f5ff" stroke-width="0.7" stroke-dasharray="3,3" opacity=".25"/>
+
+          <!-- layer label -->
+          <text x="30" y="278" font-family="Arial,sans-serif" font-size="8" letter-spacing="3" fill="rgba(255,255,255,.2)">USER SPACE</text>
+        </svg>
+      </div>
+
+      <!-- mini legend -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#bf00ff;letter-spacing:1px;">● HOST PROCESSES</span>
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#00ff88;letter-spacing:1px;">● CONTENEDORES</span>
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#00f5ff;letter-spacing:1px;">● KERNEL</span>
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#ff8c00;letter-spacing:1px;">● NAMESPACES</span>
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#ff3c78;letter-spacing:1px;">● CGROUPS</span>
+        <span style="font-family:Arial,sans-serif;font-size:9px;color:#f0e040;letter-spacing:1px;">● HARDWARE</span>
+      </div>
+    </div>
+
+    <!-- ── INFO CARDS ── -->
+    <div class="info-panel">
+
+      <!-- HOST OS KERNEL -->
+      <div class="comp-card kernel" id="card-kernel" onclick="toggleCard('kernel')">
+        <div class="card-header">
+          <div class="card-icon">⚙️</div>
+          <div class="card-meta">
+            <div class="card-num">01 ────</div>
+            <div class="card-name">Host OS Kernel</div>
+            <div class="card-eng">Núcleo del Sistema Operativo</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>El kernel del host es el componente central que <span class="kw">todos los contenedores comparten</span>. A diferencia de las VMs, no hay un kernel separado por contenedor — todos corren sobre el mismo kernel Linux del host.</p>
+            <p>Provee las llamadas al sistema (<span class="kw">syscalls</span>) que los contenedores usan para acceder al hardware, gestionando memoria, scheduling de procesos y drivers de dispositivos de manera unificada.</p>
+            <div class="tech-row">
+              <span class="tech-item">Linux 3.8+</span>
+              <span class="tech-item">syscall interface</span>
+              <span class="tech-item">scheduler</span>
+            </div>
+            <div class="perf-row">
+              <div class="perf-label-sm">OVERHEAD vs VM</div>
+              <div class="bar"><div class="bar-fill" data-val="5" style="--c:#00f5ff;--cr:0,245,255"></div></div>
+              <div class="perf-label-sm">AISLAMIENTO DE KERNEL</div>
+              <div class="bar"><div class="bar-fill" data-val="0" style="--c:#00f5ff;--cr:0,245,255"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USER SPACE HOST PROCESSES -->
+      <div class="comp-card userspace" id="card-userspace" onclick="toggleCard('userspace')">
+        <div class="card-header">
+          <div class="card-icon">🖥️</div>
+          <div class="card-meta">
+            <div class="card-num">02 ────</div>
+            <div class="card-name">User Space Host</div>
+            <div class="card-eng">Procesos del espacio de usuario</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>Son los procesos normales del sistema operativo anfitrión que corren <span class="kw">fuera de cualquier contenedor</span>. Tienen acceso completo al sistema de archivos y recursos del host.</p>
+            <p>El daemon de Docker (<code style="color:#bf00ff">dockerd</code>) o LXD corre en este espacio. Actúa como orchestrador que crea y gestiona los contenedores llamando al kernel vía syscalls.</p>
+            <div class="mini-tags">
+              <span class="mini-tag">dockerd</span>
+              <span class="mini-tag">containerd</span>
+              <span class="mini-tag">lxd</span>
+              <span class="mini-tag">systemd</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JAILED PROCESSES -->
+      <div class="comp-card jailed" id="card-jailed" onclick="toggleCard('jailed')">
+        <div class="card-header">
+          <div class="card-icon">📦</div>
+          <div class="card-meta">
+            <div class="card-num">03 ────</div>
+            <div class="card-name">Jailed Processes</div>
+            <div class="card-eng">Procesos enjaulados / Contenedores</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>Son grupos de procesos que el kernel <span class="kw">confina en un "jail"</span> (jaula) mediante namespaces. Cada contenedor cree ser el único proceso en el sistema — tiene su propio PID 1, su propia red, su propio sistema de archivos.</p>
+            <p>En la práctica: cuando corres <code style="color:#00ff88">docker run nginx</code>, los procesos de nginx se ejecutan enjaulados. Ven su propio namespace de red (eth0 propio), su propio árbol de procesos (PID 1 = nginx), pero usan el kernel del host.</p>
+            <p><span class="kw">Múltiples contenedores</span> pueden correr simultáneamente sin interferirse, tal como muestra el diagrama con 3 "Jailed processes" independientes.</p>
+            <div class="tech-row">
+              <span class="tech-item">PID namespace</span>
+              <span class="tech-item">NET namespace</span>
+              <span class="tech-item">MNT namespace</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NAMESPACES -->
+      <div class="comp-card namespaces" id="card-namespaces" onclick="toggleCard('namespaces')">
+        <div class="card-header">
+          <div class="card-icon">🔲</div>
+          <div class="card-meta">
+            <div class="card-num">04 ────</div>
+            <div class="card-name">Namespaces</div>
+            <div class="card-eng">Aislamiento de recursos del kernel</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>Los namespaces son el mecanismo principal del kernel Linux para <span class="kw">aislar la visibilidad de recursos</span>. Cada contenedor tiene su propia "vista" del sistema:</p>
+            <p>
+              <span class="kw">PID</span> — cada contenedor ve solo sus propios procesos (su init es PID 1)<br>
+              <span class="kw">NET</span> — interfaz de red propia, tabla de rutas, firewall<br>
+              <span class="kw">MNT</span> — sistema de archivos independiente (chroot avanzado)<br>
+              <span class="kw">UTS</span> — hostname y domainname propios<br>
+              <span class="kw">IPC</span> — comunicación interprocesos aislada<br>
+              <span class="kw">USER</span> — mapeo de UIDs (root en contenedor ≠ root en host)
+            </p>
+            <div class="perf-row">
+              <div class="perf-label-sm">NIVEL DE AISLAMIENTO</div>
+              <div class="bar"><div class="bar-fill" data-val="75" style="--c:#ff8c00;--cr:255,140,0"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CGROUPS -->
+      <div class="comp-card cgroups" id="card-cgroups" onclick="toggleCard('cgroups')">
+        <div class="card-header">
+          <div class="card-icon">📊</div>
+          <div class="card-meta">
+            <div class="card-num">05 ────</div>
+            <div class="card-name">Control Groups</div>
+            <div class="card-eng">cgroups — Limitación de recursos</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>Los <span class="kw">cgroups</span> (Control Groups) limitan y contabilizan los recursos que cada contenedor puede consumir. Si namespaces da "visibilidad aislada", cgroups da "recursos garantizados".</p>
+            <p>
+              <span class="kw">cpu</span> — cuánto CPU puede usar el contenedor (ej: máx 50%)<br>
+              <span class="kw">memory</span> — límite de RAM (ej: máx 512 MB, si supera → OOM kill)<br>
+              <span class="kw">blkio</span> — velocidad de lectura/escritura en disco<br>
+              <span class="kw">net_cls</span> — prioridad de tráfico de red
+            </p>
+            <p>Ejemplo en Docker: <code style="color:#ff3c78">docker run --memory=512m --cpus=1 nginx</code></p>
+            <div class="mini-tags">
+              <span class="mini-tag">cgroup v1</span>
+              <span class="mini-tag">cgroup v2</span>
+              <span class="mini-tag">systemd</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HARDWARE -->
+      <div class="comp-card hardware" id="card-hardware" onclick="toggleCard('hardware')">
+        <div class="card-header">
+          <div class="card-icon">💾</div>
+          <div class="card-meta">
+            <div class="card-num">06 ────</div>
+            <div class="card-name">Hardware</div>
+            <div class="card-eng">Memory · I/O · CPUs</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <p>El hardware físico es compartido por todos los contenedores a través del kernel. A diferencia de las VMs donde el hipervisor emula hardware, aquí el acceso es <span class="kw">directo y nativo</span>.</p>
+            <p>
+              <span class="kw">Memory</span> — RAM física gestionada por el kernel; cgroups limita cuánta usa cada contenedor<br>
+              <span class="kw">I/O</span> — Disco y red; el kernel multiplexa el acceso entre contenedores<br>
+              <span class="kw">CPUs</span> — El scheduler de Linux reparte tiempo de CPU entre todos los procesos (host + contenedores)
+            </p>
+            <p>Esto explica por qué los contenedores tienen rendimiento <span class="kw">casi nativo</span>: no hay capa de emulación entre el proceso y el hardware.</p>
+            <div class="perf-row">
+              <div class="perf-label-sm">RENDIMIENTO vs BARE METAL</div>
+              <div class="bar"><div class="bar-fill" data-val="97" style="--c:#f0e040;--cr:240,224,64"></div></div>
+              <div class="perf-label-sm">RENDIMIENTO vs VM</div>
+              <div class="bar"><div class="bar-fill" data-val="92" style="--c:#f0e040;--cr:240,224,64"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /info-panel -->
+  </div><!-- /main-layout -->
+
+  <!-- ── FLOW SECTION ── -->
+  <div class="flow-section" style="margin-top:36px;">
+    <svg viewBox="0 0 980 80" width="100%" style="overflow:visible">
+      <!-- boxes -->
+      <rect x="10"  y="18" width="130" height="44" rx="3" fill="rgba(0,255,136,.07)"  stroke="#00ff88" stroke-width="1"/>
+      <text x="75"  y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#00ff88" opacity=".6">docker run nginx</text>
+      <text x="75"  y="53" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#00ff88">App Container</text>
+
+      <rect x="190" y="18" width="130" height="44" rx="3" fill="rgba(191,0,255,.07)" stroke="#bf00ff" stroke-width="1"/>
+      <text x="255" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#bf00ff" opacity=".6">dockerd / containerd</text>
+      <text x="255" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#bf00ff">Runtime</text>
+
+      <rect x="370" y="18" width="130" height="44" rx="3" fill="rgba(255,140,0,.07)" stroke="#ff8c00" stroke-width="1"/>
+      <text x="435" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#ff8c00" opacity=".6">clone() + unshare()</text>
+      <text x="435" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#ff8c00">Namespaces</text>
+
+      <rect x="550" y="18" width="130" height="44" rx="3" fill="rgba(255,60,120,.07)" stroke="#ff3c78" stroke-width="1"/>
+      <text x="615" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#ff3c78" opacity=".6">memory / cpu limits</text>
+      <text x="615" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#ff3c78">cgroups</text>
+
+      <rect x="730" y="18" width="130" height="44" rx="3" fill="rgba(0,245,255,.07)" stroke="#00f5ff" stroke-width="1"/>
+      <text x="795" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#00f5ff" opacity=".6">syscall directo</text>
+      <text x="795" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#00f5ff">Kernel Linux</text>
+
+      <rect x="910" y="18" width="60" height="44" rx="3" fill="rgba(240,224,64,.07)" stroke="#f0e040" stroke-width="1"/>
+      <text x="940" y="44" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#f0e040">HW</text>
+
+      <!-- arrows -->
+      <line x1="140" y1="40" x2="188" y2="40" stroke="#00ff88" stroke-width="1" marker-end="url(#fa)"/>
+      <line x1="320" y1="40" x2="368" y2="40" stroke="#bf00ff" stroke-width="1" marker-end="url(#fa)"/>
+      <line x1="500" y1="40" x2="548" y2="40" stroke="#ff8c00" stroke-width="1" marker-end="url(#fa)"/>
+      <line x1="680" y1="40" x2="728" y2="40" stroke="#ff3c78" stroke-width="1" marker-end="url(#fa)"/>
+      <line x1="860" y1="40" x2="908" y2="40" stroke="#00f5ff" stroke-width="1" marker-end="url(#fa)"/>
+
+      <defs>
+        <marker id="fa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M2 2L8 5L2 8" fill="none" stroke="context-stroke" stroke-width="1.5"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+</div>
+
+<script>
+/* clock */
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8); },1000);
+document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+
+/* toggle info cards */
+function toggleCard(id) {
+  const card = document.getElementById('card-'+id);
+  if (!card) return;
+  const wasActive = card.classList.contains('active');
+  document.querySelectorAll('.comp-card').forEach(c => c.classList.remove('active'));
+  if (!wasActive) {
+    card.classList.add('active');
+    setTimeout(()=>{ animateBars(card); }, 50);
+    card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  highlightSVG(wasActive ? null : id);
+}
+
+/* activate from SVG click */
+function activateCard(id) { toggleCard(id); }
+
+/* highlight SVG nodes */
+function highlightSVG(id) {
+  const map = {
+    kernel: ['svg-kernel'],
+    userspace: ['svg-userspace'],
+    jailed: ['svg-jailed1','svg-jailed2','svg-jailed3'],
+    namespaces: ['svg-ns'],
+    cgroups: ['svg-cg'],
+    hardware: ['svg-hardware']
+  };
+  document.querySelectorAll('#mainSVG rect, #mainSVG text').forEach(el => { el.style.transition='opacity .3s'; });
+  if (!id) {
+    document.querySelectorAll('#mainSVG .node-group').forEach(g => g.style.opacity = '1');
+    return;
+  }
+  document.querySelectorAll('#mainSVG .node-group').forEach(g => { g.style.opacity='0.3'; g.style.transition='opacity .3s'; });
+  (map[id]||[]).forEach(nid => {
+    const el = document.getElementById(nid);
+    if (el) el.style.opacity = '1';
+  });
+}
+
+/* animate bars */
+function animateBars(card) {
+  card.querySelectorAll('.bar-fill').forEach(el => {
+    const val = el.dataset.val || 0;
+    el.style.width = val + '%';
+  });
+}
+
+/* CANVAS */
+(function(){
+  const cv = document.getElementById('bgCanvas');
+  const ctx = cv.getContext('2d');
+  let W, H;
+  function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  function grid(){
+    ctx.strokeStyle='rgba(0,245,255,0.03)'; ctx.lineWidth=.5;
+    for(let x=0;x<W;x+=44){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+    for(let y=0;y<H;y+=44){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+  }
+
+  const cols=['rgba(0,245,255,','rgba(0,255,136,','rgba(255,140,0,','rgba(255,60,120,','rgba(191,0,255,'];
+  const pts = Array.from({length:60},()=>({
+    x:Math.random()*1600-200, y:Math.random()*1200-100,
+    vx:(Math.random()-.5)*.25, vy:(Math.random()-.5)*.25,
+    r:Math.random()*1.2+.3,
+    col:cols[Math.floor(Math.random()*cols.length)],
+    a:Math.random()*.4+.08
+  }));
+
+  const labels=['PID','NET','MNT','UTS','IPC','CPU','RAM','I/O','HW','NS','CG','VM','LXC','OCI'];
+  const floats = Array.from({length:10},(_,i)=>({
+    x:Math.random()*W, y:Math.random()*H,
+    label:labels[i%labels.length],
+    a:Math.random()*.08+.02,
+    phase:Math.random()*Math.PI*2
+  }));
+
+  let t=0;
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    grid();
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<-5||p.x>W+5){ p.x=Math.random()*W; p.vx*=-1; }
+      if(p.y<-5||p.y>H+5){ p.y=Math.random()*H; p.vy*=-1; }
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.col+p.a+')'; ctx.fill();
+    });
+    floats.forEach(f=>{
+      const pulse=Math.sin(t+f.phase)*.5+.5;
+      ctx.font='9px Arial,sans-serif';
+      ctx.fillStyle=`rgba(0,245,255,${f.a*(0.3+pulse*0.7)})`;
+      ctx.fillText(f.label, f.x, f.y);
+    });
+    /* HUD brackets */
+    const m=14,s=16;
+    ctx.strokeStyle='rgba(0,245,255,0.12)'; ctx.lineWidth=1;
+    [[m,m,1,1],[W-m,m,-1,1],[m,H-m,1,-1],[W-m,H-m,-1,-1]].forEach(([x,y,sx,sy])=>{
+      ctx.beginPath();ctx.moveTo(x+s*sx,y);ctx.lineTo(x,y);ctx.lineTo(x,y+s*sy);ctx.stroke();
+    });
+    t+=0.015; requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
