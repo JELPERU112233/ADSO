@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtualización — Clasificación AR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap');
+
+  :root {
+    --cyan:   #00f5ff;
+    --purple: #bf00ff;
+    --green:  #00ff88;
+    --amber:  #ff8c00;
+    --bg:     #030712;
+    --grid:   rgba(0,245,255,0.04);
+    --panel:  rgba(3,7,18,0.85);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: #e0e0e0;
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── CANVAS BACKGROUND ── */
+  #bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── SCANLINES overlay ── */
+  body::after {
+    content:'';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper {
+    position: relative;
+    z-index: 2;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 6px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(22px, 4vw, 42px);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow:
+      0 0 10px var(--cyan),
+      0 0 30px rgba(0,245,255,0.4);
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: rgba(0,245,255,0.55);
+    letter-spacing: 2px;
+  }
+
+  /* ── GRID DE CARDS ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  /* ── CARD ── */
+  .card {
+    position: relative;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    padding: 28px 24px 24px;
+    cursor: pointer;
+    transition: transform .3s ease, box-shadow .3s ease;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    border: 1px solid var(--c);
+    opacity: .35;
+    transition: opacity .3s;
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(var(--cr),0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 0 24px rgba(var(--cr), .35), 0 0 60px rgba(var(--cr), .12);
+  }
+
+  .card:hover::before { opacity: 1; }
+
+  /* Colores por tipo */
+  .card.full        { --c: var(--cyan);   --cr: 0,245,255; }
+  .card.para        { --c: var(--purple); --cr: 191,0,255; }
+  .card.container   { --c: var(--green);  --cr: 0,255,136; }
+  .card.hardware    { --c: var(--amber);  --cr: 255,140,0; }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: var(--c);
+    border-style: solid;
+    opacity: .6;
+  }
+  .corner.tl { top:6px; left:6px;  border-width: 2px 0 0 2px; }
+  .corner.tr { top:6px; right:6px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom:6px; left:6px;  border-width: 0 0 2px 2px; }
+  .corner.br { bottom:6px; right:6px; border-width: 0 2px 2px 0; }
+
+  /* ── CARD HEADER ── */
+  .card-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: var(--c);
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+    opacity: .6;
+  }
+
+  .card-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 8px var(--c);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .card-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--c);
+    letter-spacing: 1px;
+    margin-bottom: 18px;
+    opacity: .7;
+  }
+
+  /* ── DIAGRAM SVG AREA ── */
+  .diagram { margin-bottom: 16px; }
+
+  /* ── DESCRIPCION ── */
+  .desc {
+    font-size: 14px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 16px;
+    border-left: 2px solid var(--c);
+    padding-left: 10px;
+    opacity: .9;
+  }
+
+  /* ── VENTAJAS / DESVENTAJAS ── */
+  .vd-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .badge {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .badge.pro  { background: rgba(0,255,136,.08); border:1px solid rgba(0,255,136,.3); color:#00ff88; }
+  .badge.con  { background: rgba(255,80,80,.08); border:1px solid rgba(255,80,80,.3); color:#ff5050; }
+  .badge strong { display:block; font-size:9px; letter-spacing:2px; margin-bottom:2px; opacity:.6; }
+
+  /* ── EJEMPLOS ── */
+  .ejemplos-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--c);
+    opacity:.5;
+    margin-bottom: 6px;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    border: 1px solid var(--c);
+    border-radius: 2px;
+    color: var(--c);
+    background: rgba(var(--cr),.06);
+    letter-spacing: 1px;
+    transition: background .2s, box-shadow .2s;
+  }
+  .tag:hover {
+    background: rgba(var(--cr),.18);
+    box-shadow: 0 0 8px rgba(var(--cr),.4);
+  }
+
+  /* ── DETAIL PANEL (expandible) ── */
+  .detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .5s cubic-bezier(.4,0,.2,1), opacity .4s;
+    opacity: 0;
+  }
+  .detail.open { max-height: 400px; opacity: 1; }
+
+  .detail-inner {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(var(--cr),.3);
+  }
+
+  .detail-inner p {
+    font-size: 13px;
+    color: rgba(255,255,255,.65);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--c);
+    letter-spacing: 2px;
+    margin-top: 14px;
+    opacity: .6;
+    transition: opacity .2s;
+  }
+  .toggle-btn .arrow { transition: transform .3s; }
+  .card.expanded .toggle-btn .arrow { transform: rotate(180deg); }
+  .card:hover .toggle-btn { opacity: 1; }
+
+  /* ── PROGRESS BAR de rendimiento ── */
+  .perf-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,.4);
+    margin: 12px 0 4px;
+  }
+  .perf-bar {
+    height: 3px;
+    background: rgba(255,255,255,.08);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .perf-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--c), rgba(var(--cr),.3));
+    border-radius: 2px;
+    width: 0;
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 0 6px rgba(var(--cr),.6);
+  }
+
+  /* ── COMPARATIVA BOTTOM ── */
+  .compare-section {
+    margin-top: 48px;
+    border: 1px solid rgba(0,245,255,.15);
+    border-radius: 4px;
+    padding: 28px 24px;
+    background: rgba(0,245,255,.02);
+    position: relative;
+  }
+
+  .compare-section::before {
+    content: 'TABLA COMPARATIVA';
+    position: absolute;
+    top: -9px; left: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    background: var(--bg);
+    padding: 0 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(0,245,255,.5);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0,245,255,.12);
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    color: rgba(255,255,255,.7);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; color: #fff; }
+
+  .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── PARTICLES COUNTER ── */
+  .hud {
+    position: fixed;
+    top: 16px; right: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,245,255,.3);
+    letter-spacing: 2px;
+    z-index: 10;
+    text-align: right;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="hud" id="hud">
+  SYS OK<br>
+  VIRTUALIZATION MODULE<br>
+  <span id="clock">--:--:--</span>
+</div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="eyebrow">ADMINISTRACIÓN DE SISTEMAS OPERATIVOS</div>
+    <h1>Virtualización</h1>
+    <div class="subtitle">// RESUMEN · CLASIFICACIÓN · EJEMPLOS //</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- 01 FULL VIRTUALIZATION -->
+    <div class="card full" onclick="toggleCard(this)">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+
+      <div class="card-num">01 ──────</div>
+      <div class="card-title">Full Virtualization</div>
+      <div class="card-subtitle">Emulación de Hardware</div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 220 70" width="100%" style="overflow:visible">
+          <rect x="10" y="10" width="60" height="22" rx="2" fill="none" stroke="#00f5ff" stroke-width="1" opacity=".4"/>
+          <text x="40" y="25" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#00f5ff">OS Invitado</text>
+          <rect x="80" y="10" width="60" height="22" rx="2" fill="none" stroke="#00f5ff" stroke-width="1" opacity=".4"/>
+          <text x="110" y="25" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#00f5ff">OS Invitado</text>
+          <rect x="150" y="10" width="60" height="22" rx="2" fill="none" stroke="#00f5ff" stroke-width="1" opacity=".4"/>
+          <text x="180" y="25" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#00f5ff">OS Invitado</text>
+          <rect x="10" y="40" width="200" height="22" rx="2" fill="rgba(0,245,255,.1)" stroke="#00f5ff" stroke-width="1"/>
+          <text x="110" y="55" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#00f5ff">HIPERVISOR · emula HW completo</text>
+          <line x1="40" y1="32" x2="40" y2="40" stroke="#00f5ff" stroke-width="1" opacity=".4" marker-end="url(#a1)"/>
+          <line x1="110" y1="32" x2="110" y2="40" stroke="#00f5ff" stroke-width="1" opacity=".4" marker-end="url(#a1)"/>
+          <line x1="180" y1="32" x2="180" y2="40" stroke="#00f5ff" stroke-width="1" opacity=".4" marker-end="url(#a1)"/>
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M2 2L8 5L2 8" fill="none" stroke="#00f5ff" stroke-width="1.5"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <p class="desc">El hipervisor emula hardware completo. El sistema invitado <strong style="color:#00f5ff">no sabe</strong> que está virtualizado.</p>
+
+      <div class="vd-row">
+        <div class="badge pro"><strong>VENTAJA ↑</strong>Alta compatibilidad</div>
+        <div class="badge con"><strong>DESVENTAJA ↓</strong>Menor rendimiento</div>
+      </div>
+
+      <div class="ejemplos-label">// EJEMPLOS</div>
+      <div class="tags">
+        <span class="tag">VMware ESXi antiguo</span>
+        <span class="tag">KVM</span>
+        <span class="tag">QEMU</span>
+        <span class="tag">AWS Nitro</span>
+      </div>
+
+      <div class="perf-label">RENDIMIENTO RELATIVO</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="45"></div></div>
+      <div class="perf-label">COMPATIBILIDAD</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="95"></div></div>
+
+      <div class="detail">
+        <div class="detail-inner">
+          <p>El hipervisor intercepta cada instrucción privilegiada del OS invitado y la emula en software. Esto introduce latencia adicional pero permite ejecutar <em>cualquier</em> OS sin modificaciones.</p>
+          <p>AWS Nitro es el caso más moderno: combina hardware personalizado (tarjetas NitroCards) con un hipervisor minimalista para recuperar casi todo el rendimiento perdido.</p>
+        </div>
+      </div>
+
+      <div class="toggle-btn">
+        <span>VER MÁS</span>
+        <span class="arrow">▼</span>
+      </div>
+    </div>
+
+    <!-- 02 PARAVIRTUALIZACIÓN -->
+    <div class="card para" onclick="toggleCard(this)">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+
+      <div class="card-num">02 ──────</div>
+      <div class="card-title">Paravirtualización</div>
+      <div class="card-subtitle">Paravirtualization</div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 220 70" width="100%" style="overflow:visible">
+          <rect x="30" y="8" width="70" height="22" rx="2" fill="none" stroke="#bf00ff" stroke-width="1" opacity=".5"/>
+          <text x="65" y="19" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#bf00ff">OS Invitado</text>
+          <text x="65" y="28" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#bf00ff" opacity=".6">kernel modificado</text>
+          <rect x="120" y="8" width="70" height="22" rx="2" fill="none" stroke="#bf00ff" stroke-width="1" opacity=".5"/>
+          <text x="155" y="19" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#bf00ff">OS Invitado</text>
+          <text x="155" y="28" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="#bf00ff" opacity=".6">kernel modificado</text>
+          <line x1="65" y1="30" x2="110" y2="42" stroke="#bf00ff" stroke-width="1" opacity=".5" stroke-dasharray="3,2" marker-end="url(#a2)"/>
+          <line x1="155" y1="30" x2="110" y2="42" stroke="#bf00ff" stroke-width="1" opacity=".5" stroke-dasharray="3,2" marker-end="url(#a2)"/>
+          <rect x="60" y="42" width="100" height="22" rx="2" fill="rgba(191,0,255,.1)" stroke="#bf00ff" stroke-width="1"/>
+          <text x="110" y="57" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="9" fill="#bf00ff">HIPERVISOR · API directa</text>
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M2 2L8 5L2 8" fill="none" stroke="#bf00ff" stroke-width="1.5"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <p class="desc">El OS invitado está <strong style="color:#bf00ff">modificado</strong> para comunicarse directamente con el hipervisor mediante hypercalls, reduciendo overhead.</p>
+
+      <div class="vd-row">
+        <div class="badge pro"><strong>VENTAJA ↑</strong>Muy eficiente</div>
+        <div class="badge con"><strong>DESVENTAJA ↓</strong>Kernel especializado</div>
+      </div>
+
+      <div class="ejemplos-label">// EJEMPLOS</div>
+      <div class="tags">
+        <span class="tag">Xen</span>
+        <span class="tag">UML</span>
+      </div>
+
+      <div class="perf-label">RENDIMIENTO RELATIVO</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="78"></div></div>
+      <div class="perf-label">COMPATIBILIDAD</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="40"></div></div>
+
+      <div class="detail">
+        <div class="detail-inner">
+          <p>En lugar de emular hardware, el OS invitado llama directamente al hipervisor (hypercalls). Esto elimina la sobrecarga de intercepción pero exige recompilar el kernel del OS invitado.</p>
+          <p>Xen es el referente histórico: Amazon EC2 usó Xen hasta migrar progresivamente a Nitro. UML (User-Mode Linux) es más académico, usado para sandboxing y enseñanza.</p>
+        </div>
+      </div>
+
+      <div class="toggle-btn">
+        <span>VER MÁS</span>
+        <span class="arrow">▼</span>
+      </div>
+    </div>
+
+    <!-- 03 CONTENEDORES -->
+    <div class="card container" onclick="toggleCard(this)">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+
+      <div class="card-num">03 ──────</div>
+      <div class="card-title">Contenedores</div>
+      <div class="card-subtitle">OS-level Virtualization</div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 220 70" width="100%" style="overflow:visible">
+          <rect x="5"  y="5" width="62" height="26" rx="2" fill="rgba(0,255,136,.08)" stroke="#00ff88" stroke-width="1" opacity=".7"/>
+          <text x="36" y="22" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00ff88">App A</text>
+          <rect x="79" y="5" width="62" height="26" rx="2" fill="rgba(0,255,136,.08)" stroke="#00ff88" stroke-width="1" opacity=".7"/>
+          <text x="110" y="22" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00ff88">App B</text>
+          <rect x="153" y="5" width="62" height="26" rx="2" fill="rgba(0,255,136,.08)" stroke="#00ff88" stroke-width="1" opacity=".7"/>
+          <text x="184" y="22" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00ff88">App C</text>
+          <rect x="5" y="38" width="210" height="22" rx="2" fill="rgba(0,255,136,.12)" stroke="#00ff88" stroke-width="1"/>
+          <text x="110" y="50" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00ff88">KERNEL COMPARTIDO · namespaces · cgroups</text>
+          <line x1="36" y1="31" x2="36" y2="38" stroke="#00ff88" stroke-width="1" opacity=".5"/>
+          <line x1="110" y1="31" x2="110" y2="38" stroke="#00ff88" stroke-width="1" opacity=".5"/>
+          <line x1="184" y1="31" x2="184" y2="38" stroke="#00ff88" stroke-width="1" opacity=".5"/>
+        </svg>
+      </div>
+
+      <p class="desc">No virtualiza hardware. Aísla el <strong style="color:#00ff88">espacio de usuario</strong> del OS mediante namespaces y cgroups. Comparten el mismo kernel.</p>
+
+      <div class="vd-row">
+        <div class="badge pro"><strong>VENTAJA ↑</strong>Ligero · Rápido</div>
+        <div class="badge con"><strong>DESVENTAJA ↓</strong>Mismo kernel</div>
+      </div>
+
+      <div class="ejemplos-label">// EJEMPLOS</div>
+      <div class="tags">
+        <span class="tag">LXC</span>
+        <span class="tag">Docker</span>
+        <span class="tag">Kubernetes</span>
+      </div>
+
+      <div class="perf-label">RENDIMIENTO RELATIVO</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="95"></div></div>
+      <div class="perf-label">COMPATIBILIDAD</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="55"></div></div>
+
+      <div class="detail">
+        <div class="detail-inner">
+          <p>Los contenedores usan <code style="color:#00ff88">namespaces</code> (PID, red, mount, UTS, IPC) para aislar procesos y <code style="color:#00ff88">cgroups</code> para limitar recursos (CPU, RAM, I/O).</p>
+          <p>No pueden correr un kernel distinto al del host. Esto los hace inadecuados para aislar cargas con kernels heterogéneos, pero ideales para microservicios y CI/CD.</p>
+        </div>
+      </div>
+
+      <div class="toggle-btn">
+        <span>VER MÁS</span>
+        <span class="arrow">▼</span>
+      </div>
+    </div>
+
+    <!-- 04 HARDWARE-ASSISTED -->
+    <div class="card hardware" onclick="toggleCard(this)">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+
+      <div class="card-num">04 ──────</div>
+      <div class="card-title">Asistida por Hardware</div>
+      <div class="card-subtitle">Hardware-Assisted Virtualization</div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 220 70" width="100%" style="overflow:visible">
+          <rect x="20" y="5" width="80" height="22" rx="2" fill="none" stroke="#ff8c00" stroke-width="1" opacity=".5"/>
+          <text x="60" y="20" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#ff8c00">OS Invitado (sin mod)</text>
+          <rect x="120" y="5" width="80" height="22" rx="2" fill="none" stroke="#ff8c00" stroke-width="1" opacity=".5"/>
+          <text x="160" y="20" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#ff8c00">OS Invitado (sin mod)</text>
+          <rect x="20" y="35" width="180" height="16" rx="2" fill="rgba(255,140,0,.1)" stroke="#ff8c00" stroke-width="1"/>
+          <text x="110" y="47" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#ff8c00">HIPERVISOR · Ring -1</text>
+          <rect x="60" y="57" width="100" height="12" rx="2" fill="rgba(255,140,0,.2)" stroke="#ff8c00" stroke-width="1"/>
+          <text x="110" y="66" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7.5" fill="#ff8c00">CPU: Intel VT-x / AMD-V</text>
+          <line x1="60"  y1="27" x2="60"  y2="35" stroke="#ff8c00" stroke-width="1" opacity=".5"/>
+          <line x1="160" y1="27" x2="160" y2="35" stroke="#ff8c00" stroke-width="1" opacity=".5"/>
+          <line x1="110" y1="51" x2="110" y2="57" stroke="#ff8c00" stroke-width="1" opacity=".5"/>
+        </svg>
+      </div>
+
+      <p class="desc">Usa extensiones del CPU (<strong style="color:#ff8c00">Intel VT-x / AMD-V</strong>) para crear un "Ring -1" donde el hipervisor opera con privilegios máximos acelerando el acceso al hardware.</p>
+
+      <div class="vd-row">
+        <div class="badge pro"><strong>VENTAJA ↑</strong>Rendimiento near-native</div>
+        <div class="badge con"><strong>DESVENTAJA ↓</strong>Depende del HW</div>
+      </div>
+
+      <div class="ejemplos-label">// EJEMPLOS</div>
+      <div class="tags">
+        <span class="tag">VMware ESXi moderno</span>
+        <span class="tag">KVM</span>
+        <span class="tag">Proxmox VE</span>
+      </div>
+
+      <div class="perf-label">RENDIMIENTO RELATIVO</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="90"></div></div>
+      <div class="perf-label">COMPATIBILIDAD</div>
+      <div class="perf-bar"><div class="perf-fill" data-val="88"></div></div>
+
+      <div class="detail">
+        <div class="detail-inner">
+          <p>Intel VT-x (Virtualization Technology) y AMD-V (AMD Virtualization) añaden un nuevo nivel de privilegio (VMX root / Ring -1) que permite al hipervisor controlar directamente las instrucciones privilegiadas sin emulación.</p>
+          <p>Proxmox VE combina KVM (hardware-assisted) con LXC (contenedores), dando lo mejor de ambos mundos en el mismo clúster — exactamente la arquitectura de tu homelab.</p>
+        </div>
+      </div>
+
+      <div class="toggle-btn">
+        <span>VER MÁS</span>
+        <span class="arrow">▼</span>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- ── TABLA COMPARATIVA ── -->
+  <div class="compare-section">
+    <table>
+      <thead>
+        <tr>
+          <th>TIPO</th>
+          <th>RENDIMIENTO</th>
+          <th>COMPATIBILIDAD</th>
+          <th>MODIFICA OS</th>
+          <th>KERNEL PROPIO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="dot" style="background:#00f5ff;box-shadow:0 0 4px #00f5ff"></span>Full Virtualization</td>
+          <td>Bajo–Medio</td>
+          <td>Alta</td>
+          <td>No</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#bf00ff;box-shadow:0 0 4px #bf00ff"></span>Paravirtualización</td>
+          <td>Alto</td>
+          <td>Limitada</td>
+          <td>Sí (kernel)</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#00ff88;box-shadow:0 0 4px #00ff88"></span>Contenedores</td>
+          <td>Muy Alto</td>
+          <td>Media</td>
+          <td>No</td>
+          <td>No (compartido)</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#ff8c00;box-shadow:0 0 4px #ff8c00"></span>Asistida HW</td>
+          <td>Muy Alto</td>
+          <td>Alta</td>
+          <td>No</td>
+          <td>Sí</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+/* ── CLOCK ── */
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toTimeString().slice(0,8);
+}
+setInterval(tick, 1000); tick();
+
+/* ── TOGGLE CARDS ── */
+function toggleCard(card) {
+  const detail = card.querySelector('.detail');
+  const isOpen = card.classList.contains('expanded');
+  card.classList.toggle('expanded', !isOpen);
+  detail.classList.toggle('open', !isOpen);
+}
+
+/* ── PERF BARS on load ── */
+function animateBars() {
+  document.querySelectorAll('.perf-fill').forEach(el => {
+    const val = el.dataset.val;
+    setTimeout(() => { el.style.width = val + '%'; }, 400);
+  });
+}
+window.addEventListener('load', animateBars);
+
+/* ── CANVAS BACKGROUND: AR grid + particles ── */
+(function() {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* grid */
+  function drawGrid() {
+    ctx.strokeStyle = 'rgba(0,245,255,0.04)';
+    ctx.lineWidth = 0.5;
+    const step = 50;
+    for (let x = 0; x < W; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+  }
+
+  /* perspective grid lines */
+  function drawPerspective() {
+    const cx = W / 2, cy = H * 0.55;
+    ctx.strokeStyle = 'rgba(0,245,255,0.025)';
+    ctx.lineWidth = 0.5;
+    for (let i = -8; i <= 8; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx + i * 80, H);
+      ctx.lineTo(cx + i * 20, cy);
+      ctx.stroke();
+    }
+    for (let j = 0; j < 6; j++) {
+      const t = j / 6;
+      const y = cy + (H - cy) * t;
+      const halfW = 80 + (W/2 - 80) * t;
+      ctx.beginPath();
+      ctx.moveTo(cx - halfW, y);
+      ctx.lineTo(cx + halfW, y);
+      ctx.stroke();
+    }
+  }
+
+  /* particles */
+  class Particle {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.vx = (Math.random() - .5) * 0.3;
+      this.vy = (Math.random() - .5) * 0.3;
+      this.r  = Math.random() * 1.5 + 0.5;
+      const cols = ['rgba(0,245,255,','rgba(191,0,255,','rgba(0,255,136,','rgba(255,140,0,'];
+      this.col = cols[Math.floor(Math.random() * cols.length)];
+      this.a  = Math.random() * 0.5 + 0.1;
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy;
+      if (this.x < 0||this.x > W||this.y < 0||this.y > H) this.reset();
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+      ctx.fillStyle = this.col + this.a + ')';
+      ctx.fill();
+    }
+  }
+
+  for (let i = 0; i < 80; i++) particles.push(new Particle());
+
+  /* HUD data nodes */
+  const nodes = Array.from({length: 12}, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    label: ['VT-x','KVM','LXC','XEN','HV','NS','CG','VM','HW','API','RNG','VMX'][Math.floor(Math.random()*12)],
+    a: Math.random() * 0.12 + 0.03,
+    phase: Math.random() * Math.PI * 2
+  }));
+
+  let t = 0;
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    drawGrid();
+    drawPerspective();
+
+    /* nodes pulse */
+    nodes.forEach(n => {
+      const pulse = Math.sin(t * 0.8 + n.phase) * 0.5 + 0.5;
+      ctx.font = '9px "Share Tech Mono", monospace';
+      ctx.fillStyle = `rgba(0,245,255,${n.a * (0.4 + pulse * 0.6)})`;
+      ctx.fillText(n.label, n.x, n.y);
+    });
+
+    particles.forEach(p => { p.update(); p.draw(); });
+
+    /* corner HUD brackets */
+    const bSize = 18, margin = 14;
+    ctx.strokeStyle = 'rgba(0,245,255,0.15)';
+    ctx.lineWidth = 1;
+    [[margin,margin,1,1],[W-margin,margin,-1,1],[margin,H-margin,1,-1],[W-margin,H-margin,-1,-1]].forEach(([x,y,sx,sy]) => {
+      ctx.beginPath(); ctx.moveTo(x+bSize*sx,y); ctx.lineTo(x,y); ctx.lineTo(x,y+bSize*sy); ctx.stroke();
+    });
+
+    t += 0.016;
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
