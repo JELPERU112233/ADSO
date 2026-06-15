@@ -1,1 +1,752 @@
 
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body, html { background: transparent; }
+
+#kahoot-root {
+  font-family: 'Share Tech Mono', monospace;
+  background: #020818;
+  min-height: 600px;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,200,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,200,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.scanline {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,255,200,0.015) 3px,
+    rgba(0,255,200,0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.content { position: relative; z-index: 2; }
+
+.neon-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 17px;
+  font-weight: 900;
+  color: #00ffe0;
+  text-shadow: 0 0 8px #00ffe0, 0 0 20px #00ffe0aa;
+  letter-spacing: 3px;
+  text-align: center;
+  padding: 20px 16px 6px;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: #00ffe088;
+  text-align: center;
+  letter-spacing: 2px;
+  padding-bottom: 16px;
+}
+
+.hud-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  background: rgba(0,255,200,0.05);
+  border-top: 1px solid rgba(0,255,200,0.15);
+  border-bottom: 1px solid rgba(0,255,200,0.15);
+  margin-bottom: 16px;
+}
+
+.hud-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+
+.hud-label {
+  font-size: 9px; color: #00ffe066; letter-spacing: 2px; text-transform: uppercase;
+}
+
+.hud-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 15px; font-weight: 700; color: #00ffe0;
+  text-shadow: 0 0 6px #00ffe0aa;
+}
+
+.progress-bar-wrap {
+  height: 3px;
+  background: rgba(0,255,200,0.1);
+  margin: 0 20px 16px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ffe0, #7b2fff);
+  transition: width 0.5s ease;
+  box-shadow: 0 0 6px #00ffe0;
+}
+
+.question-card {
+  margin: 0 16px 14px;
+  background: rgba(0,255,200,0.04);
+  border: 1px solid rgba(0,255,200,0.2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.question-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #00ffe0, #7b2fff, transparent);
+}
+
+.q-number {
+  font-size: 9px; color: #7b2fff; letter-spacing: 3px;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+
+.q-text {
+  font-size: 13px; color: #e0f7fa; line-height: 1.5;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.opt-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,255,200,0.25);
+  background: rgba(0,255,200,0.04);
+  color: #b0f0e8;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.4;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.opt-btn::before {
+  content: attr(data-letter);
+  font-family: 'Orbitron', monospace;
+  font-size: 9px; font-weight: 700;
+  color: #00ffe088;
+  margin-right: 6px;
+}
+
+.opt-btn:hover:not(:disabled) {
+  border-color: #00ffe0;
+  background: rgba(0,255,200,0.12);
+  color: #00ffe0;
+  box-shadow: inset 0 0 12px rgba(0,255,200,0.1), 0 0 8px rgba(0,255,200,0.15);
+}
+
+.opt-btn.correct {
+  border-color: #00ff88;
+  background: rgba(0,255,136,0.15);
+  color: #00ff88;
+  box-shadow: 0 0 12px rgba(0,255,136,0.3);
+}
+
+.opt-btn.wrong {
+  border-color: #ff3366;
+  background: rgba(255,51,102,0.12);
+  color: #ff3366;
+  box-shadow: 0 0 12px rgba(255,51,102,0.25);
+}
+
+.opt-btn.disabled-neutral {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.opt-btn:disabled { cursor: not-allowed; }
+
+.feedback-box {
+  margin: 0 16px 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.feedback-box.show { display: block; }
+
+.feedback-correct {
+  border: 1px solid #00ff88;
+  background: rgba(0,255,136,0.08);
+  color: #00ff88;
+}
+
+.feedback-wrong {
+  border: 1px solid #ff3366;
+  background: rgba(255,51,102,0.08);
+  color: #ff9eb5;
+}
+
+.feedback-icon {
+  font-family: 'Orbitron', monospace; font-size: 11px;
+  margin-bottom: 4px; font-weight: 700;
+}
+
+.next-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 0 16px 16px;
+  font-family: 'Orbitron', monospace;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 11px;
+  border-radius: 8px;
+  border: 1px solid #00ffe0;
+  background: rgba(0,255,200,0.08);
+  color: #00ffe0;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+.next-btn:hover {
+  background: rgba(0,255,200,0.18);
+  box-shadow: 0 0 16px rgba(0,255,200,0.3);
+}
+
+.next-btn.show { display: block; }
+
+.result-screen {
+  display: none;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.result-screen.show { display: block; }
+
+.result-score-ring {
+  width: 130px; height: 130px;
+  margin: 0 auto 16px;
+  position: relative;
+}
+
+.result-score-ring svg { width: 100%; height: 100%; }
+
+.score-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+.score-pts {
+  font-family: 'Orbitron', monospace;
+  font-size: 26px; font-weight: 900;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.score-pts.pass { color: #00ffe0; }
+.score-pts.fail { color: #ff3366; }
+
+.score-label {
+  font-size: 9px; letter-spacing: 2px;
+  color: #00ffe066; margin-top: 2px;
+}
+
+.verdict {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 3px; margin-bottom: 6px;
+}
+
+.verdict.pass { color: #00ff88; text-shadow: 0 0 10px #00ff8888; }
+.verdict.fail { color: #ff3366; text-shadow: 0 0 10px #ff336688; }
+
+.result-stats {
+  display: flex; justify-content: center; gap: 24px;
+  margin: 14px 0;
+}
+
+.stat-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+
+.stat-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px; font-weight: 700;
+  color: #00ffe0;
+}
+
+.stat-lbl {
+  font-size: 9px; color: #00ffe066; letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.retry-btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 12px 28px;
+  border-radius: 8px;
+  border: 1px solid #7b2fff;
+  background: rgba(123,47,255,0.12);
+  color: #c084fc;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover {
+  background: rgba(123,47,255,0.25);
+  box-shadow: 0 0 20px rgba(123,47,255,0.4);
+}
+
+.review-list {
+  margin-top: 16px; text-align: left;
+}
+
+.review-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,255,200,0.06);
+  font-size: 10px; color: #b0f0e8; line-height: 1.4;
+}
+
+.review-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700;
+}
+
+.review-dot.ok { background: rgba(0,255,136,0.2); color: #00ff88; border: 1px solid #00ff88; }
+.review-dot.ko { background: rgba(255,51,102,0.2); color: #ff3366; border: 1px solid #ff3366; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.start-screen {
+  text-align: center; padding: 28px 20px;
+}
+
+.start-info {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin: 18px 0 20px;
+}
+
+.info-chip {
+  background: rgba(0,255,200,0.05);
+  border: 1px solid rgba(0,255,200,0.15);
+  border-radius: 8px; padding: 10px 6px;
+}
+
+.chip-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px; font-weight: 700;
+  color: #00ffe0; display: block;
+}
+
+.chip-lbl {
+  font-size: 9px; color: #00ffe066;
+  letter-spacing: 1px; text-transform: uppercase;
+  display: block; margin-top: 2px;
+}
+
+.start-btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  padding: 13px 32px;
+  border-radius: 8px;
+  border: 1px solid #00ffe0;
+  background: rgba(0,255,200,0.08);
+  color: #00ffe0;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 16px rgba(0,255,200,0.15);
+}
+
+.start-btn:hover {
+  background: rgba(0,255,200,0.18);
+  box-shadow: 0 0 28px rgba(0,255,200,0.35);
+}
+
+.tag-line {
+  font-size: 10px; color: #00ffe055; letter-spacing: 1px;
+  margin-top: 8px; line-height: 1.6;
+}
+</style>
+
+<div id="kahoot-root">
+  <div class="grid-bg"></div>
+  <div class="scanline"></div>
+  <div class="content">
+
+    <div class="neon-title">1INF35 · ADSO · Capítulo 6</div>
+    <div class="subtitle">Virtualización &amp; Cloud Computing · Semana 12</div>
+
+    <div id="start-screen" class="start-screen">
+      <div class="tag-line">Autoevaluación interactiva · AR Edition<br>Responde con precisión · Cada acierto suma 2 pts</div>
+      <div class="start-info">
+        <div class="info-chip"><span class="chip-val">10</span><span class="chip-lbl">Preguntas</span></div>
+        <div class="info-chip"><span class="chip-val">20</span><span class="chip-lbl">Pts totales</span></div>
+        <div class="info-chip"><span class="chip-val">14</span><span class="chip-lbl">Para aprobar</span></div>
+      </div>
+      <button class="start-btn" onclick="startQuiz()">INICIAR QUIZ</button>
+      <p class="tag-line" style="margin-top:14px">Umbral de aprobación: 14/20 pts · 70% de éxito</p>
+    </div>
+
+    <div id="quiz-screen" style="display:none">
+      <div class="hud-bar">
+        <div class="hud-item">
+          <span class="hud-label">Pregunta</span>
+          <span class="hud-value" id="q-counter">1/10</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Puntaje</span>
+          <span class="hud-value" id="score-display">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Correctas</span>
+          <span class="hud-value" id="correct-display">0</span>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="prog-bar" style="width:0%"></div>
+      </div>
+      <div class="question-card">
+        <div class="q-number" id="q-num-label">PREGUNTA 01 / 10</div>
+        <div class="q-text" id="q-text-display"></div>
+      </div>
+      <div class="options-grid" id="options-grid"></div>
+      <div class="feedback-box" id="feedback-box">
+        <div class="feedback-icon" id="feedback-icon"></div>
+        <div id="feedback-text"></div>
+      </div>
+      <button class="next-btn" id="next-btn" onclick="nextQuestion()">SIGUIENTE ›</button>
+    </div>
+
+    <div id="result-screen" class="result-screen">
+      <div class="result-score-ring">
+        <svg viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="56" fill="none" stroke="rgba(0,255,200,0.1)" stroke-width="8"/>
+          <circle cx="65" cy="65" r="56" fill="none" id="score-arc"
+            stroke="#00ffe0" stroke-width="8"
+            stroke-dasharray="352" stroke-dashoffset="352"
+            stroke-linecap="round"
+            transform="rotate(-90 65 65)"/>
+        </svg>
+        <div class="score-center">
+          <span class="score-pts" id="final-pts">0</span>
+          <span class="score-label">/ 20 PTS</span>
+        </div>
+      </div>
+      <div class="verdict" id="verdict-text"></div>
+      <div class="result-stats">
+        <div class="stat-cell">
+          <span class="stat-val" id="res-pct">0%</span>
+          <span class="stat-lbl">Porcentaje</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-val" id="res-ok">0</span>
+          <span class="stat-lbl">Correctas</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-val" id="res-ko">0</span>
+          <span class="stat-lbl">Incorrectas</span>
+        </div>
+      </div>
+      <div class="review-list" id="review-list"></div>
+      <button class="retry-btn" onclick="retryQuiz()">↺ SEGUNDA OPORTUNIDAD</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    q: "¿Cuáles son los tres elementos principales que componen un entorno de virtualización?",
+    opts: [
+      "CPU, RAM y Disco duro",
+      "Host Físico, Hipervisor y Host virtual/invitados",
+      "NAT, Bridge y Red interna",
+      "Docker, LXC y Kubernetes"
+    ],
+    correct: 1,
+    feedback_ok: "Correcto. Los tres pilares son: el Host Físico (hardware real), el Hipervisor (VMM que arbitra recursos) y los Hosts virtuales o invitados (VMs o contenedores que corren sobre él).",
+    feedback_ko: "La tríada fundamental es: Host Físico → Hipervisor → Host virtual/invitados. CPU/RAM son recursos del host, no elementos del modelo de virtualización."
+  },
+  {
+    q: "¿Cuál es la diferencia clave entre un Hipervisor Tipo 1 (bare-metal) y un Hipervisor Tipo 2 (hosted)?",
+    opts: [
+      "El Tipo 1 usa más memoria RAM que el Tipo 2",
+      "El Tipo 2 es más seguro porque usa cifrado IPSec",
+      "El Tipo 1 corre directamente sobre hardware; el Tipo 2 requiere un SO host instalado previamente",
+      "El Tipo 1 solo soporta Windows; el Tipo 2 soporta Linux"
+    ],
+    correct: 2,
+    feedback_ok: "Exacto. Tipo 1 (ESXi, Hyper-V, KVM) opera sobre bare-metal con mayor rendimiento. Tipo 2 (VirtualBox, VMware Workstation, QEMU) corre sobre un SO anfitrión, añadiendo overhead.",
+    feedback_ko: "La distinción es arquitectónica: Tipo 1 = bare-metal sin SO anfitrión (ESXi, Hyper-V, KVM). Tipo 2 = alojado sobre SO host (VirtualBox, VMware Workstation)."
+  },
+  {
+    q: "QEMU representa la técnica de emulación de hardware. ¿Cuál es su característica más destacada?",
+    opts: [
+      "Modifica el kernel del SO invitado para reducir overhead",
+      "Comparte el kernel del host para máximo rendimiento",
+      "Emula hardware completo; el SO invitado no sabe que está virtualizado. Es lento pero muy flexible",
+      "Usa extensiones Intel VT-x/AMD-V para acelerar instrucciones privilegiadas"
+    ],
+    correct: 2,
+    feedback_ok: "Correcto. En emulación completa (full virtualization sin asistencia HW), el hipervisor emula todo el hardware. Máxima compatibilidad pero menor rendimiento por la traducción de instrucciones.",
+    feedback_ko: "QEMU/emulación simula hardware completo → alta compatibilidad, bajo rendimiento. La paravirtualización (Xen) modifica el guest. Intel VT-x es virtualización asistida por hardware."
+  },
+  {
+    q: "¿Por qué Docker NO es considerado un Hipervisor, según lo visto en el capítulo?",
+    opts: [
+      "Porque Docker no puede ejecutar más de un contenedor a la vez",
+      "Porque los contenedores comparten el kernel del SO host y no incluyen un SO completo por instancia",
+      "Porque Docker solo funciona en distribuciones Red Hat",
+      "Porque Docker requiere virtualización de hardware Intel VT-x obligatoriamente"
+    ],
+    correct: 1,
+    feedback_ok: "Correcto. Docker es un motor de contenedores, no un hipervisor. Los contenedores comparten el kernel del host; no hay SO invitado completo. Esto reduce consumo pero limita el aislamiento.",
+    feedback_ko: "Docker no es un hipervisor porque sus contenedores comparten el kernel del SO host (OS-level virtualization). No hay Guest OS completo por contenedor, a diferencia de VMs con hipervisor."
+  },
+  {
+    q: "En el contexto de LXC, ¿qué son los Linux Namespaces y cuál es su función principal?",
+    opts: [
+      "Son particiones lógicas del disco ZFS para almacenar imágenes de contenedores",
+      "Son reglas de firewall a nivel de iptables para aislar el tráfico entre contenedores",
+      "Son mecanismos del kernel Linux que permiten aislar procesos en entornos de sistema independientes (PID, NET, MNT, UTS)",
+      "Son protocolos de red overlay como VxLAN usados por Kubernetes"
+    ],
+    correct: 2,
+    feedback_ok: "Correcto. Los namespaces (mnt, pid, net, uts, user…) son primitivas del kernel Linux que crean vistas aisladas de los recursos del sistema para cada contenedor, base de LXC y Docker.",
+    feedback_ko: "Los namespaces son primitivas del kernel (clone/unshare/setns syscalls) que aíslan procesos: cada contenedor tiene su propio espacio de PIDs, red, sistema de archivos y hostname."
+  },
+  {
+    q: "Según el contenido del capítulo, ¿cuál es la diferencia fundamental entre SDN y Virtualización de Red (NV)?",
+    opts: [
+      "SDN es un protocolo de red; NV es una marca comercial de VMware NSX",
+      "SDN separa el plano de control del plano de datos en infraestructura física; NV abstrae los recursos físicos de red en redes lógicas independientes",
+      "Son exactamente lo mismo; los términos se usan indistintamente en la industria",
+      "SDN requiere hardware propietario Cisco; NV solo usa software open source"
+    ],
+    correct: 1,
+    feedback_ok: "Correcto. SDN (controlador centralizado, OpenFlow) opera sobre infraestructura física. NV (VMware NSX, VxLAN) abstrae recursos de red físicos para crear redes lógicas sobre infraestructura virtual.",
+    feedback_ko: "Son conceptos distintos: SDN = separación plano control/datos en HW físico (OpenFlow, ONOS). NV = abstracción de recursos físicos de red en capa virtual (VMware NSX, Cisco ACI, VxLAN)."
+  },
+  {
+    q: "Una empresa con varias filiales permanentes necesita conectar sus redes internas de forma transparente y continua al sistema contable central. ¿Qué tipo de VPN es la más adecuada?",
+    opts: [
+      "VPN de acceso remoto (cliente a sitio) con SSL/TLS",
+      "VPN de sitio a sitio usando IPSec o L2TP sobre WAN",
+      "Aplicación móvil VPN para smartphones corporativos",
+      "PPTP con cifrado MPPE de Microsoft"
+    ],
+    correct: 1,
+    feedback_ok: "Correcto. La VPN Site-to-Site conecta redes completas de manera permanente y transparente (IPSec/L2TP/OpenVPN). La VPN de acceso remoto es para usuarios individuales; no para interconectar sedes.",
+    feedback_ko: "Para interconectar sedes permanentes → VPN Site-to-Site (IPSec, L2TP, OpenVPN). La VPN de acceso remoto es para trabajadores individuales. PPTP es obsoleto y poco seguro."
+  },
+  {
+    q: "¿Cuál es la unidad mínima de despliegue en Kubernetes (K8s) y qué puede contener?",
+    opts: [
+      "Imagen Docker descargada del registry",
+      "Namespace de Kubernetes configurado con RBAC",
+      "Pod: la unidad básica que contiene uno o más contenedores con red y almacenamiento compartido",
+      "Node: servidor físico o VM que ejecuta el kubelet"
+    ],
+    correct: 2,
+    feedback_ok: "Correcto. El Pod es la unidad atómica de Kubernetes: agrupa uno o más contenedores que comparten IP, volúmenes y ciclo de vida. Es lo que Kubernetes despliega, escala y gestiona.",
+    feedback_ko: "La unidad mínima en K8s es el Pod (no el contenedor individual). Un Pod agrupa contenedores que comparten red y almacenamiento. Kubernetes gestiona Pods, no contenedores directamente."
+  },
+  {
+    q: "En la administración segura de infraestructura Windows en AWS, ¿cuál de estas configuraciones representa una señal de alarma crítica?",
+    opts: [
+      "Usar un Bastion Host como punto de acceso controlado para RDP",
+      "Aplicar MFA para todas las cuentas con acceso administrativo",
+      "Abrir el puerto 3389 (RDP) al mundo en los Security Groups de las instancias EC2",
+      "Configurar IAM Roles con principio de menor privilegio para las instancias"
+    ],
+    correct: 2,
+    feedback_ok: "Correcto. Exponer RDP (puerto 3389) públicamente es uno de los errores más críticos en AWS. La práctica correcta es: sin RDP público, usar Bastion Host + VPN y Systems Manager Session Manager.",
+    feedback_ko: "Abrir 3389 al mundo es error crítico #1 en AWS. Lo correcto: nunca exponer RDP; usar Bastion Host + VPN o AWS Systems Manager. Bastion, MFA e IAM Roles son prácticas correctas."
+  },
+  {
+    q: "¿Qué permite la técnica de Live Migration (implementada como vMotion en VMware) en un entorno virtualizado?",
+    opts: [
+      "Crear una copia en frío de una VM apagada y moverla a otro datastore",
+      "Convertir automáticamente contenedores Docker en máquinas virtuales KVM",
+      "Mover una VM en ejecución entre servidores físicos con tiempo de inactividad mínimo o nulo",
+      "Generar snapshots programados de VMs para backup con vSAN"
+    ],
+    correct: 2,
+    feedback_ok: "Correcto. vMotion transfiere el estado completo de una VM (memoria, CPU, red) de un host a otro mientras sigue ejecutándose. Solo hay un 'blackout' de milisegundos al final de la migración.",
+    feedback_ko: "Live Migration (vMotion) mueve VMs ACTIVAS entre hosts físicos sin detenerlas (o con interrupción de milisegundos). Los snapshots son otra función. La copia en frío es Storage vMotion."
+  }
+];
+
+let currentQ = 0;
+let score = 0;
+let correctCount = 0;
+let answers = [];
+
+function startQuiz() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('quiz-screen').style.display = 'block';
+  currentQ = 0; score = 0; correctCount = 0; answers = [];
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  const idx = currentQ;
+
+  document.getElementById('q-counter').textContent = (idx+1) + '/10';
+  document.getElementById('score-display').textContent = score;
+  document.getElementById('correct-display').textContent = correctCount;
+  document.getElementById('q-num-label').textContent = 'PREGUNTA ' + String(idx+1).padStart(2,'0') + ' / 10';
+  document.getElementById('q-text-display').textContent = q.q;
+
+  const pct = (idx / 10) * 100;
+  document.getElementById('prog-bar').style.width = pct + '%';
+
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.setAttribute('data-letter', letters[i]);
+    btn.textContent = opt;
+    btn.onclick = () => selectAnswer(i);
+    grid.appendChild(btn);
+  });
+
+  const fb = document.getElementById('feedback-box');
+  fb.className = 'feedback-box';
+  document.getElementById('next-btn').className = 'next-btn';
+}
+
+function selectAnswer(chosen) {
+  const q = QUESTIONS[currentQ];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => b.disabled = true);
+
+  const isCorrect = chosen === q.correct;
+
+  btns[chosen].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    btns[q.correct].classList.add('correct');
+  }
+  btns.forEach((b, i) => {
+    if (i !== chosen && i !== q.correct) b.classList.add('disabled-neutral');
+  });
+
+  if (isCorrect) {
+    score += 2;
+    correctCount++;
+    answers.push({ q: q.q.substring(0,60)+'...', ok: true });
+    showFeedback(true, q.feedback_ok);
+  } else {
+    answers.push({ q: q.q.substring(0,60)+'...', ok: false });
+    showFeedback(false, q.feedback_ko);
+  }
+
+  document.getElementById('score-display').textContent = score;
+  document.getElementById('correct-display').textContent = correctCount;
+  document.getElementById('next-btn').className = 'next-btn show';
+}
+
+function showFeedback(ok, text) {
+  const fb = document.getElementById('feedback-box');
+  const icon = document.getElementById('feedback-icon');
+  const ftxt = document.getElementById('feedback-text');
+  fb.className = 'feedback-box show ' + (ok ? 'feedback-correct' : 'feedback-wrong');
+  icon.textContent = ok ? '✓ CORRECTO' : '✗ INCORRECTO';
+  ftxt.textContent = text;
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= 10) {
+    showResult();
+  } else {
+    document.getElementById('feedback-box').className = 'feedback-box';
+    document.getElementById('next-btn').className = 'next-btn';
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  document.getElementById('quiz-screen').style.display = 'none';
+  const rs = document.getElementById('result-screen');
+  rs.className = 'result-screen show';
+
+  const pct = Math.round((score / 20) * 100);
+  const pass = score >= 14;
+  const wrong = 10 - correctCount;
+
+  document.getElementById('final-pts').textContent = score;
+  document.getElementById('final-pts').className = 'score-pts ' + (pass ? 'pass' : 'fail');
+
+  const verdict = document.getElementById('verdict-text');
+  verdict.textContent = pass ? '[ APROBADO · SISTEMA CERTIFICADO ]' : '[ REPROBADO · REINTENTAR ]';
+  verdict.className = 'verdict ' + (pass ? 'pass' : 'fail');
+
+  document.getElementById('res-pct').textContent = pct + '%';
+  document.getElementById('res-ok').textContent = correctCount;
+  document.getElementById('res-ko').textContent = wrong;
+
+  const arc = document.getElementById('score-arc');
+  const circumference = 352;
+  const offset = circumference - (pct / 100) * circumference;
+  arc.style.stroke = pass ? '#00ff88' : '#ff3366';
+  setTimeout(() => {
+    arc.style.transition = 'stroke-dashoffset 1s ease';
+    arc.style.strokeDashoffset = offset;
+  }, 100);
+
+  const rl = document.getElementById('review-list');
+  rl.innerHTML = '';
+  answers.forEach((a, i) => {
+    const row = document.createElement('div');
+    row.className = 'review-item';
+    row.innerHTML = '<div class="review-dot ' + (a.ok ? 'ok' : 'ko') + '">' + (a.ok ? '✓' : '✗') + '</div><div>P' + (i+1) + ': ' + a.q + '</div>';
+    rl.appendChild(row);
+  });
+}
+
+function retryQuiz() {
+  document.getElementById('result-screen').className = 'result-screen';
+  document.getElementById('score-arc').style.strokeDashoffset = '352';
+  document.getElementById('score-arc').style.transition = 'none';
+  startQuiz();
+}
+</script>
+
