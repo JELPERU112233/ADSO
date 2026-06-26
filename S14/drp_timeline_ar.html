@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>DRP Timeline — AR Neon</title>
+<style>
+  :root{
+    --neon-cyan:#0ff0fc;
+    --neon-pink:#ff2bd6;
+    --neon-green:#39ff14;
+    --neon-amber:#ffcc00;
+    --neon-purple:#b14dff;
+    --neon-red:#ff3b3b;
+    --neon-orange:#ff9f1c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#000;
+    font-family:'Courier New', monospace;
+    color:#fff;
+    overflow-x:hidden;
+  }
+  .stage{
+    position:relative;
+    min-height:100vh;
+    padding:40px 20px 80px;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(15,240,252,0.07), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(255,59,59,0.06), transparent 40%),
+      #000;
+  }
+  .grid-bg{
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background-image:
+      linear-gradient(rgba(15,240,252,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,240,252,0.08) 1px, transparent 1px);
+    background-size:40px 40px;
+    z-index:0;
+    pointer-events:none;
+    animation:gridMove 12s linear infinite;
+  }
+  @keyframes gridMove{
+    0%{background-position:0 0;}
+    100%{background-position:40px 40px;}
+  }
+  .scan{
+    position:fixed;
+    top:0;left:0;width:100%;height:3px;
+    background:linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    box-shadow:0 0 20px var(--neon-cyan);
+    animation:scanMove 4s linear infinite;
+    z-index:1;
+    opacity:0.5;
+  }
+  @keyframes scanMove{
+    0%{top:0%;}
+    100%{top:100%;}
+  }
+  h1{
+    text-align:center;
+    font-size:clamp(18px,3vw,28px);
+    letter-spacing:2px;
+    color:var(--neon-cyan);
+    text-shadow:0 0 5px var(--neon-cyan),0 0 20px var(--neon-cyan),0 0 40px rgba(15,240,252,0.5);
+    margin:0 0 8px;
+    position:relative;
+    z-index:2;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--neon-pink);
+    text-shadow:0 0 6px var(--neon-pink), 0 0 18px rgba(255,43,214,0.6);
+    font-size:13px;
+    letter-spacing:3px;
+    margin-bottom:32px;
+    position:relative;
+    z-index:2;
+    text-transform:uppercase;
+  }
+  .hud-panel{
+    position:relative;
+    z-index:2;
+    max-width:960px;
+    margin:0 auto 24px;
+    border:1px solid var(--neon-cyan);
+    background:rgba(0,20,25,0.35);
+    border-radius:10px;
+    padding:16px 22px;
+    box-shadow:0 0 15px rgba(15,240,252,0.35), inset 0 0 25px rgba(15,240,252,0.05);
+    backdrop-filter:blur(2px);
+    min-height:52px;
+    transition:box-shadow 0.4s;
+  }
+  .hud-panel::before{
+    content:'';
+    position:absolute;
+    top:-1px;left:-1px;
+    width:18px;height:18px;
+    border-top:2px solid var(--neon-cyan);
+    border-left:2px solid var(--neon-cyan);
+  }
+  .hud-panel::after{
+    content:'';
+    position:absolute;
+    bottom:-1px;right:-1px;
+    width:18px;height:18px;
+    border-bottom:2px solid var(--neon-cyan);
+    border-right:2px solid var(--neon-cyan);
+  }
+  .hud-label{
+    font-size:11px;
+    color:var(--neon-amber);
+    text-shadow:0 0 6px var(--neon-amber);
+    letter-spacing:2px;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .hud-label .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--neon-amber);
+    box-shadow:0 0 8px var(--neon-amber);
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:0.4; transform:scale(0.7);}
+  }
+  p{
+    font-size:14px;
+    line-height:1.7;
+    color:#cdfdfd;
+    margin:0;
+  }
+  .question{
+    font-size:16px;
+    color:#fff;
+    text-shadow:0 0 6px rgba(255,255,255,0.3);
+  }
+  code{
+    font-family:'Courier New', monospace;
+    color:var(--neon-green);
+    text-shadow:0 0 5px rgba(57,255,20,0.6);
+    background:rgba(57,255,20,0.06);
+    padding:2px 6px;
+    border-radius:4px;
+    border:1px solid rgba(57,255,20,0.3);
+  }
+
+  /* ===== TIMELINE STAGE ===== */
+  .timeline-stage{
+    position:relative;
+    z-index:2;
+    max-width:960px;
+    margin:0 auto 30px;
+    border:1px solid var(--neon-purple);
+    border-radius:10px;
+    background:rgba(10,0,20,0.45);
+    box-shadow:0 0 22px rgba(177,77,255,0.35);
+    padding:50px 30px 36px;
+  }
+  .tl-svg-wrap{
+    position:relative;
+    width:100%;
+  }
+  svg#tlSvg{
+    width:100%;
+    height:auto;
+    display:block;
+    overflow:visible;
+  }
+
+  .marker-group{
+    opacity:0;
+    transition:opacity 0.5s;
+  }
+  .marker-group.visible{ opacity:1; }
+
+  .arc{
+    opacity:0;
+    transition:opacity 0.6s;
+  }
+  .arc.visible{ opacity:1; }
+
+  .pin-line{
+    stroke-dasharray:4 4;
+  }
+
+  .flag-glow{ filter:drop-shadow(0 0 6px currentColor); }
+
+  .timeline-bar-bau{
+    filter:drop-shadow(0 0 6px #0ff0fc);
+  }
+  .timeline-bar-rest{
+    filter:drop-shadow(0 0 4px rgba(15,240,252,0.4));
+  }
+
+  .moving-dot{
+    filter:drop-shadow(0 0 8px #fff);
+  }
+
+  /* ===== CONTROLES ===== */
+  .btn-row{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    margin-top:26px;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:'Courier New', monospace;
+    background:transparent;
+    border:1px solid var(--neon-cyan);
+    color:var(--neon-cyan);
+    text-shadow:0 0 6px var(--neon-cyan);
+    padding:10px 18px;
+    border-radius:6px;
+    cursor:pointer;
+    letter-spacing:1px;
+    font-size:11px;
+    text-transform:uppercase;
+    transition:all 0.2s;
+    box-shadow:0 0 10px rgba(15,240,252,0.2);
+  }
+  button:hover{
+    background:rgba(15,240,252,0.12);
+    box-shadow:0 0 20px rgba(15,240,252,0.6);
+  }
+  button:active{ transform:scale(0.96); }
+  button.active-step{
+    background:rgba(15,240,252,0.18);
+    box-shadow:0 0 18px rgba(15,240,252,0.7);
+  }
+  button.danger{ border-color:var(--neon-red); color:var(--neon-red); text-shadow:0 0 6px var(--neon-red); }
+  button.danger:hover{ background:rgba(255,59,59,0.12); box-shadow:0 0 20px rgba(255,59,59,0.6); }
+
+  .step-dots{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:16px;
+  }
+  .step-dot{
+    width:9px; height:9px; border-radius:50%;
+    border:1px solid #555;
+    transition:all 0.3s;
+  }
+  .step-dot.on{
+    background:var(--neon-cyan);
+    border-color:var(--neon-cyan);
+    box-shadow:0 0 10px var(--neon-cyan);
+  }
+
+  .formula-box{
+    text-align:center;
+    margin-top:28px;
+    font-size:20px;
+    font-weight:bold;
+    letter-spacing:2px;
+    opacity:0;
+    transition:opacity 0.6s;
+  }
+  .formula-box.visible{ opacity:1; }
+  .formula-box span{
+    padding:0 4px;
+  }
+  .f-mtd{ color:var(--neon-cyan); text-shadow:0 0 10px var(--neon-cyan); }
+  .f-rto{ color:var(--neon-amber); text-shadow:0 0 10px var(--neon-amber); }
+  .f-wrt{ color:var(--neon-green); text-shadow:0 0 10px var(--neon-green); }
+  .f-plus{ color:#fff; }
+
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:#6ad;
+    letter-spacing:1px;
+    margin-top:30px;
+    position:relative;
+    z-index:2;
+    opacity:0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scan"></div>
+
+<div class="stage">
+  <h1>&lt; DRP // LÍNEA DE TIEMPO DE RECUPERACIÓN &gt;</h1>
+  <div class="subtitle">RPO — RTO — WRT — MTD // VISUALIZACIÓN AR INTERACTIVA</div>
+
+  <div class="hud-panel" id="infoPanel">
+    <div class="hud-label"><span class="dot"></span> ETAPA 1 / 4 — RECOVERY POINT OBJECTIVE (RPO)</div>
+    <p class="question" id="infoText">¿Qué tanto estoy dispuesto a perder?</p>
+  </div>
+
+  <div class="timeline-stage">
+    <div class="tl-svg-wrap">
+      <svg id="tlSvg" viewBox="0 0 1000 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="rpoGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#ff3b3b" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#ff3b3b" stop-opacity="0.35"/>
+          </linearGradient>
+          <linearGradient id="rtoGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#ff9f1c" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#ff9f1c" stop-opacity="0.35"/>
+          </linearGradient>
+          <linearGradient id="wrtGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#39ff14" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#39ff14" stop-opacity="0.35"/>
+          </linearGradient>
+          <linearGradient id="mtdGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#0ff0fc" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#0ff0fc" stop-opacity="0.30"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Arcos de fase (de atrás hacia adelante: MTD, RTO, RPO, WRT para capas correctas) -->
+        <path id="arcMTD" class="arc" d="M 560,300 C 620,180 760,180 820,300 Z" fill="url(#mtdGrad)" stroke="#0ff0fc" stroke-width="1.2"/>
+        <path id="arcRTO" class="arc" d="M 360,300 C 420,160 660,160 660,300 Z" fill="url(#rtoGrad)" stroke="#ff9f1c" stroke-width="1.2"/>
+        <path id="arcWRT" class="arc" d="M 560,300 C 610,210 760,210 820,300 Z" fill="url(#wrtGrad)" stroke="#39ff14" stroke-width="1.2"/>
+        <path id="arcRPO" class="arc" d="M 160,300 C 220,200 340,200 360,300 Z" fill="url(#rpoGrad)" stroke="#ff3b3b" stroke-width="1.2"/>
+
+        <!-- Etiquetas de fase -->
+        <text id="lblRPO" class="arc" x="260" y="250" text-anchor="middle" font-family="Courier New" font-size="20" font-weight="bold" fill="#ff6b6b" style="text-shadow:0 0 8px #ff3b3b;">RPO</text>
+        <text id="lblRTO" class="arc" x="510" y="220" text-anchor="middle" font-family="Courier New" font-size="20" font-weight="bold" fill="#ffc36b" style="text-shadow:0 0 8px #ff9f1c;">RTO</text>
+        <text id="lblWRT" class="arc" x="690" y="260" text-anchor="middle" font-family="Courier New" font-size="20" font-weight="bold" fill="#7bff5e" style="text-shadow:0 0 8px #39ff14;">WRT</text>
+        <text id="lblMTD" class="arc" x="690" y="200" text-anchor="middle" font-family="Courier New" font-size="20" font-weight="bold" fill="#7df9ff" style="text-shadow:0 0 8px #0ff0fc;">MTD</text>
+
+        <!-- Linea base Business as usual -->
+        <polygon points="20,295 40,285 40,305" fill="#3b8bff" filter="url(#none)"/>
+        <rect x="40" y="290" width="320" height="20" fill="#1e5fbf" rx="2"/>
+        <text x="50" y="304" font-family="Courier New" font-size="12" font-weight="bold" fill="#fff">Business as usual</text>
+
+        <!-- Timeline base completa -->
+        <rect x="40" y="296" width="920" height="8" fill="#11242f"/>
+        <rect x="360" y="296" width="600" height="8" fill="#0d3340"/>
+
+        <!-- puntos de tiempo -->
+        <g id="timeDots" font-family="Courier New" font-size="12" fill="#3b8bff">
+          <circle cx="360" cy="300" r="3" fill="#0ff0fc"/>
+          <circle cx="500" cy="300" r="3" fill="#0ff0fc"/>
+          <circle cx="640" cy="300" r="3" fill="#0ff0fc"/>
+          <circle cx="780" cy="300" r="3" fill="#0ff0fc"/>
+          <circle cx="920" cy="300" r="3" fill="#0ff0fc"/>
+        </g>
+
+        <text x="40" y="335" font-family="Courier New" font-size="12" font-weight="bold" fill="#3b8bff">Timeline</text>
+        <text x="200" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">10:30 am</text>
+        <text x="360" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">11 am</text>
+        <text x="500" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">11:30 am</text>
+        <text x="640" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">12 pm</text>
+        <text x="780" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">12:30 pm</text>
+        <text x="920" y="335" text-anchor="middle" font-family="Courier New" font-size="12" fill="#3b8bff">1 pm</text>
+
+        <!-- DISASTER marker -->
+        <g id="markDisaster" class="marker-group">
+          <line x1="360" y1="70" x2="360" y2="298" stroke="#ff3b3b" stroke-width="1.5" class="pin-line"/>
+          <rect x="310" y="40" width="100" height="28" rx="14" fill="#ff3b3b" class="flag-glow"/>
+          <text x="360" y="59" text-anchor="middle" font-family="Courier New" font-size="12" font-weight="bold" fill="#fff">DISASTER ⚡</text>
+        </g>
+
+        <!-- RECOVERY marker -->
+        <g id="markRecovery" class="marker-group">
+          <line x1="640" y1="100" x2="640" y2="298" stroke="#ff9f1c" stroke-width="1.5" class="pin-line"/>
+          <rect x="590" y="72" width="100" height="28" rx="14" fill="#ff9f1c" class="flag-glow"/>
+          <text x="640" y="91" text-anchor="middle" font-family="Courier New" font-size="12" font-weight="bold" fill="#1a1200">RECOVERY</text>
+        </g>
+
+        <!-- RESUME PRODUCTION marker -->
+        <g id="markResume" class="marker-group">
+          <line x1="820" y1="130" x2="820" y2="298" stroke="#39ff14" stroke-width="1.5" class="pin-line"/>
+          <rect x="762" y="98" width="116" height="34" rx="10" fill="#39ff14" class="flag-glow"/>
+          <text x="820" y="113" text-anchor="middle" font-family="Courier New" font-size="11" font-weight="bold" fill="#022000">Resume</text>
+          <text x="820" y="126" text-anchor="middle" font-family="Courier New" font-size="11" font-weight="bold" fill="#022000">Production</text>
+        </g>
+
+        <!-- Moving dot que recorre la linea -->
+        <circle id="movingDot" class="moving-dot" cx="40" cy="300" r="6" fill="#fff"/>
+      </svg>
+    </div>
+
+    <div class="step-dots">
+      <div class="step-dot on" id="dot0"></div>
+      <div class="step-dot" id="dot1"></div>
+      <div class="step-dot" id="dot2"></div>
+      <div class="step-dot" id="dot3"></div>
+    </div>
+
+    <div class="formula-box" id="formulaBox">
+      <span class="f-mtd">MTD</span><span class="f-plus">=</span><span class="f-rto">RTO</span><span class="f-plus">+</span><span class="f-wrt">WRT</span>
+    </div>
+
+    <div class="btn-row">
+      <button id="btnPrev" onclick="prevStep()">◀ ANTERIOR</button>
+      <button id="btnStep0" onclick="goToStep(0)">RPO</button>
+      <button id="btnStep1" onclick="goToStep(1)">RTO</button>
+      <button id="btnStep2" onclick="goToStep(2)">WRT</button>
+      <button id="btnStep3" onclick="goToStep(3)">MTD</button>
+      <button id="btnNext" onclick="nextStep()">SIGUIENTE ▶</button>
+      <button class="danger" onclick="replayAll()">↺ REINICIAR ANIMACIÓN</button>
+    </div>
+  </div>
+
+  <div class="hud-panel">
+    <div class="hud-label"><span class="dot"></span> RESUMEN CONCEPTUAL</div>
+    <p><code>RPO</code> = tolerancia a pérdida de datos antes del desastre. <code>RTO</code> = tiempo hasta tener el sistema recuperado. <code>WRT</code> = tiempo adicional para validar integridad y reanudar producción. <code>MTD</code> = ventana total tolerable de inactividad = RTO + WRT.</p>
+  </div>
+
+  <div class="footer-note">[ AR-VIEW // PASO ACTUAL: <span id="footerStep">RPO</span> // ESTADO: ESTABLE ]</div>
+</div>
+
+<script>
+const steps = [
+  {
+    label: 'ETAPA 1 / 4 — RECOVERY POINT OBJECTIVE (RPO)',
+    text: '¿Qué tanto estoy dispuesto a perder?',
+    show: ['arcRPO','lblRPO'],
+    markers: [],
+    formula: false,
+    dotX: 360
+  },
+  {
+    label: 'ETAPA 2 / 4 — RECOVERY TIME OBJECTIVE (RTO)',
+    text: '¿Qué tan rápido puedo recuperar la información? ¿Listo para usar en producción?',
+    show: ['arcRPO','lblRPO','arcRTO','lblRTO'],
+    markers: ['markDisaster'],
+    formula: false,
+    dotX: 640
+  },
+  {
+    label: 'ETAPA 3 / 4 — WORKING RECOVERY TIME (WRT)',
+    text: 'Recuperación real y listo para usar en producción. Validada integridad de sistema y datos.',
+    show: ['arcRPO','lblRPO','arcRTO','lblRTO','arcWRT','lblWRT'],
+    markers: ['markDisaster','markRecovery'],
+    formula: false,
+    dotX: 820
+  },
+  {
+    label: 'ETAPA 4 / 4 — MAXIMUM TOLERABLE DOWNTIME (MTD)',
+    text: 'MTD = RTO + WRT — ventana total de inactividad tolerable por el negocio.',
+    show: ['arcRPO','lblRPO','arcRTO','lblRTO','arcWRT','lblWRT','arcMTD','lblMTD'],
+    markers: ['markDisaster','markRecovery','markResume'],
+    formula: true,
+    dotX: 920
+  }
+];
+
+let current = -1;
+const allIds = ['arcRPO','lblRPO','arcRTO','lblRTO','arcWRT','lblWRT','arcMTD','lblMTD'];
+const allMarkers = ['markDisaster','markRecovery','markResume'];
+
+function applyStep(stepIndex, animateDot){
+  const step = steps[stepIndex];
+
+  allIds.forEach(id=>{
+    const el = document.getElementById(id);
+    if(step.show.includes(id)){
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
+  });
+
+  allMarkers.forEach(id=>{
+    const el = document.getElementById(id);
+    if(step.markers.includes(id)){
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
+  });
+
+  document.getElementById('infoPanel').querySelector('.hud-label').innerHTML =
+    '<span class="dot"></span> ' + step.label;
+  document.getElementById('infoText').textContent = step.text;
+
+  const formulaBox = document.getElementById('formulaBox');
+  if(step.formula){ formulaBox.classList.add('visible'); }
+  else { formulaBox.classList.remove('visible'); }
+
+  for(let i=0;i<4;i++){
+    document.getElementById('dot'+i).classList.toggle('on', i===stepIndex);
+    document.getElementById('btnStep'+i).classList.toggle('active-step', i===stepIndex);
+  }
+
+  document.getElementById('footerStep').textContent =
+    ['RPO','RTO','WRT','MTD'][stepIndex];
+
+  if(animateDot){
+    const dot = document.getElementById('movingDot');
+    dot.style.transition = 'cx 1.1s cubic-bezier(.4,0,.2,1)';
+    dot.setAttribute('cx', step.dotX);
+  }
+}
+
+function goToStep(idx){
+  if(idx<0||idx>3) return;
+  current = idx;
+  applyStep(idx, true);
+}
+function nextStep(){
+  if(current<3) goToStep(current+1);
+}
+function prevStep(){
+  if(current>0) goToStep(current-1);
+}
+function replayAll(){
+  current = -1;
+  const dot = document.getElementById('movingDot');
+  dot.style.transition = 'none';
+  dot.setAttribute('cx', 40);
+  allIds.forEach(id=>document.getElementById(id).classList.remove('visible'));
+  allMarkers.forEach(id=>document.getElementById(id).classList.remove('visible'));
+  document.getElementById('formulaBox').classList.remove('visible');
+  setTimeout(()=>{ goToStep(0); }, 150);
+}
+
+goToStep(0);
+</script>
+
+</body>
+</html>
