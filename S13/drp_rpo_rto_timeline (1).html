@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador RPO / RTO - DRP</title>
+<style>
+  html, body {
+    background-color: #000000 !important;
+    color: #ffffff;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 24px;
+  }
+  * { font-family: Arial, Helvetica, sans-serif; box-sizing: border-box; }
+  h1 {
+    font-size: 20px;
+    color: #ffffff;
+    margin: 0 0 20px;
+  }
+  .panel {
+    background-color: #000000;
+    border: 1px solid #333333;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .cards {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card {
+    flex: 1;
+    border-radius: 8px;
+    padding: 12px 16px;
+    background-color: #000000;
+  }
+  .card.rpo { border: 1px solid #E24B4A; }
+  .card.rto { border: 1px solid #378ADD; }
+  .card p.title {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  .card.rpo p.title { color: #F09595; }
+  .card.rto p.title { color: #85B7EB; }
+  .card p.desc {
+    margin: 0;
+    font-size: 12px;
+    color: #cfcfcf;
+  }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .slider-row label {
+    font-size: 13px;
+    color: #cfcfcf;
+    white-space: nowrap;
+  }
+  #t-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #333333;
+    outline: none;
+  }
+  #t-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffd24a;
+    cursor: pointer;
+    border: 2px solid #000000;
+  }
+  #t-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffd24a;
+    cursor: pointer;
+    border: 2px solid #000000;
+  }
+  #t-out {
+    font-size: 13px;
+    font-weight: bold;
+    min-width: 200px;
+    text-align: right;
+    color: #ffffff;
+  }
+  #popup {
+    margin-top: 16px;
+    background-color: #000000;
+    border: 1px solid #ffd24a;
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: none;
+  }
+  #popup p.popup-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffd24a;
+    margin: 0 0 6px;
+  }
+  #popup p.popup-msg {
+    font-size: 13px;
+    color: #e6e6e6;
+    margin: 0;
+    line-height: 1.5;
+  }
+  svg text { font-family: Arial, Helvetica, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<h1>Simulador interactivo de RPO y RTO en un Plan de Recuperacion de Desastres</h1>
+
+<div class="panel">
+
+  <div class="cards">
+    <div class="card rpo">
+      <p class="title">RPO - Recovery Point Objective</p>
+      <p class="desc">Cuanta informacion puedes perder, medida hacia atras desde la contingencia.</p>
+    </div>
+    <div class="card rto">
+      <p class="title">RTO - Recovery Time Objective</p>
+      <p class="desc">Cuanto tiempo tardas en restaurar el servicio tras la contingencia.</p>
+    </div>
+  </div>
+
+  <svg id="svg-timeline" width="100%" viewBox="0 0 680 220" role="img">
+    <title>Linea de tiempo DRP</title>
+    <desc>Eje de tiempo con ultimo backup, contingencia y datos restaurados, mostrando ventanas RPO y RTO</desc>
+    <defs>
+      <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#aaaaaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <line x1="40" y1="160" x2="640" y2="160" stroke="#aaaaaa" stroke-width="1" marker-end="url(#arrow2)"/>
+    <text x="650" y="164" font-size="12" fill="#cfcfcf">tiempo</text>
+
+    <rect x="100" y="110" width="180" height="22" rx="4" fill="#E24B4A" opacity="0.25"/>
+    <rect x="280" y="110" width="240" height="22" rx="4" fill="#378ADD" opacity="0.25"/>
+
+    <line x1="100" y1="121" x2="280" y2="121" stroke="#F09595" stroke-width="2"/>
+    <line x1="280" y1="121" x2="520" y2="121" stroke="#85B7EB" stroke-width="2"/>
+    <text x="190" y="102" text-anchor="middle" font-size="12" fill="#F09595">RPO</text>
+    <text x="400" y="102" text-anchor="middle" font-size="12" fill="#85B7EB">RTO</text>
+
+    <line x1="100" y1="160" x2="100" y2="60" stroke="#777777" stroke-width="1" stroke-dasharray="3 3"/>
+    <circle cx="100" cy="160" r="5" fill="#5DCAA5" stroke="#0b3b2e" stroke-width="1"/>
+    <text x="100" y="48" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">Ultimo backup</text>
+
+    <line x1="280" y1="160" x2="280" y2="60" stroke="#777777" stroke-width="1" stroke-dasharray="3 3"/>
+    <circle cx="280" cy="160" r="6" fill="#E24B4A" stroke="#5c1414" stroke-width="1.5"/>
+    <text x="280" y="48" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">Contingencia</text>
+
+    <line x1="520" y1="160" x2="520" y2="60" stroke="#777777" stroke-width="1" stroke-dasharray="3 3"/>
+    <circle cx="520" cy="160" r="5" fill="#378ADD" stroke="#0C447C" stroke-width="1"/>
+    <text x="520" y="48" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">Datos restaurados</text>
+
+    <circle id="playhead" cx="100" cy="160" r="8" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <line id="beam" x1="100" y1="160" x2="100" y2="200" stroke="#ffd24a" stroke-width="2"/>
+  </svg>
+
+  <div class="slider-row">
+    <label for="t-slider">Avanzar tiempo</label>
+    <input type="range" id="t-slider" min="0" max="420" value="0" step="1">
+    <span id="t-out">Antes del backup</span>
+  </div>
+
+  <div id="popup">
+    <p class="popup-title" id="popup-title"></p>
+    <p class="popup-msg" id="popup-msg"></p>
+  </div>
+
+</div>
+
+<script>
+  var zones = [
+    { min: 0,   max: 99,   label: "Antes del backup",
+      title: "Estado inicial",
+      msg: "Aun no se ha producido ningun evento. El sistema opera con normalidad y el ultimo backup todavia no se ha tomado en esta simulacion." },
+    { min: 100, max: 279,  label: "Dentro de la ventana RPO",
+      title: "Ventana RPO activa",
+      msg: "Si la contingencia ocurriera en este instante, esta es la cantidad de datos que se perderian: todo lo generado desde el ultimo backup hasta ahora. Mientras mas se aleje el backup, mayor es el riesgo de perdida de informacion." },
+    { min: 280, max: 280,  label: "Contingencia",
+      title: "Ocurre la contingencia",
+      msg: "Se produce la falla, el ataque o el desastre. A partir de este punto exacto se empieza a medir el RTO: el reloj de inactividad del servicio arranca aqui." },
+    { min: 281, max: 519,  label: "Dentro de la ventana RTO",
+      title: "Ventana RTO activa",
+      msg: "El servicio esta caido. El equipo de TI ejecuta el plan de recuperacion: restauracion de backups, activacion de sitio alterno o failover. Cada minuto aqui es downtime medido contra el RTO objetivo." },
+    { min: 520, max: 1000, label: "Servicio restaurado",
+      title: "Datos restaurados",
+      msg: "El servicio vuelve a estar disponible. Se cumplio o se incumplio el RTO planificado. A partir de aqui empieza nuevamente una nueva ventana RPO hacia el siguiente backup." }
+  ];
+
+  function findZone(x) {
+    for (var i = 0; i < zones.length; i++) {
+      if (x >= zones[i].min && x <= zones[i].max) return zones[i];
+    }
+    return zones[0];
+  }
+
+  function updatePlay(v) {
+    var x = 100 + Number(v);
+    document.getElementById('playhead').setAttribute('cx', x);
+    document.getElementById('beam').setAttribute('x1', x);
+    document.getElementById('beam').setAttribute('x2', x);
+
+    var zone = findZone(Number(v));
+    document.getElementById('t-out').textContent = zone.label;
+
+    var popup = document.getElementById('popup');
+    popup.style.display = 'block';
+    document.getElementById('popup-title').textContent = zone.title;
+    document.getElementById('popup-msg').textContent = zone.msg;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var slider = document.getElementById('t-slider');
+    slider.addEventListener('input', function () {
+      updatePlay(slider.value);
+    });
+    updatePlay(slider.value);
+  });
+</script>
+
+</body>
+</html>
