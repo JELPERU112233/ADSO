@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Compresión Lossless — AR Neon</title>
+<style>
+  :root{
+    --neon-cyan:#0ff0fc;
+    --neon-pink:#ff2bd6;
+    --neon-green:#39ff14;
+    --neon-amber:#ffcc00;
+    --neon-purple:#b14dff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#000;
+    font-family:'Courier New', monospace;
+    color:#fff;
+    overflow-x:hidden;
+  }
+  .stage{
+    position:relative;
+    min-height:100vh;
+    padding:40px 20px 80px;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(15,240,252,0.07), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(255,43,214,0.07), transparent 40%),
+      #000;
+  }
+  .grid-bg{
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background-image:
+      linear-gradient(rgba(15,240,252,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,240,252,0.08) 1px, transparent 1px);
+    background-size:40px 40px;
+    z-index:0;
+    pointer-events:none;
+    animation:gridMove 12s linear infinite;
+  }
+  @keyframes gridMove{
+    0%{background-position:0 0;}
+    100%{background-position:40px 40px;}
+  }
+  .scan{
+    position:fixed;
+    top:0;left:0;width:100%;height:3px;
+    background:linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    box-shadow:0 0 20px var(--neon-cyan);
+    animation:scanMove 4s linear infinite;
+    z-index:1;
+    opacity:0.5;
+  }
+  @keyframes scanMove{
+    0%{top:0%;}
+    100%{top:100%;}
+  }
+  h1{
+    text-align:center;
+    font-size:clamp(18px,3vw,28px);
+    letter-spacing:2px;
+    color:var(--neon-cyan);
+    text-shadow:0 0 5px var(--neon-cyan),0 0 20px var(--neon-cyan),0 0 40px rgba(15,240,252,0.5);
+    margin:0 0 8px;
+    position:relative;
+    z-index:2;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--neon-pink);
+    text-shadow:0 0 6px var(--neon-pink), 0 0 18px rgba(255,43,214,0.6);
+    font-size:13px;
+    letter-spacing:3px;
+    margin-bottom:40px;
+    position:relative;
+    z-index:2;
+    text-transform:uppercase;
+  }
+  .hud-panel{
+    position:relative;
+    z-index:2;
+    max-width:900px;
+    margin:0 auto 30px;
+    border:1px solid var(--neon-cyan);
+    background:rgba(0,20,25,0.35);
+    border-radius:10px;
+    padding:18px 22px;
+    box-shadow:0 0 15px rgba(15,240,252,0.35), inset 0 0 25px rgba(15,240,252,0.05);
+    backdrop-filter:blur(2px);
+  }
+  .hud-panel::before{
+    content:'';
+    position:absolute;
+    top:-1px;left:-1px;
+    width:18px;height:18px;
+    border-top:2px solid var(--neon-cyan);
+    border-left:2px solid var(--neon-cyan);
+  }
+  .hud-panel::after{
+    content:'';
+    position:absolute;
+    bottom:-1px;right:-1px;
+    width:18px;height:18px;
+    border-bottom:2px solid var(--neon-cyan);
+    border-right:2px solid var(--neon-cyan);
+  }
+  .hud-label{
+    font-size:11px;
+    color:var(--neon-amber);
+    text-shadow:0 0 6px var(--neon-amber);
+    letter-spacing:2px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .hud-label .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--neon-amber);
+    box-shadow:0 0 8px var(--neon-amber);
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:0.4; transform:scale(0.7);}
+  }
+  p{
+    font-size:14px;
+    line-height:1.7;
+    color:#cdfdfd;
+    margin:0 0 10px;
+  }
+  code, .code{
+    font-family:'Courier New', monospace;
+    color:var(--neon-green);
+    text-shadow:0 0 5px rgba(57,255,20,0.6);
+    background:rgba(57,255,20,0.06);
+    padding:2px 6px;
+    border-radius:4px;
+    border:1px solid rgba(57,255,20,0.3);
+  }
+
+  /* ===== ANIMACION PRINCIPAL DE COMPRESION ===== */
+  .compress-stage{
+    position:relative;
+    z-index:2;
+    max-width:900px;
+    margin:0 auto 40px;
+    border:1px solid var(--neon-purple);
+    border-radius:10px;
+    background:rgba(15,0,25,0.4);
+    box-shadow:0 0 20px rgba(177,77,255,0.35);
+    padding:30px 20px 24px;
+    text-align:center;
+  }
+  .raw-line{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:4px;
+    margin-bottom:18px;
+    min-height:40px;
+  }
+  .chunk{
+    font-size:13px;
+    padding:6px 8px;
+    border:1px solid var(--neon-pink);
+    border-radius:5px;
+    color:var(--neon-pink);
+    text-shadow:0 0 6px var(--neon-pink);
+    box-shadow:0 0 10px rgba(255,43,214,0.3);
+    opacity:0;
+    transform:translateY(-10px);
+    animation:fallIn 0.4s forwards;
+  }
+  @keyframes fallIn{
+    to{opacity:1; transform:translateY(0);}
+  }
+  .arrow-down{
+    font-size:22px;
+    color:var(--neon-cyan);
+    text-shadow:0 0 10px var(--neon-cyan);
+    margin:10px 0;
+    animation:bob 1.2s ease-in-out infinite;
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(6px);}
+  }
+  .compressed-line{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 22px;
+    border:2px solid var(--neon-green);
+    border-radius:30px;
+    color:var(--neon-green);
+    text-shadow:0 0 8px var(--neon-green);
+    box-shadow:0 0 25px rgba(57,255,20,0.45), inset 0 0 15px rgba(57,255,20,0.1);
+    font-size:15px;
+    opacity:0;
+    animation:popIn 0.6s forwards;
+    animation-delay:1.8s;
+  }
+  @keyframes popIn{
+    0%{opacity:0; transform:scale(0.7);}
+    60%{opacity:1; transform:scale(1.08);}
+    100%{opacity:1; transform:scale(1);}
+  }
+  .x3-badge{
+    background:var(--neon-amber);
+    color:#000;
+    font-weight:bold;
+    padding:2px 10px;
+    border-radius:20px;
+    font-size:13px;
+    box-shadow:0 0 10px var(--neon-amber);
+  }
+  .stat-row{
+    display:flex;
+    justify-content:center;
+    gap:30px;
+    margin-top:24px;
+    flex-wrap:wrap;
+  }
+  .stat-box{
+    border:1px solid var(--neon-cyan);
+    border-radius:8px;
+    padding:10px 18px;
+    min-width:130px;
+    background:rgba(0,30,35,0.4);
+    box-shadow:0 0 12px rgba(15,240,252,0.3);
+  }
+  .stat-box .num{
+    font-size:22px;
+    color:var(--neon-cyan);
+    text-shadow:0 0 10px var(--neon-cyan);
+    font-weight:bold;
+  }
+  .stat-box .lbl{
+    font-size:10px;
+    color:#9ff;
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+
+  /* ===== BARRA DE PROGRESO INTERACTIVA (100GB -> 20-30GB) ===== */
+  .barwrap{
+    max-width:900px;
+    margin:0 auto 40px;
+    position:relative;
+    z-index:2;
+  }
+  .bar-outer{
+    height:36px;
+    border:1px solid var(--neon-cyan);
+    border-radius:18px;
+    box-shadow:0 0 18px rgba(15,240,252,0.3), inset 0 0 10px rgba(15,240,252,0.1);
+    overflow:hidden;
+    position:relative;
+    background:rgba(0,15,20,0.5);
+  }
+  .bar-fill{
+    height:100%;
+    width:100%;
+    background:linear-gradient(90deg, var(--neon-pink), var(--neon-purple));
+    box-shadow:0 0 20px var(--neon-pink);
+    transition:width 1.6s cubic-bezier(.4,0,.2,1), background 1.6s;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    padding-right:14px;
+    font-size:12px;
+    color:#fff;
+  }
+  .bar-fill.done{
+    background:linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+    box-shadow:0 0 25px var(--neon-green);
+  }
+  .barlabels{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--neon-amber);
+    text-shadow:0 0 5px var(--neon-amber);
+    margin-top:8px;
+  }
+  .btn-row{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:'Courier New', monospace;
+    background:transparent;
+    border:1px solid var(--neon-cyan);
+    color:var(--neon-cyan);
+    text-shadow:0 0 6px var(--neon-cyan);
+    padding:10px 20px;
+    border-radius:6px;
+    cursor:pointer;
+    letter-spacing:1px;
+    font-size:12px;
+    text-transform:uppercase;
+    transition:all 0.2s;
+    box-shadow:0 0 10px rgba(15,240,252,0.2);
+  }
+  button:hover{
+    background:rgba(15,240,252,0.12);
+    box-shadow:0 0 20px rgba(15,240,252,0.6);
+  }
+  button:active{
+    transform:scale(0.96);
+  }
+  button.alt{
+    border-color:var(--neon-pink);
+    color:var(--neon-pink);
+    text-shadow:0 0 6px var(--neon-pink);
+    box-shadow:0 0 10px rgba(255,43,214,0.2);
+  }
+  button.alt:hover{
+    background:rgba(255,43,214,0.12);
+    box-shadow:0 0 20px rgba(255,43,214,0.6);
+  }
+
+  /* ===== TABLA TIPO HUD FINAL ===== */
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:#6ad;
+    letter-spacing:1px;
+    margin-top:30px;
+    position:relative;
+    z-index:2;
+    opacity:0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scan"></div>
+
+<div class="stage">
+  <h1>&lt; COMPRESIÓN LOSSLESS // SISTEMA DE BACKUP &gt;</h1>
+  <div class="subtitle">DEFLATE — LZ77 // VISUALIZACIÓN AR</div>
+
+  <div class="hud-panel">
+    <div class="hud-label"><span class="dot"></span> ANÁLISIS DE LOG: PATRÓN REPETITIVO DETECTADO</div>
+    <p>El archivo contiene muchas líneas repetidas (timestamps, IPs, códigos de estado HTTP repetidos miles de veces). Un algoritmo como <code>DEFLATE</code> (ZIP, gzip) o <code>LZ77</code> detecta esas repeticiones y las reemplaza por referencias cortas.</p>
+  </div>
+
+  <div class="compress-stage" id="compressDemo">
+    <div class="hud-label" style="justify-content:center;"><span class="dot"></span> ENTRADA SIN COMPRIMIR (30 CARACTERES)</div>
+    <div class="raw-line" id="rawLine"></div>
+    <div class="arrow-down">▼ DEFLATE / LZ77 ▼</div>
+    <div class="compressed-line">
+      <span class="code" style="background:transparent;border:none;">"ERROR 404"</span>
+      <span class="x3-badge">x3</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num">30B</div><div class="lbl">tamaño original</div></div>
+      <div class="stat-box"><div class="num">~11B</div><div class="lbl">tamaño comprimido</div></div>
+      <div class="stat-box"><div class="num">0 bits</div><div class="lbl">datos perdidos</div></div>
+    </div>
+    <div class="btn-row">
+      <button onclick="replayDemo()">▶ REPRODUCIR DE NUEVO</button>
+    </div>
+  </div>
+
+  <div class="hud-panel">
+    <div class="hud-label"><span class="dot"></span> SIMULADOR: 100 GB DE BACKUP</div>
+    <p>Ajusta el ratio de compresión observado en backups reales (20–30 GB resultantes) y descomprime para confirmar que obtienes exactamente el archivo original.</p>
+  </div>
+
+  <div class="barwrap">
+    <div class="bar-outer">
+      <div class="bar-fill" id="barFill" style="width:100%;">100 GB</div>
+    </div>
+    <div class="barlabels">
+      <span>0 GB</span>
+      <span id="barStatus">ARCHIVO ORIGINAL — SIN COMPRIMIR</span>
+      <span>100 GB</span>
+    </div>
+    <div class="btn-row">
+      <button onclick="compressNow()">▶ COMPRIMIR (DEFLATE)</button>
+      <button class="alt" onclick="decompressNow()">↺ DESCOMPRIMIR — VERIFICAR INTEGRIDAD</button>
+    </div>
+  </div>
+
+  <div class="hud-panel">
+    <div class="hud-label"><span class="dot"></span> POR QUÉ ES CRÍTICO EN BACKUPS</div>
+    <p>Esto es crítico en backups: no puedes perder datos de auditoría, configuraciones o bases de datos. Al descomprimir, obtienes <code>exactamente</code> el archivo original — ni un solo bit cambia.</p>
+  </div>
+
+  <div class="footer-note">[ AR-VIEW // RENDER ESTABLE // SIN PÉRDIDA DE DATOS CONFIRMADA ]</div>
+</div>
+
+<script>
+function buildRawLine(){
+  const rawLine = document.getElementById('rawLine');
+  rawLine.innerHTML = '';
+  const tokens = ['ERROR','404','ERROR','404','ERROR','404'];
+  tokens.forEach((t, i) => {
+    const span = document.createElement('span');
+    span.className = 'chunk';
+    span.textContent = t;
+    span.style.animationDelay = (i * 0.18) + 's';
+    rawLine.appendChild(span);
+  });
+}
+buildRawLine();
+
+function replayDemo(){
+  const stage = document.getElementById('compressDemo');
+  stage.style.animation = 'none';
+  buildRawLine();
+  const compressedEl = stage.querySelector('.compressed-line');
+  compressedEl.style.animation = 'none';
+  void compressedEl.offsetWidth;
+  compressedEl.style.animation = 'popIn 0.6s forwards';
+  compressedEl.style.animationDelay = '1.8s';
+}
+
+let compressed = false;
+function compressNow(){
+  const fill = document.getElementById('barFill');
+  const status = document.getElementById('barStatus');
+  fill.style.width = '25%';
+  fill.textContent = '~25 GB';
+  fill.classList.add('done');
+  status.textContent = 'COMPRIMIDO — DEFLATE APLICADO — 0 BITS PERDIDOS';
+  compressed = true;
+}
+function decompressNow(){
+  const fill = document.getElementById('barFill');
+  const status = document.getElementById('barStatus');
+  if(!compressed){
+    status.textContent = 'NADA QUE DESCOMPRIMIR — COMPRIME PRIMERO';
+    return;
+  }
+  fill.style.width = '100%';
+  fill.textContent = '100 GB (idéntico al original)';
+  fill.classList.remove('done');
+  status.textContent = 'INTEGRIDAD VERIFICADA — ARCHIVO IDÉNTICO AL ORIGINAL';
+  compressed = false;
+}
+</script>
+
+</body>
+</html>
