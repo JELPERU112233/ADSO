@@ -1,1 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Autoevaluación Semana 1 - ADSO 1INF35</title>
+<style>
+  * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 20% 20%, #1a0b3d 0%, #0a0118 45%, #050010 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+    overflow-x: hidden;
+  }
+
+  /* fondo animado de partículas neón */
+  .bg-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 10% 90%, rgba(0,255,255,0.12) 0%, transparent 35%),
+      radial-gradient(circle at 90% 10%, rgba(255,0,200,0.12) 0%, transparent 35%),
+      radial-gradient(circle at 50% 50%, rgba(120,0,255,0.08) 0%, transparent 50%);
+  }
+
+  .wrap { position: relative; z-index: 1; width: 100%; max-width: 780px; }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 6px 18px;
+    border-radius: 999px;
+    border: 1px solid #00fff7;
+    color: #00fff7;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    box-shadow: 0 0 12px #00fff7, inset 0 0 8px rgba(0,255,247,0.3);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 5vw, 38px);
+    margin: 0 0 6px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #00fff7, #ff00e5, #7c4dff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(255,0,229,0.25);
+  }
+
+  h1 .glitch { animation: flicker 3.2s infinite; }
+  @keyframes flicker {
+    0%, 92%, 100% { opacity: 1; }
+    93% { opacity: 0.4; }
+    95% { opacity: 1; }
+    96% { opacity: 0.6; }
+  }
+
+  .subtitle { color: #b9a9ff; font-size: 14px; opacity: 0.85; }
+
+  /* barra de progreso */
+  .progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(0,255,247,0.3);
+    overflow: hidden;
+    margin: 20px 0 6px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00fff7, #ff00e5);
+    box-shadow: 0 0 14px #00fff7;
+    transition: width 0.45s ease;
+  }
+  .progress-label {
+    text-align: right;
+    font-size: 12px;
+    color: #8be9fd;
+    margin-bottom: 10px;
+  }
+
+  .card {
+    background: rgba(20, 8, 45, 0.55);
+    border: 1px solid rgba(0, 255, 247, 0.35);
+    border-radius: 22px;
+    padding: 28px 24px;
+    box-shadow: 0 0 40px rgba(124, 77, 255, 0.25), inset 0 0 40px rgba(0,255,247,0.03);
+    backdrop-filter: blur(6px);
+    animation: appear 0.4s ease;
+  }
+  @keyframes appear {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .qnum {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #ff9dfb;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .question {
+    font-size: clamp(18px, 3.2vw, 23px);
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 22px;
+    color: #f4f1ff;
+  }
+
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px) {
+    .options { grid-template-columns: 1fr; }
+  }
+
+  .opt {
+    position: relative;
+    text-align: left;
+    padding: 16px 16px 16px 52px;
+    border-radius: 14px;
+    border: 2px solid;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+    background: rgba(255,255,255,0.03);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .opt:hover:not(:disabled) { transform: translateY(-3px) scale(1.015); }
+
+  .opt::before {
+    content: attr(data-letter);
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 900;
+    background: rgba(255,255,255,0.08);
+  }
+
+  .opt.c1 { border-color: #ff4d6d; box-shadow: 0 0 14px rgba(255,77,109,0.35); }
+  .opt.c2 { border-color: #4d9fff; box-shadow: 0 0 14px rgba(77,159,255,0.35); }
+  .opt.c3 { border-color: #ffd93d; box-shadow: 0 0 14px rgba(255,217,61,0.35); }
+  .opt.c4 { border-color: #4dffb8; box-shadow: 0 0 14px rgba(77,255,184,0.35); }
+
+  .opt:disabled { cursor: default; }
+
+  .opt.correct {
+    background: rgba(77, 255, 184, 0.18);
+    border-color: #4dffb8;
+    box-shadow: 0 0 26px #4dffb8;
+  }
+  .opt.wrong {
+    background: rgba(255, 60, 90, 0.18);
+    border-color: #ff3c5a;
+    box-shadow: 0 0 26px #ff3c5a;
+  }
+  .opt.dim { opacity: 0.35; }
+
+  .feedback {
+    margin-top: 20px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    display: none;
+    animation: appear 0.35s ease;
+  }
+  .feedback.show { display: block; }
+  .feedback.ok {
+    background: rgba(77,255,184,0.1);
+    border: 1px solid #4dffb8;
+    color: #d6fff0;
+  }
+  .feedback.bad {
+    background: rgba(255,60,90,0.1);
+    border: 1px solid #ff3c5a;
+    color: #ffe1e6;
+  }
+  .feedback strong { color: #fff; }
+
+  .nextbtn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #7c4dff, #ff00e5);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 22px rgba(255,0,229,0.5);
+    display: none;
+  }
+  .nextbtn.show { display: block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+
+  /* pantalla final */
+  .final { text-align: center; padding: 20px 6px; }
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    margin: 10px auto 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: radial-gradient(circle, rgba(124,77,255,0.25), transparent 70%);
+    border: 3px solid #00fff7;
+    box-shadow: 0 0 40px #00fff7, inset 0 0 30px rgba(0,255,247,0.15);
+  }
+  .score-circle .num { font-size: 44px; font-weight: 900; color: #00fff7; text-shadow: 0 0 18px #00fff7; }
+  .score-circle .den { font-size: 14px; color: #b9a9ff; }
+
+  .final h2 {
+    font-size: 24px;
+    background: linear-gradient(90deg, #00fff7, #ff00e5);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 8px;
+  }
+  .final p { color: #cfc4ff; font-size: 14.5px; line-height: 1.6; max-width: 520px; margin: 0 auto 20px; }
+
+  .restart {
+    padding: 12px 28px;
+    border-radius: 999px;
+    border: 1px solid #00fff7;
+    background: transparent;
+    color: #00fff7;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(0,255,247,0.4);
+  }
+  .restart:hover { background: rgba(0,255,247,0.1); }
+
+  footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 11px;
+    color: #6b5fa8;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="wrap">
+  <header>
+    <div class="badge">⚡ Semana 1 · Autoevaluación</div>
+    <h1><span class="glitch">Administración de Sistemas Operativos</span></h1>
+    <div class="subtitle">1INF35 · PUCP — Introducción a la Administración de Sistemas Operativos</div>
+  </header>
+
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">Pregunta 1 de 4</div>
+
+  <div class="card" id="quizCard"></div>
+
+  <footer>ADMINISTRACIÓN DE SISTEMAS OPERATIVOS (1INF35) — Material de autoevaluación generado con base en la Semana 1</footer>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "Según el material, ¿cuáles son las cuatro funciones centrales de un administrador de sistema operativo (representadas como engranajes)?",
+    options: [
+      { letter: "A", text: "Instalar, configurar, monitorear y reportar" },
+      { letter: "B", text: "Planifica, Organiza, Dirige y Controla" },
+      { letter: "C", text: "Diseñar, desarrollar, probar y desplegar" },
+      { letter: "D", text: "Automatizar, respaldar, actualizar y auditar" }
+    ],
+    correct: 1,
+    feedback: {
+      ok: "Correcto. El material presenta estas cuatro funciones como engranajes interconectados (Planifica, Organiza, Dirige, Controla), cuyo resultado son <strong>Tareas</strong> que garantizan operaciones sin disrupción, con integridad, eficacia y oportunidad.",
+      bad: "No es la opción correcta. El diagrama de engranajes de la diapositiva 13 muestra específicamente: <strong>Planifica, Organiza, Dirige y Controla</strong>. Las otras opciones describen tareas técnicas específicas (parte del 'alcance'), pero no son las funciones administrativas base."
+    }
+  },
+  {
+    q: "¿Cuáles son los tres pilares que forman el triángulo de Seguridad de la Información en el material (diapositiva 18)?",
+    options: [
+      { letter: "A", text: "Confidencialidad, Disponibilidad, Integridad" },
+      { letter: "B", text: "Backup, Firewall, Encriptación" },
+      { letter: "C", text: "Hardware, Software, Networking" },
+      { letter: "D", text: "Prevención, Detección, Respuesta" }
+    ],
+    correct: 0,
+    feedback: {
+      ok: "Correcto. El triángulo clásico de seguridad de la información (CID) es <strong>Confidencialidad, Disponibilidad e Integridad</strong>, con la 'Información' en el centro y el administrador como responsable de sostener ese equilibrio.",
+      bad: "Incorrecto. El material representa el triángulo de seguridad con <strong>Confidencialidad, Disponibilidad (24/7) e Integridad</strong> rodeando la 'Información' en el centro (diapositiva 18). Las demás opciones son mecanismos o categorías, no los pilares del triángulo CID."
+    }
+  },
+  {
+    q: "Dentro de las 'Otras tareas no técnicas' del administrador, ¿cuál de las siguientes tuvo el mayor porcentaje de progreso reportado (86%) en AMBAS diapositivas (22 y 23)?",
+    options: [
+      { letter: "A", text: "Capacitación en el hardware" },
+      { letter: "B", text: "Ethical/White Hacking y Gestionar laboratorios de pruebas" },
+      { letter: "C", text: "Lograr certificaciones técnicas" },
+      { letter: "D", text: "Preparar data forense" }
+    ],
+    correct: 1,
+    feedback: {
+      ok: "Correcto. En la diapositiva 22, 'Ethical/White Hacking' aparece con 86%, y en la diapositiva 23, 'Gestionar laboratorios de pruebas' también aparece con 86% — ambas son las de mayor progreso reportado en sus respectivas listas.",
+      bad: "No es correcto. Revisando las barras de progreso: en la diapositiva 22 el 86% corresponde a 'Ethical/White Hacking', y en la diapositiva 23 el 86% corresponde a 'Gestionar laboratorios de pruebas'. 'Capacitación en hardware' (36%) y 'certificaciones técnicas' (36%) tienen los valores más bajos."
+    }
+  },
+  {
+    q: "¿Cuál es la secuencia correcta de las 7 etapas de un Proyecto TI presentadas en la diapositiva 29?",
+    options: [
+      { letter: "A", text: "Análisis, Inicio, Diseño, Despliegue, Pruebas, Operación, Cierre" },
+      { letter: "B", text: "Inicio, Diseño, Análisis, Pruebas, Despliegue, Cierre, Operación" },
+      { letter: "C", text: "Inicio, Análisis, Diseño, Pruebas, Despliegue, Operación, Cierre" },
+      { letter: "D", text: "Requerimientos, Análisis, Diseño, Implementación, Control y Mejora" }
+    ],
+    correct: 2,
+    feedback: {
+      ok: "Correcto. La secuencia es: <strong>1) Inicio → 2) Análisis → 3) Diseño → 4) Pruebas → 5) Despliegue → 6) Operación → 7) Cierre</strong>. Nota: no confundir esto con el 'Ciclo simple' de planeamiento base (diapositiva 25), que usa otras 5 etapas (Requerimientos, Análisis, Diseño, Implementación, Control y Mejora) — esa es la opción D, un modelo distinto pero relacionado.",
+      bad: "Incorrecto. La secuencia correcta de las 7 etapas de un Proyecto TI (diapositiva 29) es: <strong>Inicio → Análisis → Diseño → Pruebas → Despliegue → Operación → Cierre</strong>. La opción D corresponde al 'Ciclo simple' de planeamiento base (diapositiva 25), que es un modelo de 5 etapas distinto."
+    }
+  }
+];
+
+let current = 0;
+let score = 0;
+const colorClasses = ["c1", "c2", "c3", "c4"];
+
+const quizCard = document.getElementById("quizCard");
+const progressFill = document.getElementById("progressFill");
+const progressLabel = document.getElementById("progressLabel");
+
+function renderQuestion(index) {
+  const item = questions[index];
+  progressFill.style.width = ((index) / questions.length * 100) + "%";
+  progressLabel.textContent = `Pregunta ${index + 1} de ${questions.length}`;
+
+  let optsHtml = "";
+  item.options.forEach((opt, i) => {
+    optsHtml += `<button class="opt ${colorClasses[i]}" data-letter="${opt.letter}" data-index="${i}">${opt.text}</button>`;
+  });
+
+  quizCard.innerHTML = `
+    <div class="qnum">Pregunta ${index + 1}</div>
+    <div class="question">${item.q}</div>
+    <div class="options" id="optionsWrap">${optsHtml}</div>
+    <div class="feedback" id="feedbackBox"></div>
+    <button class="nextbtn" id="nextBtn">${index === questions.length - 1 ? "Ver resultado final →" : "Siguiente pregunta →"}</button>
+  `;
+
+  const buttons = quizCard.querySelectorAll(".opt");
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => handleAnswer(btn, item, buttons));
+  });
+}
+
+function handleAnswer(selectedBtn, item, allButtons) {
+  const selectedIndex = parseInt(selectedBtn.dataset.index);
+  const isCorrect = selectedIndex === item.correct;
+
+  allButtons.forEach(b => b.disabled = true);
+
+  allButtons.forEach((b, i) => {
+    if (i === item.correct) {
+      b.classList.add("correct");
+    } else if (i === selectedIndex && !isCorrect) {
+      b.classList.add("wrong");
+    } else {
+      b.classList.add("dim");
+    }
+  });
+
+  const feedbackBox = document.getElementById("feedbackBox");
+  feedbackBox.classList.add("show");
+  if (isCorrect) {
+    score++;
+    feedbackBox.classList.add("ok");
+    feedbackBox.innerHTML = "✅ " + item.feedback.ok;
+  } else {
+    feedbackBox.classList.add("bad");
+    feedbackBox.innerHTML = "❌ " + item.feedback.bad;
+  }
+
+  const nextBtn = document.getElementById("nextBtn");
+  nextBtn.classList.add("show");
+  nextBtn.addEventListener("click", () => {
+    current++;
+    if (current < questions.length) {
+      renderQuestion(current);
+    } else {
+      renderFinal();
+    }
+  });
+}
+
+function renderFinal() {
+  progressFill.style.width = "100%";
+  progressLabel.textContent = "Autoevaluación completada";
+
+  let msg = "";
+  if (score === questions.length) {
+    msg = "Dominio sólido de los conceptos clave de la Semana 1: alcance, funciones (Planifica-Organiza-Dirige-Controla), pilares de seguridad y etapas de proyecto TI.";
+  } else if (score >= questions.length / 2) {
+    msg = "Buen desempeño general. Conviene repasar las diapositivas 13 (funciones), 18 (triángulo de seguridad) y 29 (etapas del proyecto TI) para consolidar los puntos fallados.";
+  } else {
+    msg = "Se recomienda repasar el material completo de la Semana 1, especialmente las diapositivas 13, 18, 21-23 y 29, antes de avanzar a la siguiente sesión.";
+  }
+
+  quizCard.innerHTML = `
+    <div class="final">
+      <div class="score-circle">
+        <div class="num">${score}/${questions.length}</div>
+        <div class="den">CORRECTAS</div>
+      </div>
+      <h2>¡Autoevaluación completada!</h2>
+      <p>${msg}</p>
+      <button class="restart" id="restartBtn">↺ Intentar de nuevo</button>
+    </div>
+  `;
+
+  document.getElementById("restartBtn").addEventListener("click", () => {
+    current = 0;
+    score = 0;
+    renderQuestion(0);
+  });
+}
+
+renderQuestion(0);
+</script>
+</body>
+</html>
 
