@@ -1,0 +1,210 @@
+<div style="background:#070b12;border-radius:16px;padding:28px 20px 22px;position:relative;overflow:hidden;border:1px solid #1c2a3a;background-image:linear-gradient(#0e1826 1px,transparent 1px),linear-gradient(90deg,#0e1826 1px,transparent 1px);background-size:24px 24px;">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;">Secuencia de arranque interactiva estilo neón AR, con Firmware, Verificación, Gestor de arranque, Kernel y Servicios base, cada uno desglosado en tres micro-pasos navegables.</h2>
+<span style="position:absolute;top:10px;left:10px;width:16px;height:16px;border-top:2px solid #35e3ff;border-left:2px solid #35e3ff;opacity:.6"></span>
+<span style="position:absolute;top:10px;right:10px;width:16px;height:16px;border-top:2px solid #35e3ff;border-right:2px solid #35e3ff;opacity:.6"></span>
+<span style="position:absolute;bottom:10px;left:10px;width:16px;height:16px;border-bottom:2px solid #35e3ff;border-left:2px solid #35e3ff;opacity:.6"></span>
+<span style="position:absolute;bottom:10px;right:10px;width:16px;height:16px;border-bottom:2px solid #35e3ff;border-right:2px solid #35e3ff;opacity:.6"></span>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="rec-dot" style="width:8px;height:8px;border-radius:50%;background:#35e3ff;box-shadow:0 0 6px 2px #35e3ff;"></span>
+    <span style="font-size:12px;letter-spacing:.08em;color:#8fd9ff;font-weight:500;">AR · BOOT SCAN</span>
+  </div>
+  <span id="status-txt" style="font-size:12px;color:#5a7690;font-family:var(--font-mono);">EN ESPERA</span>
+</div>
+
+<svg id="link-svg" width="100%" viewBox="0 0 640 40" style="display:block;margin-bottom:2px;overflow:visible;">
+  <line x1="70" y1="20" x2="570" y2="20" stroke="#173049" stroke-width="2"/>
+  <line id="link-fill" x1="70" y1="20" x2="70" y2="20" stroke="#35e3ff" stroke-width="2" stroke-linecap="round" style="filter:drop-shadow(0 0 4px #35e3ff);transition:x2 .5s ease;"/>
+</svg>
+
+<div id="nodes" style="display:flex;justify-content:space-between;gap:6px;margin-bottom:18px;"></div>
+
+<div style="background:#0a1420;border:1px solid #1c3a52;border-radius:12px;padding:16px 18px;min-height:190px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+    <span id="phase-title" style="font-size:15px;font-weight:500;color:#e4f5ff;">Selecciona un paso</span>
+    <span id="phase-sub" style="font-size:11px;color:#4f6a82;font-family:var(--font-mono);"></span>
+  </div>
+  <p id="phase-overview" style="font-size:12px;color:#8fa9c2;margin:0 0 12px;line-height:1.5;">Usa "Comenzar" o haz clic en un ícono para explorar cada fase con sus micro-pasos técnicos.</p>
+  <ol id="substep-list" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;"></ol>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap;">
+  <button id="prev-btn" onclick="stepMove(-1)" style="background:transparent;border:1px solid #1c3a52;color:#8fa9c2;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+    <i class="ti ti-chevron-left" style="font-size:15px;" aria-hidden="true"></i>Anterior
+  </button>
+  <button id="next-btn" onclick="stepMove(1)" style="background:transparent;border:1px solid #35e3ff;color:#35e3ff;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+    <span id="next-label">Comenzar</span><i class="ti ti-chevron-right" style="font-size:15px;" aria-hidden="true"></i>
+  </button>
+  <button id="play-btn" onclick="togglePlay()" style="background:transparent;border:1px solid #1c3a52;color:#8fa9c2;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto;">
+    <i id="play-icon" class="ti ti-player-play" style="font-size:15px;" aria-hidden="true"></i>
+    <span id="play-label">Reproducir todo</span>
+  </button>
+</div>
+<div style="margin-top:12px;height:3px;background:#173049;border-radius:2px;overflow:hidden;">
+  <div id="progress-bar" style="height:100%;width:0%;background:#35e3ff;box-shadow:0 0 6px 1px #35e3ff;transition:width .4s ease;"></div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:4px;">
+  <span style="font-size:11px;color:#4f6a82;">Progreso</span>
+  <span id="progress-label" style="font-size:11px;color:#4f6a82;font-family:var(--font-mono);">0 / 15</span>
+</div>
+</div>
+<script>
+const phases = [
+  {icon:'ti-cpu', title:'Firmware', sub:'BIOS / UEFI', detail:'El firmware es el primer código que se ejecuta al encender el equipo, aún antes de que exista un sistema operativo.',
+    steps:[
+      {t:'POST (Power-On Self-Test)', d:'Verifica que CPU, memoria RAM y componentes básicos respondan correctamente antes de continuar.'},
+      {t:'Inicialización de hardware', d:'Detecta discos, controladores, tarjeta de video y demás periféricos conectados a la placa.'},
+      {t:'Selección del dispositivo de arranque', d:'Consulta el orden configurado (disco, USB, red) y localiza el primer sector o partición de arranque.'}
+    ]},
+  {icon:'ti-shield-check', title:'Verificación', sub:'Secure Boot', detail:'Antes de ejecutar cualquier código del sistema operativo, UEFI valida que provenga de una fuente de confianza.',
+    steps:[
+      {t:'Carga de firmas de confianza', d:'El firmware lee las claves y firmas digitales almacenadas en su base de datos segura (DB/KEK).'},
+      {t:'Validación del gestor de arranque', d:'Compara la firma digital del bootloader contra las firmas confiables antes de ejecutarlo.'},
+      {t:'Bloqueo ante fallos', d:'Si la firma no coincide, detiene el arranque para impedir la carga de malware o bootkits.'}
+    ]},
+  {icon:'ti-code', title:'Gestor de arranque', sub:'GRUB, BOOTMGR', detail:'El bootloader es el puente entre el firmware y el sistema operativo: localiza y carga el kernel en memoria.',
+    steps:[
+      {t:'Menú de selección de SO', d:'Si hay varios sistemas instalados, presenta las opciones de arranque disponibles.'},
+      {t:'Localización del kernel', d:'Busca en la partición correspondiente el archivo del núcleo del sistema operativo elegido.'},
+      {t:'Carga en memoria', d:'Copia el kernel y un disco RAM inicial (initrd/initramfs) a memoria y le transfiere el control.'}
+    ]},
+  {icon:'ti-cpu-2', title:'Kernel', sub:'Núcleo del sistema', detail:'El kernel toma el control del hardware y prepara el entorno de ejecución para el resto del sistema.',
+    steps:[
+      {t:'Gestión de memoria y procesos', d:'Inicializa las estructuras que administrarán la memoria virtual y la planificación de procesos.'},
+      {t:'Carga de controladores esenciales', d:'Activa los drivers mínimos necesarios para disco, chipset y consola.'},
+      {t:'Montaje del sistema de archivos raíz', d:'Monta la partición raíz (/ o C:) para poder acceder al resto de archivos del sistema.'}
+    ]},
+  {icon:'ti-server-2', title:'Servicios base', sub:'Preparación del entorno', detail:'El sistema entrega el control al primer proceso de espacio de usuario, que organiza todo lo demás.',
+    steps:[
+      {t:'Arranque del proceso init', d:'systemd, init o Windows Session Manager se convierte en el primer proceso (PID 1) del sistema.'},
+      {t:'Inicio de servicios esenciales', d:'Se activan red, journaling/logs, gestión de energía y otros servicios base.'},
+      {t:'Entrega de la interfaz', d:'Se lanza la pantalla de inicio de sesión o el entorno gráfico/consola para el usuario.'}
+    ]}
+];
+const nodeX = [70,170,320,470,570];
+const flat = [];
+phases.forEach((p,pi)=>p.steps.forEach((s,si)=>flat.push({pi,si})));
+let idx = -1;
+let playing = false;
+let playTimer = null;
+
+const nodesEl = document.getElementById('nodes');
+nodesEl.innerHTML = phases.map((p,i)=>`
+  <div class="node-item" data-i="${i}" onclick="jumpPhase(${i})" style="flex:1;max-width:120px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+    <div class="ring" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid #1c3a52;background:#0c1622;transition:box-shadow .3s,border-color .3s;">
+      <i class="ti ${p.icon}" style="font-size:22px;color:#5a7690;transition:color .3s;" aria-hidden="true"></i>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:13px;font-weight:500;color:#c8dcec;">${p.title}</div>
+      <div style="font-size:11px;color:#4f6a82;">${p.sub}</div>
+    </div>
+  </div>`).join('');
+
+function render(){
+  const nextBtn = document.getElementById('next-btn');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextLabel = document.getElementById('next-label');
+  if(idx < 0){
+    document.getElementById('phase-title').textContent = 'Selecciona un paso';
+    document.getElementById('phase-sub').textContent = '';
+    document.getElementById('phase-overview').textContent = 'Usa "Comenzar" o haz clic en un ícono para explorar cada fase con sus micro-pasos técnicos.';
+    document.getElementById('substep-list').innerHTML = '';
+    document.getElementById('status-txt').textContent = 'EN ESPERA';
+    nextLabel.textContent = 'Comenzar';
+    prevBtn.style.opacity = '.4';
+    document.querySelectorAll('.node-item .ring').forEach(r=>{r.style.borderColor='#1c3a52';r.style.boxShadow='none';});
+    document.querySelectorAll('.node-item i').forEach(ic=>ic.style.color='#5a7690');
+    document.getElementById('link-fill').setAttribute('x2', 70);
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-label').textContent = '0 / ' + flat.length;
+    return;
+  }
+  const {pi,si} = flat[idx];
+  const phase = phases[pi];
+  document.getElementById('phase-title').textContent = phase.title;
+  document.getElementById('phase-sub').textContent = phase.sub;
+  document.getElementById('phase-overview').textContent = phase.detail;
+  document.getElementById('substep-list').innerHTML = phase.steps.map((s,i)=>{
+    const state = i<si?'done':(i===si?'active':'pending');
+    const color = state==='active' ? '#c9f6ff' : state==='done' ? '#8fd9ff' : '#4f6a82';
+    const icon = state==='done' ? 'ti-circle-check-filled' : (state==='active' ? 'ti-player-play-filled' : 'ti-circle');
+    const iconColor = state==='active' ? '#35e3ff' : (state==='done' ? '#1d8fae' : '#2a4256');
+    return `<li style="display:flex;gap:10px;align-items:flex-start;">
+      <i class="ti ${icon}" style="font-size:15px;color:${iconColor};margin-top:2px;flex-shrink:0;" aria-hidden="true"></i>
+      <div>
+        <div style="font-size:13px;font-weight:500;color:${color};">${s.t}</div>
+        <div style="font-size:12px;color:#5a7690;line-height:1.5;">${s.d}</div>
+      </div>
+    </li>`;
+  }).join('');
+  document.getElementById('status-txt').textContent = 'PASO ' + (idx+1) + '/' + flat.length + ' · ' + phase.title.toUpperCase();
+  nextLabel.textContent = idx === flat.length-1 ? 'Reiniciar' : 'Siguiente';
+  prevBtn.style.opacity = '1';
+
+  document.querySelectorAll('.node-item').forEach((el,i)=>{
+    const ring = el.querySelector('.ring');
+    const icon = el.querySelector('i');
+    if(i===pi){
+      ring.style.borderColor = '#35e3ff';
+      ring.style.boxShadow = '0 0 14px 3px rgba(53,227,255,.55), inset 0 0 8px rgba(53,227,255,.35)';
+      icon.style.color = '#c9f6ff';
+    } else if(i<pi){
+      ring.style.borderColor = '#1d6e82';
+      ring.style.boxShadow = '0 0 6px 1px rgba(53,227,255,.2)';
+      icon.style.color = '#8fd9ff';
+    } else {
+      ring.style.borderColor = '#1c3a52';
+      ring.style.boxShadow = 'none';
+      icon.style.color = '#5a7690';
+    }
+  });
+  const frac = si / (phase.steps.length);
+  const x2 = pi>0 ? nodeX[pi-1] + (nodeX[pi]-nodeX[pi-1])*Math.min(1,(si+0.5)/phase.steps.length) : 70 + (nodeX[0]-70)*Math.min(1,(si+0.5)/phase.steps.length);
+  document.getElementById('link-fill').setAttribute('x2', nodeX[pi]);
+  document.getElementById('progress-bar').style.width = Math.round(((idx+1)/flat.length)*100) + '%';
+  document.getElementById('progress-label').textContent = (idx+1) + ' / ' + flat.length;
+}
+
+function stepMove(dir){
+  if(playing) stopPlay();
+  if(dir>0){
+    idx = idx >= flat.length-1 ? -1 : idx+1;
+  } else {
+    if(idx>0) idx--;
+  }
+  render();
+}
+
+function jumpPhase(pi){
+  if(playing) stopPlay();
+  idx = flat.findIndex(f=>f.pi===pi);
+  render();
+}
+
+function stopPlay(){
+  playing = false;
+  clearTimeout(playTimer);
+  document.getElementById('play-icon').className = 'ti ti-player-play';
+  document.getElementById('play-label').textContent = 'Reproducir todo';
+}
+
+function togglePlay(){
+  if(playing){ stopPlay(); return; }
+  playing = true;
+  document.getElementById('play-icon').className = 'ti ti-player-pause';
+  document.getElementById('play-label').textContent = 'Pausar';
+  if(idx>=flat.length-1) idx = -1;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const delay = reduced ? 10 : 1400;
+  function tick(){
+    if(!playing) return;
+    idx = idx+1;
+    render();
+    if(idx>=flat.length-1){ stopPlay(); return; }
+    playTimer = setTimeout(tick, delay);
+  }
+  tick();
+}
+render();
+</script>
