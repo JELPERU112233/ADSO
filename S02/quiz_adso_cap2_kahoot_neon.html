@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Quiz ADSO — Capítulo 2 (estilo Kahoot / RA)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #101826 0%, #05070c 70%);
+    font-family: Arial, Helvetica, sans-serif;
+    color: #e7f2ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 26px 14px 60px;
+  }
+  h1 { font-size: 22px; text-align:center; margin:0 0 4px; color:#7fd8ff; text-shadow:0 0 8px #2fb8ff, 0 0 20px #2fb8ff; }
+  p.sub { color:#8ea6bd; font-size:12.5px; margin:0 0 22px; text-align:center; }
+
+  #hud {
+    width:100%; max-width:760px;
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px; font-size:12.5px; color:#9db6ce;
+  }
+  #hud .score { color:#7fffb0; text-shadow:0 0 6px #33ffb0; font-weight:bold; }
+
+  #progressTrack {
+    width:100%; max-width:760px; height:6px; border-radius:4px;
+    background:#101826; border:1px solid #223349; overflow:hidden; margin-bottom:22px;
+  }
+  #progressFill { height:100%; width:0%; background:linear-gradient(90deg,#33baff,#a866ff); box-shadow:0 0 8px #33baff; transition:width .4s ease; }
+
+  #quizCard {
+    width:100%; max-width:760px;
+    background:#0d1520; border:1px solid #223349; border-radius:14px;
+    padding:26px 24px 22px;
+    box-shadow:0 0 18px rgba(47,184,255,.12);
+  }
+
+  #qNum { font-size:11.5px; color:#6f88a0; letter-spacing:.5px; margin-bottom:6px; }
+  #qText { font-size:18px; font-weight:bold; line-height:1.4; margin-bottom:22px; color:#f0f7ff; min-height:70px; }
+
+  #answers {
+    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+  }
+  @media (max-width:520px){ #answers{ grid-template-columns:1fr; } }
+
+  .ans {
+    display:flex; align-items:center; gap:12px;
+    padding:16px 16px;
+    border-radius:10px;
+    border:1.5px solid;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:bold;
+    transition:transform .12s ease, box-shadow .2s ease;
+    background:#0f1826;
+  }
+  .ans:hover { transform: translateY(-2px); }
+  .ans svg { flex:0 0 26px; width:26px; height:26px; }
+
+  .ans-red    { border-color:#ff5470; color:#ffc9d2; }
+  .ans-blue   { border-color:#33baff; color:#c6ecff; }
+  .ans-yellow { border-color:#ffd23f; color:#fff2c2; }
+  .ans-green  { border-color:#33ffb0; color:#c9ffe8; }
+
+  .ans.correct {
+    background:#0e2a1c;
+    box-shadow:0 0 10px #33ffb0, 0 0 26px rgba(51,255,176,.55);
+    border-color:#33ffb0;
+  }
+  .ans.incorrect {
+    background:#2a0e14;
+    box-shadow:0 0 10px #ff5470, 0 0 26px rgba(255,84,112,.5);
+    border-color:#ff5470;
+    opacity:.75;
+  }
+  .ans.disabled { pointer-events:none; }
+  .ans.dim { opacity:.35; }
+
+  #feedback {
+    margin-top:18px; min-height:44px; font-size:13.5px; color:#bcd4ea; line-height:1.5;
+  }
+  #feedback.ok { color:#8dffc9; }
+  #feedback.bad { color:#ff9fb0; }
+
+  #nextBtn {
+    margin-top:16px;
+    background:#123a5c; border:1px solid #33baff; color:#eafcff;
+    padding:9px 18px; border-radius:8px; font-size:13px; cursor:pointer;
+    box-shadow:0 0 8px rgba(51,186,255,.4);
+    display:none;
+  }
+  #nextBtn:hover { box-shadow:0 0 14px rgba(51,186,255,.7); }
+
+  #finalScreen { display:none; text-align:center; }
+  #finalScreen h2 { color:#7fd8ff; text-shadow:0 0 8px #2fb8ff; font-size:24px; }
+  #finalScreen .bigscore { font-size:42px; font-weight:bold; color:#7fffb0; text-shadow:0 0 10px #33ffb0, 0 0 26px rgba(51,255,176,.6); margin:10px 0; }
+  #restartBtn {
+    margin-top:18px;
+    background:#123a5c; border:1px solid #33baff; color:#eafcff;
+    padding:10px 20px; border-radius:8px; font-size:13px; cursor:pointer;
+  }
+
+  footer { margin-top:26px; font-size:10px; color:#5f7488; letter-spacing:.3px; }
+</style>
+</head>
+<body>
+
+<h1>Quiz ADSO — Capítulo 2</h1>
+<p class="sub">Arranque, particiones, PXE e infraestructura — estilo Kahoot con efecto neón</p>
+
+<div id="hud">
+  <span id="hudProgress">Pregunta 1 / 5</span>
+  <span class="score">Puntaje: <span id="hudScore">0</span></span>
+</div>
+<div id="progressTrack"><div id="progressFill"></div></div>
+
+<div id="quizCard">
+  <div id="qNum"></div>
+  <div id="qText"></div>
+  <div id="answers"></div>
+  <div id="feedback"></div>
+  <button id="nextBtn">Siguiente pregunta →</button>
+</div>
+
+<div id="finalScreen">
+  <h2>¡Quiz completado!</h2>
+  <div class="bigscore" id="finalScoreText">0 / 5</div>
+  <p id="finalMsg" style="color:#9db6ce; font-size:13.5px;"></p>
+  <button id="restartBtn">Reintentar</button>
+</div>
+
+<footer>Ing. JOSE ESPINOZA LANDA, MBA, MSc</footer>
+
+<script>
+var shapes = {
+  triangle: '<svg viewBox="0 0 24 24"><polygon points="12,3 21,20 3,20" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  diamond:  '<svg viewBox="0 0 24 24"><polygon points="12,2 22,12 12,22 2,12" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  circle:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  square:   '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
+};
+
+var questions = [
+  {
+    q: "¿Qué característica de UEFI evita la carga de software malicioso durante el arranque, verificando la autenticidad del gestor de arranque?",
+    answers: [
+      {text:"Secure Boot", style:"blue", shape:"diamond", correct:true},
+      {text:"MBR", style:"red", shape:"triangle", correct:false},
+      {text:"Swap", style:"yellow", shape:"circle", correct:false},
+      {text:"BOOTMGR", style:"green", shape:"square", correct:false}
+    ],
+    explain: "Secure Boot es la característica de seguridad de UEFI que usa firmas digitales de confianza para verificar el gestor de arranque antes de cargarlo."
+  },
+  {
+    q: "¿Cuál es el esquema de particionado recomendado para equipos modernos con UEFI y discos grandes?",
+    answers: [
+      {text:"MBR", style:"red", shape:"triangle", correct:false},
+      {text:"GPT", style:"blue", shape:"diamond", correct:true},
+      {text:"NTFS", style:"yellow", shape:"circle", correct:false},
+      {text:"ext4", style:"green", shape:"square", correct:false}
+    ],
+    explain: "GPT (GUID Partition Table) es el esquema moderno, recomendado para equipos con UEFI y discos de gran capacidad; MBR es el esquema legado."
+  },
+  {
+    q: "En un arranque PXE, ¿qué protocolo (legacy) se usa para transferir el gestor de arranque (NBP) desde el servidor al cliente?",
+    answers: [
+      {text:"SMTP", style:"red", shape:"triangle", correct:false},
+      {text:"SNMP", style:"yellow", shape:"circle", correct:false},
+      {text:"TFTP", style:"blue", shape:"diamond", correct:true},
+      {text:"FTP", style:"green", shape:"square", correct:false}
+    ],
+    explain: "PXE usa DHCP para la configuración de red y TFTP (legacy; hoy también HTTP boot) para transferir el Network Boot Program desde el servidor."
+  },
+  {
+    q: "¿Qué herramienta proporcionada por el fabricante se usa en Windows para despersonalizar (generalizar) una imagen antes de clonarla?",
+    answers: [
+      {text:"Sysprep", style:"blue", shape:"diamond", correct:true},
+      {text:"Autopilot", style:"green", shape:"square", correct:false},
+      {text:"GRUB", style:"red", shape:"triangle", correct:false},
+      {text:"Kickstart", style:"yellow", shape:"circle", correct:false}
+    ],
+    explain: "Sysprep despersonaliza la instalación base de Windows (SID, nombre, etc.) antes de capturarla como imagen para clonación masiva."
+  },
+  {
+    q: "En el ciclo de vida de la infraestructura de TI, ¿qué fase sigue inmediatamente después de 'Adquisición'?",
+    answers: [
+      {text:"Retiro", style:"red", shape:"triangle", correct:false},
+      {text:"Actualización", style:"yellow", shape:"circle", correct:false},
+      {text:"Planificación", style:"green", shape:"square", correct:false},
+      {text:"Implementación", style:"blue", shape:"diamond", correct:true}
+    ],
+    explain: "El ciclo es: Planificación → Adquisición → Implementación → Administración de recursos → Actualización → Retiro (que reinicia el ciclo)."
+  }
+];
+
+var current = 0;
+var score = 0;
+var answered = false;
+
+var qNum = document.getElementById("qNum");
+var qText = document.getElementById("qText");
+var answersEl = document.getElementById("answers");
+var feedback = document.getElementById("feedback");
+var nextBtn = document.getElementById("nextBtn");
+var hudProgress = document.getElementById("hudProgress");
+var hudScore = document.getElementById("hudScore");
+var progressFill = document.getElementById("progressFill");
+var quizCard = document.getElementById("quizCard");
+var finalScreen = document.getElementById("finalScreen");
+
+function renderQuestion() {
+  answered = false;
+  var q = questions[current];
+  qNum.textContent = "PREGUNTA " + (current + 1) + " DE " + questions.length;
+  qText.textContent = q.q;
+  hudProgress.textContent = "Pregunta " + (current + 1) + " / " + questions.length;
+  progressFill.style.width = (current / questions.length * 100) + "%";
+  feedback.textContent = "";
+  feedback.className = "";
+  nextBtn.style.display = "none";
+
+  answersEl.innerHTML = "";
+  q.answers.forEach(function(a, i) {
+    var div = document.createElement("div");
+    div.className = "ans ans-" + a.style;
+    div.innerHTML = shapes[a.shape] + "<span>" + a.text + "</span>";
+    div.addEventListener("click", function() { selectAnswer(i); });
+    answersEl.appendChild(div);
+  });
+}
+
+function selectAnswer(i) {
+  if (answered) return;
+  answered = true;
+  var q = questions[current];
+  var tiles = answersEl.querySelectorAll(".ans");
+  tiles.forEach(function(t, idx) {
+    t.classList.add("disabled");
+    if (q.answers[idx].correct) {
+      t.classList.add("correct");
+    } else if (idx === i) {
+      t.classList.add("incorrect");
+    } else {
+      t.classList.add("dim");
+    }
+  });
+
+  if (q.answers[i].correct) {
+    score++;
+    hudScore.textContent = score;
+    feedback.className = "ok";
+    feedback.textContent = "¡Correcto! " + q.explain;
+  } else {
+    feedback.className = "bad";
+    feedback.textContent = "Incorrecto. " + q.explain;
+  }
+
+  nextBtn.style.display = "inline-block";
+  nextBtn.textContent = (current < questions.length - 1) ? "Siguiente pregunta →" : "Ver resultado final →";
+}
+
+nextBtn.addEventListener("click", function() {
+  current++;
+  if (current < questions.length) {
+    renderQuestion();
+  } else {
+    showFinal();
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = "100%";
+  quizCard.style.display = "none";
+  document.getElementById("hud").style.display = "none";
+  document.getElementById("progressTrack").style.display = "none";
+  finalScreen.style.display = "block";
+  document.getElementById("finalScoreText").textContent = score + " / " + questions.length;
+  var msg;
+  if (score === questions.length) msg = "Excelente — dominas el arranque, particiones y despliegue de SO.";
+  else if (score >= questions.length - 1) msg = "Muy bien — solo un detalle por repasar.";
+  else if (score >= questions.length / 2) msg = "Vas bien — repasa BIOS/UEFI, MBR/GPT y PXE.";
+  else msg = "Conviene repasar el capítulo antes de seguir avanzando.";
+  document.getElementById("finalMsg").textContent = msg;
+}
+
+document.getElementById("restartBtn").addEventListener("click", function() {
+  current = 0; score = 0;
+  hudScore.textContent = 0;
+  quizCard.style.display = "block";
+  document.getElementById("hud").style.display = "flex";
+  document.getElementById("progressTrack").style.display = "block";
+  finalScreen.style.display = "none";
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+
+</body>
+</html>
