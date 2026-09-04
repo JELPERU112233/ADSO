@@ -1,1 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autoevaluación · Cap. 3 Sem. 3 · Administración de Sistemas Operativos</title>
+<style>
+  :root{
+    --bg1:#46178f;
+    --bg2:#7c2ae8;
+    --red:#e21b3c;
+    --blue:#1368ce;
+    --yellow:#d89e00;
+    --green:#26890c;
+    --ink:#1a1330;
+    --card:#ffffff;
+    --muted:#6b6480;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: radial-gradient(circle at top, var(--bg2), var(--bg1) 70%);
+    min-height:100vh;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .app{
+    width:100%;
+    max-width:760px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:20px;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+    padding:32px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kicker{
+    text-align:center;
+    color:#fff;
+    font-weight:bold;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    font-size:13px;
+    margin-bottom:14px;
+    opacity:.9;
+  }
+  h1{
+    text-align:center;
+    color:#fff;
+    font-size:26px;
+    margin:0 0 4px;
+  }
+  .subtitle{
+    text-align:center;
+    color:#e9e1ff;
+    font-size:14px;
+    margin-bottom:22px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border:none;
+    border-radius:12px;
+    padding:14px 28px;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    color:#fff;
+    background:var(--green);
+    transition:transform .12s ease, filter .12s ease;
+    font-family:Arial, Helvetica, sans-serif;
+  }
+  .btn:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  .btn:active{ transform:translateY(1px); }
+  .btn-secondary{ background:var(--blue); }
+  .center{ text-align:center; }
+  #startScreen p{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.5;
+    max-width:520px;
+    margin:0 auto 24px;
+  }
+  .objectives{
+    background:#f4f0ff;
+    border-radius:12px;
+    padding:16px 20px;
+    margin:0 auto 24px;
+    max-width:520px;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .objectives strong{ display:block; margin-bottom:6px; color:var(--bg1); }
+  .objectives ul{ margin:0; padding-left:18px; }
+  .objectives li{ margin-bottom:3px; }
+
+  /* progress bar */
+  .progress-wrap{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .progress-track{
+    flex:1;
+    height:8px;
+    background:#eee;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--green), var(--blue));
+    width:0%;
+    transition:width .3s ease;
+  }
+  .progress-label{
+    font-size:12px;
+    font-weight:bold;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .score-badge{
+    font-size:12px;
+    font-weight:bold;
+    color:var(--green);
+    background:#eafbe6;
+    padding:4px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+
+  .question{
+    font-size:19px;
+    font-weight:bold;
+    line-height:1.4;
+    margin:6px 0 20px;
+    color:var(--ink);
+  }
+  .hint-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:none;
+    border:1.5px dashed #c9c0e8;
+    color:var(--bg2);
+    font-size:12px;
+    font-weight:bold;
+    padding:6px 12px;
+    border-radius:20px;
+    cursor:pointer;
+    margin-bottom:16px;
+    font-family:Arial, Helvetica, sans-serif;
+  }
+  .hint-box{
+    display:none;
+    background:#fff8e1;
+    border-left:4px solid var(--yellow);
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:13px;
+    margin-bottom:16px;
+    color:#5c4400;
+  }
+  .options{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  @media (max-width:560px){ .options{ grid-template-columns:1fr; } }
+  .opt{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:none;
+    border-radius:12px;
+    padding:16px;
+    font-size:14.5px;
+    font-weight:bold;
+    color:#fff;
+    text-align:left;
+    cursor:pointer;
+    line-height:1.3;
+    transition:transform .1s ease, filter .1s ease, opacity .2s ease;
+    font-family:Arial, Helvetica, sans-serif;
+  }
+  .opt:hover{ filter:brightness(1.08); transform:scale(1.015); }
+  .opt.a{ background:var(--red); }
+  .opt.b{ background:var(--blue); }
+  .opt.c{ background:var(--yellow); }
+  .opt.d{ background:var(--green); }
+  .opt svg{ flex:0 0 22px; width:22px; height:22px; }
+  .opt.correct{ outline:4px solid #0b8a2f; filter:brightness(1.05); }
+  .opt.incorrect{ outline:4px solid #7a0e20; opacity:.55; }
+  .opt.dim{ opacity:.4; }
+  .opt:disabled{ cursor:default; }
+
+  .feedback{
+    margin-top:20px;
+    border-radius:14px;
+    padding:18px;
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    animation:pop .35s ease;
+  }
+  @keyframes pop{ from{ transform:scale(.9); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  .feedback.ok{ background:#eafbe6; border:1.5px solid #bfe8b3; }
+  .feedback.bad{ background:#fdeceb; border:1.5px solid #f3c4c0; }
+  .feedback svg{ flex:0 0 44px; width:44px; height:44px; }
+  .feedback-title{ font-weight:bold; font-size:15px; margin-bottom:4px; }
+  .feedback.ok .feedback-title{ color:var(--green); }
+  .feedback.bad .feedback-title{ color:var(--red); }
+  .feedback-text{ font-size:13.5px; color:var(--ink); line-height:1.5; }
+
+  .next-row{ margin-top:22px; text-align:right; }
+
+  #endScreen{ display:none; text-align:center; }
+  .score-ring{ margin:0 auto 18px; display:block; }
+  .score-msg{ font-size:15px; color:var(--muted); margin-bottom:24px; }
+  .review-list{ text-align:left; margin:0 0 24px; padding:0; list-style:none; }
+  .review-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    border-radius:10px;
+    background:#f8f6ff;
+    margin-bottom:8px;
+    font-size:13px;
+  }
+  .review-item svg{ flex:0 0 20px; width:20px; height:20px; }
+  footer{
+    text-align:center;
+    color:#e9e1ff;
+    font-size:11.5px;
+    margin-top:16px;
+    opacity:.85;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="kicker">1INF35 · Administración de Sistemas Operativos · PUCP</div>
+
+  <div class="card" id="startScreen">
+    <h1 style="color:var(--ink)">🎮 Autoevaluación — Cap. 3, Semana 3</h1>
+    <p><strong>Administración local básica:</strong> distribuciones Linux, discos locales, estilos de inicio, system calls y páginas man.</p>
+    <div class="objectives">
+      <strong>Objetivos que cubre esta autoevaluación:</strong>
+      <ul>
+        <li>Reconocer implementaciones y distribuciones Linux</li>
+        <li>Administración básica de discos locales (Linux y Windows)</li>
+        <li>Llamadas al sistema (system calls)</li>
+        <li>Estilos de inicio Unix/Linux (BSD, SysVinit, systemd)</li>
+        <li>Páginas de manual (man)</li>
+      </ul>
+    </div>
+    <div class="center">
+      <button class="btn" id="startBtn">▶ Comenzar (10 preguntas)</button>
+    </div>
+  </div>
+
+  <div class="card" id="quizScreen" style="display:none;">
+    <div class="progress-wrap">
+      <span class="progress-label" id="qCounter">Pregunta 1/10</span>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="score-badge" id="scoreBadge">0 pts</span>
+    </div>
+    <div class="question" id="questionText"></div>
+    <button class="hint-btn" id="hintBtn">💡 Ver pista</button>
+    <div class="hint-box" id="hintBox"></div>
+    <div class="options" id="optionsWrap"></div>
+    <div id="feedbackWrap"></div>
+    <div class="next-row" id="nextRow" style="display:none;">
+      <button class="btn btn-secondary" id="nextBtn">Siguiente →</button>
+    </div>
+  </div>
+
+  <div class="card" id="endScreen">
+    <svg class="score-ring" width="140" height="140" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="60" fill="none" stroke="#eee" stroke-width="12"/>
+      <circle id="ringProgress" cx="70" cy="70" r="60" fill="none" stroke="url(#grad)" stroke-width="12"
+        stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377" transform="rotate(-90 70 70)"/>
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#26890c"/>
+          <stop offset="100%" stop-color="#1368ce"/>
+        </linearGradient>
+      </defs>
+      <text id="ringText" x="70" y="78" text-anchor="middle" font-size="28" font-weight="bold" font-family="Arial" fill="#1a1330">0/10</text>
+    </svg>
+    <h1 style="color:var(--ink)" id="endTitle">¡Autoevaluación completada!</h1>
+    <div class="score-msg" id="endMsg"></div>
+    <ul class="review-list" id="reviewList"></ul>
+    <div class="center">
+      <button class="btn" id="retryBtn">🔁 Reintentar</button>
+    </div>
+  </div>
+
+  <footer>Generado a partir de las notas del docente · Capítulo 3, Semana 3 · 1INF35 (PUCP) · Formato SVG interactivo</footer>
+</div>
+
+<script>
+const ICONS = {
+  triangle: `<svg viewBox="0 0 24 24" fill="#fff"><polygon points="12,3 21,20 3,20"/></svg>`,
+  diamond:  `<svg viewBox="0 0 24 24" fill="#fff"><polygon points="12,2 22,12 12,22 2,12"/></svg>`,
+  circle:   `<svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="9"/></svg>`,
+  square:   `<svg viewBox="0 0 24 24" fill="#fff"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`,
+  check:    `<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="25" fill="none" stroke="#26890c" stroke-width="3"/><path fill="none" stroke="#26890c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/></svg>`,
+  cross:    `<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="25" fill="none" stroke="#e21b3c" stroke-width="3"/><path fill="none" stroke="#e21b3c" stroke-width="4" stroke-linecap="round" d="M17 17l18 18M35 17L17 35"/></svg>`,
+  checkSm:  `<svg viewBox="0 0 24 24" fill="none" stroke="#26890c" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12l6 6L20 6"/></svg>`,
+  crossSm:  `<svg viewBox="0 0 24 24" fill="none" stroke="#e21b3c" stroke-width="3"><path stroke-linecap="round" d="M5 5l14 14M19 5L5 19"/></svg>`
+};
+const SHAPES = ["triangle","diamond","circle","square"];
+const CLASSES = ["a","b","c","d"];
+
+const QUESTIONS = [
+{
+  q:"¿Cuál es la diferencia técnica correcta entre el 'kernel' de Linux y una 'distribución'?",
+  options:[
+    "Son sinónimos; toda distribución es un kernel con otro nombre",
+    "El kernel gestiona CPU, memoria y dispositivos; la distribución empaqueta el kernel + herramientas GNU + gestor de paquetes + servicios",
+    "La distribución es el hardware y el kernel es el software de aplicación",
+    "El kernel solo existe en Android, las distribuciones solo en servidores"
+  ],
+  correct:1,
+  hint:"Piensa en la analogía motor (kernel) vs. auto completo (distribución).",
+  explanation:"El Kernel Linux administra CPU, memoria, procesos y dispositivos en 'modo supervisor'. Una distribución empaqueta ese kernel junto con GNU (bash, grep, sed), un gestor de paquetes, systemd/NetworkManager y más. Por eso Android usa el kernel Linux pero no es una 'distribución Linux' tradicional: le falta GNU y un gestor de paquetes tipo apt/dnf."
+},
+{
+  q:"Ubuntu y CentOS Stream pertenecen, respectivamente, a las ramas:",
+  options:[
+    "Debian y Red Hat",
+    "Arch y SUSE",
+    "Red Hat y Debian",
+    "BSD y GNU"
+  ],
+  correct:0,
+  hint:"Una rama termina en distros 'amigables' derivadas; la otra en distros empresariales con clones binarios.",
+  explanation:"Rama Debian → Ubuntu → Linux Mint. Rama Red Hat → Fedora → RHEL → CentOS (descontinuado) → CentOS Stream (ahora pre-RHEL) → AlmaLinux / Rocky Linux como reemplazos binario-compatibles."
+},
+{
+  q:"En LVM (Logical Volume Manager), ¿cuál es el orden correcto de abstracción, de lo físico a lo utilizable?",
+  options:[
+    "LV → VG → PV",
+    "VG → PV → LV",
+    "PV → VG → LV",
+    "PV → LV → VG"
+  ],
+  correct:2,
+  hint:"El disco físico entra primero; el volumen formateable con ext4 sale al final.",
+  explanation:"PV (Physical Volume) es el disco/partición física; se agrupan en un VG (Volume Group, la 'bolsa' de espacio); de ahí se crean LV (Logical Volumes), que finalmente se formatean (ej. ext4). Ventaja clave: se puede extender un LV en caliente agregando un disco nuevo al VG, sin apagar el servicio."
+},
+{
+  q:"¿Cuál es el equivalente en Windows del comando 'fdisk -l' de Linux para revisar particiones?",
+  options:[
+    "Task Manager",
+    "regedit",
+    "diskpart (o cmdlets de PowerShell como Get-Disk/Get-Partition)",
+    "chkdsk únicamente"
+  ],
+  correct:2,
+  hint:"Se invoca desde CMD como administrador, escribiendo su propio nombre.",
+  explanation:"diskpart es la herramienta clásica de línea de comandos en Windows para gestionar discos (list disk, select disk, shrink, etc.), con equivalentes modernos en PowerShell (Get-Disk, Get-Partition, Get-Volume) — el mismo concepto que fdisk en Linux con sintaxis distinta."
+},
+{
+  q:"En el proceso de arranque de Linux, ¿cuál es la secuencia correcta?",
+  options:[
+    "Kernel → Firmware UEFI → Bootloader (GRUB) → PID 1",
+    "Firmware (UEFI) → Bootloader (GRUB) → Kernel → PID 1 (usualmente systemd)",
+    "PID 1 → Kernel → Bootloader → Firmware",
+    "Bootloader → Firmware → PID 1 → Kernel"
+  ],
+  correct:1,
+  hint:"El firmware siempre actúa primero, apenas se enciende el hardware.",
+  explanation:"El firmware UEFI hace el POST y carga el Bootloader (GRUB); GRUB carga el Kernel en memoria; el kernel inicializa hardware/monta el sistema de archivos raíz y ejecuta el primer proceso de espacio de usuario (PID 1), que en la mayoría de distros modernas es systemd. Puedes comprobarlo con 'ps -p 1'."
+},
+{
+  q:"¿Qué son las 'System Calls' (llamadas al sistema)?",
+  options:[
+    "Comandos exclusivos de Windows para reiniciar servicios",
+    "La única vía formal para que un programa de usuario solicite servicios al kernel (ej. abrir un archivo, escribir en pantalla)",
+    "Un tipo de partición de disco",
+    "Sinónimo de 'runlevel'"
+  ],
+  correct:1,
+  hint:"Piensa en fopen() en C, que termina invocando open() en el kernel.",
+  explanation:"El programa de usuario nunca accede al hardware directamente (modo supervisor exclusivo del kernel). Usa una interfaz (glibc) que traduce funciones familiares como fopen() o print() en system calls como open() o write(), que el kernel ejecuta contra el hardware real."
+},
+{
+  q:"¿Cuál de estas afirmaciones sobre estilos de inicio (init) es correcta?",
+  options:[
+    "BSD init usa /etc/rc.conf y scripts centralizados; SysVinit usa runlevels definidos en /etc/inittab; systemd usa 'units' y 'targets'",
+    "Los tres estilos (BSD, SysV, systemd) son exactamente el mismo mecanismo con distinto nombre",
+    "systemd es más lento que SysVinit porque no paraleliza servicios",
+    "BSD init es el estándar moderno usado por Ubuntu y Fedora"
+  ],
+  correct:0,
+  hint:"Cada estilo tiene su propio archivo de configuración característico.",
+  explanation:"BSD init: /etc/rc.conf + scripts en /etc/rc.d/ (FreeBSD, OpenBSD). SysVinit: /etc/inittab define runlevels (0-6), scripts en /etc/init.d/ enlazados desde /etc/rcN.d/. systemd: reemplaza runlevels por 'targets' (multi-user.target, graphical.target), gestiona 'units' y resuelve dependencias en paralelo mediante systemctl/journalctl — por eso arranca más rápido, no más lento."
+},
+{
+  q:"Según la tabla comparativa del capítulo, ¿por qué sistemas como Netflix o WhatsApp podrían preferir componentes de infraestructura tipo BSD?",
+  options:[
+    "Porque BSD tiene mejor interfaz gráfica",
+    "Por código pequeño y auditable, estabilidad y simplicidad para cargas críticas, aunque sacrifiquen velocidad de arranque",
+    "Porque BSD no requiere administración alguna",
+    "Porque BSD es más nuevo que systemd"
+  ],
+  correct:1,
+  hint:"La filosofía BSD es 'haz una cosa y hazla bien'.",
+  explanation:"BSD (rc.d) prioriza simplicidad y modularidad: scripts pequeños, fáciles de auditar línea por línea, ideales para sistemas donde la estabilidad y la seguridad auditable pesan más que la velocidad de arranque paralelizada que ofrece systemd."
+},
+{
+  q:"¿Qué diferencia hay entre 'man 1 passwd' y 'man 5 passwd'?",
+  options:[
+    "Ninguna, ambos muestran exactamente lo mismo",
+    "'man 1 passwd' documenta el COMANDO para cambiar contraseña; 'man 5 passwd' documenta el FORMATO del archivo /etc/passwd",
+    "'man 5' es para llamadas al sistema y 'man 1' para juegos",
+    "'man 1' es solo para administradores y 'man 5' solo para usuarios"
+  ],
+  correct:1,
+  hint:"Las secciones man están numeradas: 1=comandos, 5=formatos de archivo/configuración.",
+  explanation:"Las páginas man se organizan en secciones: 1=comandos de usuario, 2=system calls, 3=funciones de biblioteca C, 4=archivos especiales, 5=formatos de archivo/configuración, 8=administración. 'passwd' existe en ambas secciones con contenido totalmente distinto: comando vs. archivo de configuración."
+},
+{
+  q:"¿Qué hace el comando 'man -k <palabra_clave>' (equivalente a 'apropos')?",
+  options:[
+    "Instala automáticamente el paquete relacionado",
+    "Elimina todas las páginas man que contienen esa palabra",
+    "Imprime la lista de páginas man cuya sinopsis de una línea contiene esa palabra clave, sin necesitar el nombre exacto del comando",
+    "Cambia la ruta de búsqueda definida en manpath"
+  ],
+  correct:2,
+  hint:"Útil cuando no recuerdas el nombre exacto del comando que buscas.",
+  explanation:"'man -k compress', por ejemplo, devuelve una lista de candidatos (gzip, bzip2, zip, etc.) con su descripción breve, sin necesidad de saber el nombre exacto de antemano — muy útil para descubrir herramientas sin buscar en internet."
+}
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+let review = [];
+
+const startScreen = document.getElementById('startScreen');
+const quizScreen = document.getElementById('quizScreen');
+const endScreen = document.getElementById('endScreen');
+const optionsWrap = document.getElementById('optionsWrap');
+const questionText = document.getElementById('questionText');
+const feedbackWrap = document.getElementById('feedbackWrap');
+const nextRow = document.getElementById('nextRow');
+const qCounter = document.getElementById('qCounter');
+const progressFill = document.getElementById('progressFill');
+const scoreBadge = document.getElementById('scoreBadge');
+const hintBtn = document.getElementById('hintBtn');
+const hintBox = document.getElementById('hintBox');
+
+document.getElementById('startBtn').onclick = () => {
+  startScreen.style.display = 'none';
+  quizScreen.style.display = 'block';
+  renderQuestion();
+};
+document.getElementById('nextBtn').onclick = () => {
+  current++;
+  if(current >= QUESTIONS.length){ showEnd(); } else { renderQuestion(); }
+};
+document.getElementById('retryBtn').onclick = () => {
+  current = 0; score = 0; review = [];
+  endScreen.style.display = 'none';
+  quizScreen.style.display = 'block';
+  renderQuestion();
+};
+
+function renderQuestion(){
+  answered = false;
+  const item = QUESTIONS[current];
+  qCounter.textContent = `Pregunta ${current+1}/${QUESTIONS.length}`;
+  progressFill.style.width = `${(current/QUESTIONS.length)*100}%`;
+  scoreBadge.textContent = `${score} pts`;
+  questionText.textContent = item.q;
+  feedbackWrap.innerHTML = '';
+  nextRow.style.display = 'none';
+  hintBox.style.display = 'none';
+  hintBox.textContent = item.hint;
+  hintBtn.style.display = 'inline-flex';
+  hintBtn.textContent = '💡 Ver pista';
+
+  optionsWrap.innerHTML = '';
+  item.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = `opt ${CLASSES[i]}`;
+    btn.innerHTML = `${ICONS[SHAPES[i]]}<span>${opt}</span>`;
+    btn.onclick = () => selectOption(i, btn);
+    optionsWrap.appendChild(btn);
+  });
+}
+
+hintBtn.onclick = () => {
+  hintBox.style.display = hintBox.style.display === 'block' ? 'none' : 'block';
+};
+
+function selectOption(i, btnEl){
+  if(answered) return;
+  answered = true;
+  const item = QUESTIONS[current];
+  const isCorrect = i === item.correct;
+  if(isCorrect) score += 10;
+  review.push({q: item.q, correct: isCorrect});
+
+  const allBtns = optionsWrap.querySelectorAll('.opt');
+  allBtns.forEach((b, idx) => {
+    b.disabled = true;
+    if(idx === item.correct) b.classList.add('correct');
+    else if(idx === i) b.classList.add('incorrect');
+    else b.classList.add('dim');
+  });
+
+  const fb = document.createElement('div');
+  fb.className = `feedback ${isCorrect ? 'ok' : 'bad'}`;
+  fb.innerHTML = `
+    ${isCorrect ? ICONS.check : ICONS.cross}
+    <div>
+      <div class="feedback-title">${isCorrect ? '¡Correcto!' : 'No es correcto'}</div>
+      <div class="feedback-text">${item.explanation}</div>
+    </div>
+  `;
+  feedbackWrap.appendChild(fb);
+  nextRow.style.display = 'block';
+  document.getElementById('nextBtn').textContent = (current === QUESTIONS.length - 1) ? 'Ver resultado →' : 'Siguiente →';
+  scoreBadge.textContent = `${score} pts`;
+}
+
+function showEnd(){
+  quizScreen.style.display = 'none';
+  endScreen.style.display = 'block';
+  const total = QUESTIONS.length;
+  const correctCount = review.filter(r => r.correct).length;
+  const pct = correctCount / total;
+
+  const circumference = 377;
+  const offset = circumference - (circumference * pct);
+  document.getElementById('ringProgress').setAttribute('stroke-dashoffset', offset);
+  document.getElementById('ringText').textContent = `${correctCount}/${total}`;
+
+  let msg;
+  if(pct === 1) msg = '¡Dominio total del capítulo! Podrías identificar init, discos y man pages en un servidor SSH desconocido sin dudar.';
+  else if(pct >= 0.8) msg = 'Muy sólido. Repasa los puntos fallados antes del examen.';
+  else if(pct >= 0.5) msg = 'Vas bien encaminado, pero conviene reforzar algunos conceptos clave.';
+  else msg = 'Conviene repasar el capítulo con calma antes de continuar — revisa cada retroalimentación.';
+  document.getElementById('endMsg').textContent = msg;
+
+  const list = document.getElementById('reviewList');
+  list.innerHTML = '';
+  review.forEach((r, idx) => {
+    const li = document.createElement('li');
+    li.className = 'review-item';
+    li.innerHTML = `${r.correct ? ICONS.checkSm : ICONS.crossSm}<span>P${idx+1}: ${r.q}</span>`;
+    list.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>
 
