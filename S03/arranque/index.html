@@ -1,1 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>AR Neón — Proceso de Arranque de Linux</title>
+<style>
+:root{
+  --bg:#070a12;
+  --panel:#0b1020;
+  --text:#e6f1ff;
+  --muted:#7089ad;
+  --hw:#9db4d8;      --hw-b:#c8d9f5;
+  --boot:#3aa0ff;    --boot-b:#8fd0ff;
+  --kernel:#39ff88;  --kernel-b:#a8ffce;
+  --init:#b06bff;    --init-b:#dcb3ff;
+  --user:#ffb14a;    --user-b:#ffd699;
+  --amber:#ffcf5c;
+  font-family: Arial, Helvetica, sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:
+  radial-gradient(circle at 10% 10%, rgba(58,160,255,.10), transparent 40%),
+  radial-gradient(circle at 55% 5%, rgba(57,255,136,.08), transparent 38%),
+  radial-gradient(circle at 85% 15%, rgba(176,107,255,.10), transparent 42%),
+  radial-gradient(circle at 95% 85%, rgba(255,177,74,.10), transparent 42%),
+  var(--bg);
+  color:var(--text); overflow-x:hidden;}
+.stage{max-width:1260px;margin:0 auto;padding:26px 18px 60px;}
+header{text-align:center;margin-bottom:6px;}
+h1{font-size:22px;letter-spacing:.03em;margin:0 0 6px;color:var(--boot-b);
+  text-shadow:0 0 6px rgba(143,208,255,.6), 0 0 22px rgba(143,208,255,.22); font-weight:800;}
+.subtitle{color:var(--muted);font-size:14.5px;max-width:720px;margin:0 auto;line-height:1.55;}
+
+.topo-wrap{
+  position:relative;margin-top:20px;border:1px solid rgba(143,208,255,.15);border-radius:10px;
+  background:
+    linear-gradient(rgba(143,208,255,.05) 1px, transparent 1px) 0 0/30px 30px,
+    linear-gradient(90deg, rgba(143,208,255,.05) 1px, transparent 1px) 0 0/30px 30px,
+    var(--panel);
+  box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+svg{display:block;width:100%;height:auto;}
+
+.col-head{font-size:15px;font-weight:800;fill:#eef6ff;}
+.box{ fill:rgba(6,10,20,.86); stroke-width:1.3; rx:8; transition:filter 1.1s ease-in-out;}
+.box-title{font-size:12px;font-weight:800;fill:var(--text);}
+.box-txt{font-size:11.4px;fill:#b9c9e6;}
+.box-num{font-weight:900;font-size:13px;}
+.muted-txt{font-size:11px;fill:var(--muted);}
+.arrow{stroke-width:1.6;fill:none;marker-end:url(#arrowHead);opacity:.5;}
+.arrow-glow{stroke-width:2.4;fill:none;opacity:0;transition:opacity 1.1s ease-in-out;}
+.active-box{filter:drop-shadow(0 0 9px currentColor);}
+#pulse{ r:6; opacity:0; fill:var(--amber); filter:drop-shadow(0 0 9px var(--amber)); }
+.icon{ opacity:.9; }
+
+.legend{display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);}
+.legend span.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+
+.controls{display:flex;justify-content:center;gap:12px;margin-top:20px;flex-wrap:wrap;}
+button{
+  font-family:Arial,Helvetica,sans-serif;font-size:13.5px;letter-spacing:.02em;color:#04070d;border:none;
+  padding:11px 20px;border-radius:5px;cursor:pointer;font-weight:700;
+  transition:transform .12s ease, box-shadow .12s ease;
+  background:linear-gradient(120deg,var(--boot),var(--boot-b));
+  box-shadow:0 0 16px rgba(58,160,255,.45);
+}
+button:hover{transform:translateY(-1px);}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+button.secondary{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.15);box-shadow:none;}
+button.secondary:hover{color:var(--text);border-color:rgba(255,255,255,.35);}
+
+.console{margin-top:18px;background:rgba(4,8,16,.9);border:1px solid rgba(143,208,255,.18);
+  border-radius:8px;padding:16px 18px;min-height:180px;font-size:14.5px;line-height:1.7;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.5); font-family:'Consolas','Courier New',monospace;}
+.console-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--muted);font-size:13px;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.dot.r{background:#ff5f57;}.dot.y{background:#ffbd2e;}.dot.g{background:#28c840;}
+.step-line{opacity:0;transform:translateY(3px);animation:rise .35s forwards;display:flex;gap:10px;font-family:Arial,Helvetica,sans-serif;}
+@keyframes rise{to{opacity:1;transform:translateY(0);}}
+.step-n{color:var(--amber);font-weight:700;min-width:22px;}
+.step-txt b{color:#fff;}
+.step-tag{font-size:12px;padding:1px 7px;border-radius:3px;border:1px solid currentColor;margin-left:6px;white-space:nowrap;}
+
+footer{margin-top:20px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6;}
+footer b{color:var(--amber);}
+.hit{fill:transparent;cursor:pointer;}
+@media (prefers-reduced-motion: reduce){.step-line{animation:none;opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <h1>DIAGRAMA INTERACTIVO — PROCESO DE ARRANQUE DE LINUX</h1>
+    <p class="subtitle">
+      Efecto neón / realidad aumentada sobre la misma estructura de 5 etapas: Hardware → Bootloader → Kernel →
+      Init System → Espacio de Usuario. Haz clic en cualquier bloque numerado o presiona "Iniciar arranque" para
+      recorrer el proceso completo, paso a paso, con las mismas descripciones técnicas.
+    </p>
+  </header>
+
+  <div class="topo-wrap">
+    <svg viewBox="0 0 1240 700" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowHead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#5b7aa8"/>
+        </marker>
+      </defs>
+
+      <!-- Power button -->
+      <g id="n-power" style="color:#ffe08a">
+        <circle class="icon" cx="60" cy="45" r="16" fill="none" stroke="#ffe08a" stroke-width="2"/>
+        <path class="icon" d="M60 36 v10 M53 40 a10 10 0 1 0 14 0" fill="none" stroke="#ffe08a" stroke-width="2"/>
+        <text class="box-txt" x="88" y="40" fill="#ffe08a" font-size="11.5" font-weight="700">Pulsación del botón</text>
+        <text class="box-txt" x="88" y="52" fill="#ffe08a" font-size="11.5" font-weight="700">de encendido</text>
+        <line class="arrow" id="a-power" x1="60" y1="62" x2="60" y2="88" stroke="#ffe08a"/>
+        <line class="arrow-glow" id="ag-power" x1="60" y1="62" x2="60" y2="88" stroke="#ffe08a"/>
+      </g>
+
+      <!-- ===================== COLUMN 1: HARDWARE ===================== -->
+      <g style="color:var(--hw-b)">
+        <rect class="box" x="20" y="90" width="200" height="470" rx="10" stroke="#5b7aa8" fill="rgba(157,180,216,.05)"/>
+        <text class="col-head" x="120" y="112" text-anchor="middle">Hardware</text>
+
+        <g id="n-firmware">
+          <rect class="box" x="34" y="126" width="172" height="140" rx="8" stroke="#9db4d8" fill="rgba(157,180,216,.10)"/>
+          <text class="box-title" x="120" y="144" text-anchor="middle">Firmware (BIOS/UEFI)</text>
+          <!-- chip icon -->
+          <rect class="icon" x="98" y="154" width="44" height="34" rx="3" fill="none" stroke="#9db4d8" stroke-width="1.6"/>
+          <rect class="icon" x="108" y="164" width="24" height="14" fill="none" stroke="#9db4d8" stroke-width="1.2"/>
+          <text class="box-num" x="42" y="212" fill="#c8d9f5">2</text>
+          <text class="box-txt" x="42" y="224">Firmware (BIOS/UEFI) inicializa el</text>
+          <text class="box-txt" x="42" y="235">hardware y realiza el POST</text>
+          <text class="box-txt" x="42" y="246">(Power-On Self-Test). Identifica el</text>
+          <text class="box-txt" x="42" y="257">dispositivo de arranque (MBR/GPT).</text>
+          <rect class="hit" x="34" y="126" width="172" height="140" data-step="2"/>
+        </g>
+
+        <line class="arrow" id="a-hw1" x1="120" y1="266" x2="120" y2="300" stroke="#9db4d8"/>
+        <line class="arrow-glow" id="ag-hw1" x1="120" y1="266" x2="120" y2="300" stroke="#9db4d8"/>
+
+        <g id="n-hwicon">
+          <rect class="icon" x="90" y="302" width="60" height="42" rx="4" fill="none" stroke="#9db4d8" stroke-width="1.6"/>
+          <circle class="icon" cx="120" cy="323" r="10" fill="none" stroke="#9db4d8" stroke-width="1.4"/>
+          <text class="muted-txt" x="120" y="360" text-anchor="middle">Hardware</text>
+        </g>
+
+        <line class="arrow" id="a-hw2" x1="120" y1="368" x2="120" y2="392" stroke="#9db4d8"/>
+        <line class="arrow-glow" id="ag-hw2" x1="120" y1="368" x2="120" y2="392" stroke="#9db4d8"/>
+
+        <g id="n-hwstep3echo">
+          <text class="box-num" x="42" y="410" fill="#c8d9f5">3</text>
+          <text class="box-txt" x="42" y="422">Carga el bootloader (sector de</text>
+          <text class="box-txt" x="42" y="433">arranque). GRUB presenta el menú</text>
+          <text class="box-txt" x="42" y="444">(opcional), carga el Kernel</text>
+          <text class="box-txt" x="42" y="455">(vmlinuz) y el ramdisk inicial</text>
+          <text class="box-txt" x="42" y="466">(initramfs/initrd) en la memoria.</text>
+        </g>
+
+        <!-- disk icon -->
+        <g id="n-diskicon">
+          <circle class="icon" cx="120" cy="510" r="24" fill="none" stroke="#9db4d8" stroke-width="2"/>
+          <circle class="icon" cx="120" cy="510" r="6" fill="none" stroke="#9db4d8" stroke-width="1.4"/>
+          <line class="icon" x1="120" y1="486" x2="120" y2="498" stroke="#9db4d8" stroke-width="2"/>
+        </g>
+      </g>
+
+      <!-- connector col1 -> col2 -->
+      <path class="arrow" id="a-c1c2" d="M220 200 C 245 200, 245 150, 270 150" stroke="#5b7aa8"/>
+      <path class="arrow-glow" id="ag-c1c2" d="M220 200 C 245 200, 245 150, 270 150" stroke="#5b7aa8"/>
+
+      <!-- ===================== COLUMN 2: BOOTLOADER ===================== -->
+      <g style="color:var(--boot-b)">
+        <rect class="box" x="270" y="90" width="210" height="470" rx="10" stroke="#3aa0ff" fill="rgba(58,160,255,.05)"/>
+        <text class="col-head" x="375" y="112" text-anchor="middle">Bootloader</text>
+
+        <g id="n-gestor">
+          <rect class="box" x="284" y="126" width="182" height="140" rx="8" stroke="#3aa0ff" fill="rgba(58,160,255,.10)"/>
+          <text class="box-title" x="375" y="144" text-anchor="middle">Gestor de Arranque</text>
+          <circle class="icon" cx="375" cy="168" r="16" fill="none" stroke="#3aa0ff" stroke-width="1.6"/>
+          <circle class="icon" cx="375" cy="168" r="5" fill="none" stroke="#3aa0ff" stroke-width="1.4"/>
+          <text class="box-num" x="292" y="212" fill="#8fd0ff">3</text>
+          <text class="box-txt" x="292" y="224">Carga el bootloader (sector de</text>
+          <text class="box-txt" x="292" y="235">arranque).</text>
+          <rect class="hit" x="284" y="126" width="182" height="140" data-step="3"/>
+        </g>
+
+        <g id="n-grubtxt">
+          <text class="box-txt" x="292" y="272">GRUB presenta el menú (opcional),</text>
+          <text class="box-txt" x="292" y="283">carga el Kernel (vmlinuz) y el</text>
+          <text class="box-txt" x="292" y="294">ramdisk inicial (initramfs/initrd)</text>
+          <text class="box-txt" x="292" y="305">en la memoria.</text>
+        </g>
+
+        <line class="arrow" id="a-boot1" x1="375" y1="316" x2="375" y2="392" stroke="#3aa0ff"/>
+        <line class="arrow-glow" id="ag-boot1" x1="375" y1="316" x2="375" y2="392" stroke="#3aa0ff"/>
+
+        <g id="n-boot-echo3">
+          <text class="box-num" x="292" y="410" fill="#8fd0ff">3</text>
+          <text class="box-txt" x="292" y="422">Carga el bootloader (sector de</text>
+          <text class="box-txt" x="292" y="433">arranque). GRUB presenta el menú</text>
+          <text class="box-txt" x="292" y="444">(opcional), carga el Kernel</text>
+          <text class="box-txt" x="292" y="455">(vmlinuz) y el ramdisk inicial</text>
+          <text class="box-txt" x="292" y="466">(initramfs/initrd) en la memoria.</text>
+        </g>
+
+        <g id="n-diskicon2">
+          <rect class="icon" x="345" y="486" width="60" height="42" rx="4" fill="none" stroke="#3aa0ff" stroke-width="1.6"/>
+          <circle class="icon" cx="375" cy="507" r="10" fill="none" stroke="#3aa0ff" stroke-width="1.4"/>
+        </g>
+      </g>
+
+      <path class="arrow" id="a-c2c3" d="M480 200 C 505 200, 505 150, 530 150" stroke="#3aa0ff"/>
+      <path class="arrow-glow" id="ag-c2c3" d="M480 200 C 505 200, 505 150, 530 150" stroke="#3aa0ff"/>
+
+      <!-- ===================== COLUMN 3: KERNEL ===================== -->
+      <g style="color:var(--kernel-b)">
+        <rect class="box" x="530" y="90" width="210" height="470" rx="10" stroke="#39ff88" fill="rgba(57,255,136,.05)"/>
+        <text class="col-head" x="635" y="112" text-anchor="middle">Kernel</text>
+
+        <g id="n-nucleo">
+          <rect class="box" x="544" y="126" width="182" height="220" rx="8" stroke="#39ff88" fill="rgba(57,255,136,.10)"/>
+          <text class="box-title" x="635" y="144" text-anchor="middle">Núcleo de Linux</text>
+          <!-- tux -->
+          <g class="icon" transform="translate(605,150)">
+            <ellipse cx="30" cy="24" rx="17" ry="20" fill="none" stroke="#39ff88" stroke-width="1.6"/>
+            <circle cx="24" cy="18" r="2" fill="#39ff88"/><circle cx="36" cy="18" r="2" fill="#39ff88"/>
+            <path d="M25 26 q5 5 10 0" fill="none" stroke="#ffb14a" stroke-width="1.6"/>
+          </g>
+          <text class="box-num" x="552" y="228" fill="#a8ffce">4</text>
+          <text class="box-txt" x="552" y="240">El <tspan font-weight="700">Kernel</tspan> toma el control,</text>
+          <text class="box-txt" x="552" y="251">inicializa controladores de</text>
+          <text class="box-txt" x="552" y="262">hardware esenciales,</text>
+          <text class="box-txt" x="552" y="273">desempaqueta initramfs</text>
+          <text class="box-txt" x="552" y="291">monta el sistema de archivos</text>
+          <text class="box-txt" x="552" y="302">raíz temporal.</text>
+          <text class="box-num" x="552" y="324" fill="#a8ffce">4</text>
+          <text class="box-txt" x="552" y="336">Ejecuta /sbin/init</text>
+          <text class="box-txt" x="552" y="336" dx="90" fill="var(--muted)">(el proceso 1)</text>
+          <rect class="hit" x="544" y="126" width="182" height="220" data-step="4"/>
+        </g>
+
+        <line class="arrow" id="a-kernel1" x1="635" y1="346" x2="635" y2="392" stroke="#39ff88"/>
+        <line class="arrow-glow" id="ag-kernel1" x1="635" y1="346" x2="635" y2="392" stroke="#39ff88"/>
+
+        <g id="n-tux2" transform="translate(605,394)">
+          <ellipse cx="30" cy="24" rx="17" ry="20" fill="none" stroke="#39ff88" stroke-width="1.6"/>
+          <circle cx="24" cy="18" r="2" fill="#39ff88"/><circle cx="36" cy="18" r="2" fill="#39ff88"/>
+          <path d="M25 26 q5 5 10 0" fill="none" stroke="#ffb14a" stroke-width="1.6"/>
+        </g>
+      </g>
+
+      <path class="arrow" id="a-c3c4" d="M740 200 C 765 200, 765 150, 790 150" stroke="#39ff88"/>
+      <path class="arrow-glow" id="ag-c3c4" d="M740 200 C 765 200, 765 150, 790 150" stroke="#39ff88"/>
+
+      <!-- ===================== COLUMN 4: INIT SYSTEM ===================== -->
+      <g style="color:var(--init-b)">
+        <rect class="box" x="790" y="90" width="330" height="470" rx="10" stroke="#b06bff" fill="rgba(176,107,255,.05)"/>
+        <text class="col-head" x="955" y="112" text-anchor="middle">Init System</text>
+
+        <!-- top-left: Sistema de Inicialización -->
+        <g id="n-sysinit">
+          <rect class="box" x="804" y="126" width="150" height="140" rx="8" stroke="#b06bff" fill="rgba(176,107,255,.10)"/>
+          <text class="box-title" x="879" y="144" text-anchor="middle" font-size="11">Sistema de</text>
+          <text class="box-title" x="879" y="156" text-anchor="middle" font-size="11">Inicialización</text>
+          <circle class="icon" cx="879" cy="178" r="14" fill="none" stroke="#b06bff" stroke-width="1.6"/>
+          <circle class="icon" cx="879" cy="178" r="4" fill="none" stroke="#b06bff" stroke-width="1.4"/>
+          <text class="box-num" x="812" y="212" fill="#dcb3ff">5</text>
+          <text class="box-txt" x="812" y="224">Carga la configuración</text>
+          <text class="box-txt" x="812" y="235">del sistema</text>
+          <text class="box-txt" x="812" y="246">(/etc/systemd/).</text>
+          <rect class="hit" x="804" y="126" width="150" height="140" data-step="5"/>
+        </g>
+
+        <!-- top-right: Servicios del Sistema (1) -->
+        <g id="n-servtop">
+          <rect class="box" x="966" y="126" width="150" height="140" rx="8" stroke="#c9a0ff" fill="rgba(176,107,255,.08)"/>
+          <text class="box-title" x="1041" y="144" text-anchor="middle" font-size="11">Servicios del</text>
+          <text class="box-title" x="1041" y="156" text-anchor="middle" font-size="11">Sistema</text>
+          <circle class="icon" cx="1041" cy="177" r="13" fill="none" stroke="#c9a0ff" stroke-width="1.6"/>
+          <text class="box-num" x="974" y="205" fill="#dcb3ff">7</text>
+          <text class="box-txt" x="974" y="217">Inicia sshd, networking,</text>
+          <text class="box-txt" x="974" y="228">systemd-journald, syslog,</text>
+          <text class="box-txt" x="974" y="239">cron, acpid, etc.</text>
+          <rect class="hit" x="966" y="126" width="150" height="140" data-step="7"/>
+        </g>
+
+        <line class="arrow" id="a-init1" x1="879" y1="266" x2="879" y2="300" stroke="#b06bff"/>
+        <line class="arrow-glow" id="ag-init1" x1="879" y1="266" x2="879" y2="300" stroke="#b06bff"/>
+        <text class="box-num" x="890" y="292" fill="#dcb3ff" font-size="12">6</text>
+        <text class="muted-txt" x="805" y="312">Inicia el sistema de inicialización.</text>
+
+        <path class="arrow" id="a-init-cross" d="M954 196 C 962 196, 962 196, 966 196" stroke="#b06bff"/>
+
+        <!-- bottom-left: Ejecución de Targets -->
+        <g id="n-targets">
+          <rect class="box" x="804" y="316" width="150" height="130" rx="8" stroke="#b06bff" fill="rgba(176,107,255,.10)"/>
+          <text class="box-title" x="879" y="332" text-anchor="middle" font-size="10.3">Ejecución de</text>
+          <text class="box-title" x="879" y="343" text-anchor="middle" font-size="10.3">Targets/Runlevels</text>
+          <text class="muted-txt" x="879" y="353" text-anchor="middle">(Systemd Targets)</text>
+          <text class="box-num" x="812" y="374" fill="#dcb3ff">6</text>
+          <text class="box-txt" x="812" y="386">Systemd carga</text>
+          <text class="box-txt" x="812" y="397">'multi-user.target' o</text>
+          <text class="box-txt" x="812" y="408">'graphical.target'.</text>
+          <rect class="hit" x="804" y="316" width="150" height="130" data-step="6"/>
+        </g>
+
+        <!-- bottom-right: Servicios del Sistema (2) -->
+        <g id="n-servbot">
+          <rect class="box" x="966" y="316" width="150" height="130" rx="8" stroke="#c9a0ff" fill="rgba(176,107,255,.08)"/>
+          <text class="box-title" x="1041" y="332" text-anchor="middle" font-size="11">Servicios del Sistema</text>
+          <text class="box-txt" x="974" y="350">Inicia sshd, networking,</text>
+          <text class="box-txt" x="974" y="361">systemd-journald, syslog,</text>
+          <text class="box-txt" x="974" y="372">cron, acpid.</text>
+          <text class="box-txt" x="974" y="390">Gestiona dependencias (D-Bus),</text>
+          <text class="box-txt" x="974" y="401">monta sistemas de archivos</text>
+          <text class="box-txt" x="974" y="412">reales, configura red.</text>
+          <rect class="hit" x="966" y="316" width="150" height="130" data-step="7"/>
+        </g>
+
+        <line class="arrow" id="a-init2" x1="879" y1="446" x2="879" y2="392" stroke="#b06bff" marker-end="none"/>
+      </g>
+
+      <path class="arrow" id="a-c4c5" d="M1120 200 C 1145 200, 1145 150, 1170 150" stroke="#b06bff"/>
+      <path class="arrow-glow" id="ag-c4c5" d="M1120 200 C 1145 200, 1145 150, 1170 150" stroke="#b06bff"/>
+
+      <!-- ===================== COLUMN 5: ESPACIO DE USUARIO ===================== -->
+      <g style="color:var(--user-b)">
+        <rect class="box" x="1170" y="90" width="50" height="470" rx="10" stroke="#ffb14a" fill="rgba(255,177,74,.05)" opacity="0"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- second row svg for column 5 due to width constraints handled below via separate panel -->
+  <div class="topo-wrap" style="margin-top:14px;">
+    <svg viewBox="0 0 1240 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowHead2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#5b7aa8"/>
+        </marker>
+      </defs>
+      <g style="color:var(--user-b)">
+        <rect class="box" x="30" y="15" width="1180" height="270" rx="10" stroke="#ffb14a" fill="rgba(255,177,74,.05)"/>
+        <text class="col-head" x="620" y="37" text-anchor="middle">Espacio de Usuario</text>
+
+        <g id="n-espusuario">
+          <rect class="box" x="60" y="52" width="520" height="110" rx="8" stroke="#ffb14a" fill="rgba(255,177,74,.10)"/>
+          <text class="box-title" x="320" y="70" text-anchor="middle">Espacio de Usuario</text>
+          <!-- computer to monitor icon -->
+          <rect class="icon" x="95" y="82" width="34" height="24" rx="2" fill="none" stroke="#ffb14a" stroke-width="1.6"/>
+          <path class="icon" d="M135 94 h20" stroke="#ffb14a" stroke-width="1.6" marker-end="url(#arrowHead2)"/>
+          <rect class="icon" x="160" y="80" width="30" height="28" rx="2" fill="none" stroke="#ffb14a" stroke-width="1.6"/>
+          <text class="box-num" x="220" y="90" fill="#ffd699">8</text>
+          <text class="box-txt" x="220" y="102">Inicia el Display Manager (gdm3/sddm) por</text>
+          <text class="box-txt" x="220" y="113">modo gráfico, o presenta el prompt de login</text>
+          <text class="box-txt" x="220" y="124">TTY (getty) para modo texto.</text>
+          <text class="box-txt" x="220" y="142">El usuario introduce credenciales.</text>
+          <rect class="hit" x="60" y="52" width="520" height="110" data-step="8"/>
+        </g>
+
+        <line class="arrow" id="a-user1" x1="320" y1="162" x2="320" y2="190" stroke="#ffb14a" marker-end="url(#arrowHead2)"/>
+        <line class="arrow-glow" id="ag-user1" x1="320" y1="162" x2="320" y2="190" stroke="#ffb14a"/>
+
+        <g id="n-sesion">
+          <rect class="box" x="60" y="192" width="520" height="80" rx="8" stroke="#ffb14a" fill="rgba(255,177,74,.10)"/>
+          <text class="box-title" x="320" y="210" text-anchor="middle">Sesión de Usuario</text>
+          <text class="box-num" x="72" y="228" fill="#ffd699">9</text>
+          <text class="box-txt" x="72" y="228" dx="14">Valida credenciales, inicia shell de usuario</text>
+          <text class="box-txt" x="72" y="240">(/bin/sh)(/bin/bash), carga perfil de usuario, inicia</text>
+          <text class="box-txt" x="72" y="251">entorno de escritorio (GNOME/KDE) si es gráfico.</text>
+          <text class="box-txt" x="72" y="264" font-weight="700" fill="#ffd699">Finaliza en 'Sistema Operativo Listo/Escritorio'.</text>
+          <rect class="hit" x="60" y="192" width="520" height="80" data-step="9"/>
+        </g>
+
+        <g id="n-final" transform="translate(650,90)">
+          <rect class="box" x="0" y="0" width="180" height="130" rx="10" stroke="#39ff88" fill="rgba(57,255,136,.10)"/>
+          <text class="box-title" x="90" y="24" text-anchor="middle" fill="#a8ffce">Sistema Operativo</text>
+          <text class="box-title" x="90" y="40" text-anchor="middle" fill="#a8ffce">Listo / Escritorio</text>
+          <circle class="icon" cx="90" cy="80" r="26" fill="none" stroke="#39ff88" stroke-width="1.8"/>
+          <path class="icon" d="M78 80 l9 9 l16 -20" fill="none" stroke="#39ff88" stroke-width="2.4"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:#9db4d8"></span>Hardware</span>
+    <span><span class="sw" style="background:#3aa0ff"></span>Bootloader</span>
+    <span><span class="sw" style="background:#39ff88"></span>Kernel</span>
+    <span><span class="sw" style="background:#b06bff"></span>Init System</span>
+    <span><span class="sw" style="background:#ffb14a"></span>Espacio de Usuario</span>
+  </div>
+
+  <div class="controls">
+    <button id="btnRun">▸ Iniciar arranque</button>
+    <button id="btnReset" class="secondary">Reiniciar</button>
+  </div>
+
+  <div class="console">
+    <div class="console-head">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span>trace: linux-boot-process.log</span>
+    </div>
+    <div id="consoleBody"></div>
+  </div>
+
+  <footer>
+    Estructura y contenido de las 5 etapas (Hardware, Bootloader, Kernel, Init System, Espacio de Usuario), incluyendo
+    los recuadros duplicados de los pasos 3 y 4 tal como aparecen en tu imagen original, replicados con efecto neón y
+    tipografía Arial. Los pasos 1-9 corresponden a la secuencia técnica general de arranque de Linux con systemd —
+    la implementación exacta (nombres de targets, orden de daemons) puede variar levemente entre distribuciones.
+  </footer>
+</div>
+
+<script>
+(function(){
+  const consoleBody = document.getElementById('consoleBody');
+  const btnRun = document.getElementById('btnRun');
+  const btnReset = document.getElementById('btnReset');
+
+  const STEPS = [
+    {n:1, boxes:['n-power'], arrows:['a-power','ag-power'], color:'#ffe08a', tag:'INICIO',
+     txt:'<b>Pulsación del botón de encendido</b>: se suministra corriente a la placa base y comienza el proceso de arranque.'},
+    {n:2, boxes:['n-firmware'], arrows:['a-hw1','ag-hw1'], color:'#9db4d8', tag:'HARDWARE',
+     txt:'<b>Firmware (BIOS/UEFI)</b> inicializa el hardware y realiza el <b>POST</b> (Power-On Self-Test). Identifica el dispositivo de arranque (MBR/GPT).'},
+    {n:3, boxes:['n-hwstep3echo','n-gestor','n-grubtxt'], arrows:['a-hw2','ag-hw2','a-c1c2','ag-c1c2'], color:'#3aa0ff', tag:'BOOTLOADER',
+     txt:'Se <b>carga el bootloader</b> (sector de arranque). <b>GRUB</b> presenta el menú (opcional), carga el <b>Kernel (vmlinuz)</b> y el <b>ramdisk inicial (initramfs/initrd)</b> en la memoria.'},
+    {n:4, boxes:['n-nucleo'], arrows:['a-boot1','ag-boot1','a-c2c3','ag-c2c3'], color:'#39ff88', tag:'KERNEL',
+     txt:'El <b>Kernel</b> toma el control, inicializa controladores de hardware esenciales, desempaqueta el <b>initramfs</b> y monta el sistema de archivos raíz temporal. Luego ejecuta <b>/sbin/init</b> (el proceso 1).'},
+    {n:5, boxes:['n-sysinit'], arrows:['a-kernel1','ag-kernel1','a-c3c4','ag-c3c4'], color:'#b06bff', tag:'INIT',
+     txt:'El <b>Sistema de Inicialización</b> carga la configuración del sistema desde <b>/etc/systemd/</b>.'},
+    {n:6, boxes:['n-targets'], arrows:['a-init1','ag-init1'], color:'#b06bff', tag:'TARGET',
+     txt:'Se inicia el sistema de inicialización: <b>systemd</b> carga el target correspondiente — <b>multi-user.target</b> (modo texto) o <b>graphical.target</b> (modo gráfico).'},
+    {n:7, boxes:['n-servtop','n-servbot'], arrows:[], color:'#c9a0ff', tag:'DAEMONS',
+     txt:'Se inician los <b>servicios (demonios)</b>: sshd, networking, systemd-journald, syslog, cron, acpid, etc. Se gestionan dependencias vía <b>D-Bus</b>, se montan sistemas de archivos reales y se configura la red.'},
+    {n:8, boxes:['n-espusuario'], arrows:['a-c4c5','ag-c4c5'], color:'#ffb14a', tag:'LOGIN',
+     txt:'Se inicia el <b>Display Manager</b> (gdm3/sddm) en modo gráfico, o se presenta el prompt de login <b>TTY (getty)</b> en modo texto. El usuario introduce sus credenciales.'},
+    {n:9, boxes:['n-sesion','n-final'], arrows:['a-user1','ag-user1'], color:'#39ff88', tag:'SESIÓN',
+     txt:'Se validan las credenciales, se inicia la <b>shell del usuario</b> (/bin/sh, /bin/bash), se carga su perfil y, si corresponde, el entorno de escritorio (<b>GNOME/KDE</b>). El sistema queda <b>listo</b> — escritorio o terminal disponible.'},
+  ];
+
+  let busy = false;
+
+  function log(html, tag, color){
+    const n = consoleBody.children.length;
+    const line = document.createElement('div');
+    line.className='step-line';
+    const tagHtml = tag ? `<span class="step-tag" style="color:${color}">${tag}</span>` : '';
+    line.innerHTML = `<span class="step-n">${String(n).padStart(2,'0')}</span><span class="step-txt">${html}${tagHtml}</span>`;
+    consoleBody.appendChild(line);
+    document.querySelector('.console').scrollTop = 999999;
+  }
+
+  function clearConsole(){ consoleBody.innerHTML=''; }
+
+  function clearHighlights(){
+    document.querySelectorAll('.box.active-box').forEach(el=> el.classList.remove('active-box'));
+    document.querySelectorAll('.arrow-glow').forEach(el=> el.style.opacity = 0);
+  }
+
+  function highlight(boxIds, color, on){
+    boxIds.forEach(id=>{
+      const g = document.getElementById(id);
+      if(!g) return;
+      const rect = g.querySelector('rect.box') || g.querySelector('rect');
+      if(!rect) return;
+      if(on){ rect.classList.add('active-box'); rect.style.color = color; }
+      else rect.classList.remove('active-box');
+    });
+  }
+
+  function glowArrows(ids, on){
+    ids.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.style.opacity = on ? 1 : 0;
+    });
+  }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  async function runStep(step){
+    glowArrows(step.arrows, true);
+    highlight(step.boxes, step.color, true);
+    log(step.txt, step.tag, step.color);
+    step.boxes.forEach(id=>{
+      document.getElementById(id)?.scrollIntoView({block:'nearest', behavior:'smooth', inline:'nearest'});
+    });
+    await sleep(1900);
+    glowArrows(step.arrows, false);
+    highlight(step.boxes, step.color, false);
+  }
+
+  async function runAll(){
+    if(busy) return;
+    busy = true; btnRun.disabled = true;
+    clearConsole(); clearHighlights();
+    log('Iniciando trazo del proceso de arranque de Linux...', null, null);
+    await sleep(300);
+    for(const step of STEPS){
+      await runStep(step);
+      await sleep(350);
+    }
+    log('<br>Arranque completo — Sistema Operativo Listo.', null, null);
+    busy = false; btnRun.disabled = false;
+  }
+
+  async function runFrom(n){
+    if(busy) return;
+    busy = true; btnRun.disabled = true;
+    clearConsole(); clearHighlights();
+    const step = STEPS.find(s=>s.n===n);
+    if(step){ await runStep(step); }
+    busy = false; btnRun.disabled = false;
+  }
+
+  btnRun.addEventListener('click', runAll);
+  btnReset.addEventListener('click', ()=>{
+    if(busy) return;
+    clearConsole(); clearHighlights();
+    log('Consola reiniciada. Haz clic en un bloque numerado o presiona "Iniciar arranque".', null, null);
+  });
+
+  document.querySelectorAll('.hit').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const n = parseInt(el.getAttribute('data-step'), 10);
+      runFrom(n);
+    });
+  });
+
+  log('Diagrama listo. Haz clic en un bloque numerado (2-9) o presiona "Iniciar arranque" para recorrer el proceso completo.', null, null);
+})();
+</script>
+</body>
+</html>
 
