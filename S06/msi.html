@@ -1,271 +1,329 @@
-
-<h2 class="sr-only">Arquitectura Windows Installer MSI con fondo negro y fuente Arial</h2>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>Windows Installer MSI</title>
 <style>
-@keyframes dash{to{stroke-dashoffset:-20}}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.fl{stroke-dasharray:5 3;animation:dash 1.6s linear infinite}
-.fl2{stroke-dasharray:5 3;animation:dash 2.4s linear infinite}
-.flr{stroke-dasharray:5 3;animation:dash 1.8s linear reverse infinite}
+:root{color-scheme:dark;--bg:#000;--panel:#0b1119;--line:#1e3a5a;--ink:#E8F0FE;--muted:#9DB6D2;--blue:#4DB8FF;--green:#00CC88;--amber:#EF9F27;--purple:#9A8AFF;--red:#FF6644}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;padding:0 16px}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 32px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:clamp(20px,3vw,28px);text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.dia{overflow-x:auto;border:1px solid #0f2236;border-radius:14px;background:#000}
+.dia svg{display:block;width:100%;min-width:720px;height:auto;font-family:Arial,Helvetica,sans-serif}
+.node{cursor:pointer;transition:opacity .35s}
+.node .box{transition:stroke-width .25s,filter .25s}
+.node:hover .box,.node:focus-visible .box{stroke-width:2.5;stroke-opacity:1}
+.node:focus-visible{outline:none}
+.node:focus-visible .box{stroke:#fff}
+.node.active .box{stroke-width:2.5;stroke-opacity:1;filter:url(#glow)}
+.node.bad .box{stroke:#FF6644!important;stroke-width:3;animation:alarm .6s ease-in-out infinite alternate}
+.node.dim{opacity:.28}
+.flow{fill:none;stroke-width:1.6;stroke-dasharray:5 3;animation:dash 1.6s linear infinite;transition:opacity .35s,stroke-width .25s}
+.flow.dim{opacity:.18}
+.flow.on{stroke-width:2.6;opacity:1}
 .blink{animation:blink 2s ease-in-out infinite}
-.wrap{background:#000;border-radius:16px;padding:16px;font-family:Arial,sans-serif}
-#tip-box{background:#0d1117;border:0.5px solid #1e3a5a;border-radius:12px;padding:12px 16px;margin-top:10px;display:none;font-family:Arial,sans-serif}
-#tip-title{font-size:13px;font-weight:700;color:#e8f0fe}
-#tip-body{font-size:12px;color:#7ab3e0;line-height:1.7;margin:6px 0 8px}
-.tag{background:#060e18;border:0.5px solid #1e3a5a;color:#4a8abf;font-size:11px;padding:2px 8px;border-radius:4px;font-family:Arial,monospace}
-button.dbtn{background:#060e18;border:0.5px solid #1e3a5a;color:#4db8ff;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Arial,sans-serif}
-button.dbtn:hover{background:#0d1e30}
-button.cbtn{background:#1a1a1a;border:0.5px solid #333;color:#888;font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:Arial,sans-serif}
+@keyframes dash{to{stroke-dashoffset:-16}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes alarm{from{stroke-opacity:1}to{stroke-opacity:.25}}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+button{font:inherit;font-size:13px;font-weight:700;color:var(--blue);background:#060e18;border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button:hover{background:#0d1e30}
+button[aria-pressed="true"]{background:#12375C;color:#fff}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.play{background:#12375C;color:#fff}
+.cap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-height:104px}
+.cap .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cap h2{margin:0;font-size:16px}
+.dots{display:flex;gap:6px;margin-left:auto}
+.dots span{width:9px;height:9px;border-radius:50%;background:#1e3a5a}
+.dots span.on{background:var(--blue)}
+.cap p{margin:0;color:var(--muted);max-width:90ch}
+.foot{font-size:12px;color:#7F97B3;border-top:1px solid #0f2236;padding-top:10px}
+/* modal */
+.bd{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.pop{background:#070d15;border:1px solid var(--pc,#1e3a5a);box-shadow:0 0 40px color-mix(in srgb,var(--pc,#1e3a5a) 30%,transparent);border-radius:16px;width:min(620px,100%);max-height:88vh;overflow:auto}
+.ph{display:flex;gap:12px;align-items:flex-start;padding:18px 20px 12px;border-bottom:1px solid #13263b}
+.ph .ey{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pc)}
+.ph h3{margin:2px 0 0;font-size:20px;line-height:1.25}
+.x{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px;line-height:1;padding:4px 8px}
+.pb{padding:14px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.pb p{margin:0}
+.lab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted);margin-bottom:3px}
+.ex{background:color-mix(in srgb,var(--pc) 10%,#070d15);border:1px solid color-mix(in srgb,var(--pc) 35%,#070d15);border-radius:10px;padding:12px 14px}
+.ex .lab{color:var(--pc)}
+.code{position:relative;background:#02060b;border:1px solid #13263b;border-radius:10px}
+.code pre{margin:0;padding:12px 14px;padding-right:74px;overflow-x:auto;font-family:Consolas,"Courier New",monospace;font-size:12.5px;color:#CFE6FF;white-space:pre}
+.code button{position:absolute;top:8px;right:8px;padding:4px 10px;font-size:12px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{background:#060e18;border:1px solid #1e3a5a;color:#7FB6E6;font-size:12px;padding:2px 9px;border-radius:5px}
+.warn{font-size:13px;color:#F3C27A;border-left:3px solid var(--amber);padding-left:10px}
+@media (prefers-reduced-motion:reduce){.flow,.blink,.node.bad .box{animation:none}}
 </style>
 
 <div class="wrap">
-<svg width="100%" viewBox="0 0 680 560" role="img" style="display:block;font-family:Arial,sans-serif">
-<title>Windows Installer MSI — arquitectura fondo negro Arial</title>
-<desc>Diagrama completo del flujo MSI con tipografía Arial sobre fondo negro</desc>
-<defs>
-  <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </marker>
-</defs>
-
-<rect x="0" y="0" width="680" height="560" fill="#000"/>
-
-<!-- grid sutil -->
-<line x1="0" y1="210" x2="680" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="0" y1="390" x2="680" y2="390" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="170" y1="0" x2="170" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="340" y1="0" x2="340" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
-<line x1="510" y1="0" x2="510" y2="210" stroke="#0d1a2a" stroke-width="0.5"/>
-
-<!-- TÍTULO -->
-<text x="340" y="22" text-anchor="middle" dominant-baseline="central" fill="#e8f0fe" font-size="14" font-weight="700" font-family="Arial,sans-serif">Windows Installer (.MSI) — Arquitectura y Flujo</text>
-<text x="340" y="40" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Sistema de instalación transaccional de Microsoft</text>
-
-<!-- ══ FILA SUPERIOR ══ -->
-
-<!-- SERVER -->
-<g onclick="tip('server')" style="cursor:pointer">
-  <rect x="20" y="58" width="108" height="130" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <rect x="38" y="74" width="72" height="11" rx="2" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="38" y="89" width="72" height="11" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="38" y="104" width="72" height="11" rx="2" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
-  <circle cx="104" cy="79" r="2.5" fill="#378ADD" class="blink"/>
-  <circle cx="104" cy="94" r="2.5" fill="#1a4a7a"/>
-  <circle cx="104" cy="109" r="2.5" fill="#378ADD"/>
-  <text x="74" y="130" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="700" font-family="Arial,sans-serif">Server</text>
-  <text x="74" y="148" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Repositorio</text>
-  <text x="74" y="164" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">BD relacional</text>
-</g>
-
-<!-- flecha 1 -->
-<line x1="128" y1="123" x2="166" y2="123" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="136" y="109" width="14" height="13" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="143" y="115" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-weight="700" font-family="Arial,sans-serif">1</text>
-
-<!-- MSI PACKAGE -->
-<g onclick="tip('msi')" style="cursor:pointer">
-  <rect x="168" y="52" width="132" height="136" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <ellipse cx="234" cy="78" rx="26" ry="8" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
-  <rect x="208" y="78" width="52" height="22" fill="#0d2040" stroke="none"/>
-  <ellipse cx="234" cy="100" rx="26" ry="8" fill="#0a1a30" stroke="#1a6abf" stroke-width="0.5"/>
-  <text x="234" y="120" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">Directory · Component</text>
-  <text x="234" y="134" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">File · Registry</text>
-  <text x="234" y="148" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-family="Arial,monospace">InstallExecSequence</text>
-  <text x="234" y="168" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="700" font-family="Arial,sans-serif">Paquete .msi</text>
-  <text x="234" y="182" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">OLE-DB Storage</text>
-</g>
-
-<!-- flecha 2 -->
-<line x1="300" y1="120" x2="338" y2="120" stroke="#1a6abf" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="308" y="106" width="14" height="13" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="315" y="112" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="10" font-weight="700" font-family="Arial,sans-serif">2</text>
-
-<!-- UAC -->
-<g onclick="tip('uac')" style="cursor:pointer">
-  <rect x="340" y="14" width="130" height="38" rx="8" fill="#120a00" stroke="#7a4a00" stroke-width="1"/>
-  <path d="M358 19 L358 34 Q358 39 364 41 Q370 39 370 34 L370 19 Z" fill="#2a1800" stroke="#c87800" stroke-width="0.5"/>
-  <path d="M362 27 L364 33 L368 25" fill="none" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/>
-  <text x="410" y="28" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="12" font-weight="700" font-family="Arial,sans-serif">UAC — Elevacion privilegios</text>
-  <text x="410" y="43" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10" font-family="Arial,sans-serif">Token elevado · SYSTEM</text>
-</g>
-
-<!-- MODO USUARIO -->
-<g onclick="tip('usermode')" style="cursor:pointer">
-  <rect x="340" y="54" width="130" height="134" rx="10" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
-  <circle cx="405" cy="78" rx="13" r="13" fill="#041a10" stroke="#0a5a40" stroke-width="0.5"/>
-  <circle cx="405" cy="74" r="5.5" fill="#1D9E75"/>
-  <path d="M394 88 Q405 83 416 88" fill="#1D9E75" stroke="none"/>
-  <text x="405" y="106" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Modo usuario</text>
-  <text x="405" y="121" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">msiexec.exe</text>
-  <line x1="352" y1="133" x2="458" y2="133" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="405" y="147" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Lectura BD (SQL COM)</text>
-  <text x="405" y="163" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">UI Sequence</text>
-  <text x="405" y="179" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Recopila preferencias</text>
-</g>
-<!-- usuario → UAC -->
-<path d="M405 54 L405 52" fill="none" stroke="#c87800" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-<rect x="393" y="44" width="14" height="13" rx="3" fill="#120a00" stroke="#7a4a00" stroke-width="0.5"/>
-<text x="400" y="50" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="10" font-weight="700" font-family="Arial,sans-serif">3</text>
-
-<!-- flecha 4 -->
-<line x1="470" y1="121" x2="508" y2="121" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="478" y="107" width="14" height="13" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
-<text x="485" y="113" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-weight="700" font-family="Arial,sans-serif">4</text>
-
-<!-- MODO SISTEMA -->
-<g onclick="tip('sysmode')" style="cursor:pointer">
-  <rect x="510" y="54" width="150" height="134" rx="10" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
-  <circle cx="585" cy="78" r="9" fill="#041a10" stroke="#1D9E75" stroke-width="0.5"/>
-  <circle cx="585" cy="78" r="4" fill="#1D9E75"/>
-  <rect x="582" y="67" width="6" height="5" rx="1" fill="#1D9E75"/>
-  <rect x="582" y="84" width="6" height="5" rx="1" fill="#1D9E75"/>
-  <rect x="573" y="75" width="5" height="6" rx="1" fill="#1D9E75"/>
-  <rect x="594" y="75" width="5" height="6" rx="1" fill="#1D9E75"/>
-  <text x="585" y="104" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Modo sistema</text>
-  <text x="585" y="119" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">TrustedInstaller</text>
-  <line x1="522" y1="131" x2="648" y2="131" stroke="#0a5a40" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="585" y="145" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Servicio Windows</text>
-  <text x="585" y="161" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Privilegio SYSTEM</text>
-  <text x="585" y="177" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="11" font-family="Arial,sans-serif">Script ejecucion</text>
-</g>
-
-<!-- flecha 5 -->
-<line x1="585" y1="188" x2="585" y2="228" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-<rect x="573" y="202" width="14" height="13" rx="3" fill="#060e18" stroke="#0a5a40" stroke-width="0.5"/>
-<text x="580" y="208" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="10" font-weight="700" font-family="Arial,sans-serif">5</text>
-
-<!-- ══ FILA MEDIA ══ -->
-
-<!-- PROGRAM FILES -->
-<g onclick="tip('progfiles')" style="cursor:pointer">
-  <rect x="490" y="230" width="120" height="90" rx="10" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <path d="M512 248 L512 272 L566 272 L566 248 L548 248 L544 244 L512 244 Z" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
-  <line x1="512" y1="256" x2="566" y2="256" stroke="#3c2a8a" stroke-width="0.5"/>
-  <text x="550" y="286" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="12" font-weight="700" font-family="Arial,sans-serif">Program Files</text>
-  <text x="550" y="302" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Tabla File</text>
-  <text x="550" y="316" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Binarios producto</text>
-</g>
-
-<!-- REGISTRY -->
-<g onclick="tip('registry')" style="cursor:pointer">
-  <rect x="618" y="230" width="42" height="90" rx="8" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <text x="639" y="275" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="10" font-weight="700" font-family="Arial,sans-serif" transform="rotate(-90,639,275)">Registry</text>
-</g>
-
-<!-- LOCAL DB -->
-<g onclick="tip('localdb')" style="cursor:pointer">
-  <rect x="490" y="334" width="170" height="76" rx="10" fill="#080614" stroke="#2a1a6a" stroke-width="1"/>
-  <ellipse cx="518" cy="354" rx="14" ry="5" fill="#120d30" stroke="#3c2a8a" stroke-width="0.5"/>
-  <rect x="504" y="354" width="28" height="14" fill="#120d30" stroke="none"/>
-  <ellipse cx="518" cy="368" rx="14" ry="5" fill="#0d0820" stroke="#3c2a8a" stroke-width="0.5"/>
-  <text x="567" y="352" text-anchor="middle" dominant-baseline="central" fill="#9a8aff" font-size="12" font-weight="700" font-family="Arial,sans-serif">Local DB</text>
-  <text x="567" y="368" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,monospace">C:\Windows\Installer</text>
-  <text x="567" y="384" text-anchor="middle" dominant-baseline="central" fill="#4a3a8a" font-size="11" font-family="Arial,sans-serif">Registro producto</text>
-</g>
-<line x1="550" y1="320" x2="550" y2="333" stroke="#3c2a8a" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-
-<!-- ROLLBACK -->
-<g onclick="tip('rollback')" style="cursor:pointer">
-  <rect x="278" y="230" width="172" height="96" rx="10" fill="#100608" stroke="#7a2a1a" stroke-width="1"/>
-  <polygon points="324,252 324,274 304,263" fill="#cc3a20" stroke="none"/>
-  <polygon points="340,252 340,274 320,263" fill="#993020" stroke="none"/>
-  <text x="364" y="292" text-anchor="middle" dominant-baseline="central" fill="#ff6644" font-size="13" font-weight="700" font-family="Arial,sans-serif">Rollback</text>
-  <text x="364" y="308" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="Arial,sans-serif">Reversion transaccional</text>
-  <text x="364" y="322" text-anchor="middle" dominant-baseline="central" fill="#7a3a2a" font-size="11" font-family="Arial,sans-serif">Restaura estado previo</text>
-</g>
-<!-- ejecucion → rollback -->
-<path d="M490 264 L452 278" fill="none" stroke="#aa2a10" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ar)"/>
-<text x="474" y="258" text-anchor="middle" dominant-baseline="central" fill="#cc3a20" font-size="10" font-family="Arial,sans-serif">error</text>
-
-<!-- MSI FILE -->
-<g onclick="tip('msifile')" style="cursor:pointer">
-  <rect x="278" y="340" width="172" height="62" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <rect x="296" y="352" width="22" height="28" rx="3" fill="#0d2040" stroke="#1a6abf" stroke-width="0.5"/>
-  <path d="M310 352 L318 360 L318 380 L296 380 L296 352 Z" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
-  <path d="M310 352 L310 360 L318 360" fill="none" stroke="#1a6abf" stroke-width="0.5"/>
-  <line x1="300" y1="366" x2="314" y2="366" stroke="#1a6abf" stroke-width="0.5"/>
-  <line x1="300" y1="371" x2="314" y2="371" stroke="#1a6abf" stroke-width="0.5"/>
-  <text x="376" y="364" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="12" font-weight="700" font-family="Arial,sans-serif">MSI File — Cache</text>
-  <text x="376" y="382" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="11" font-family="Arial,sans-serif">Reparacion offline</text>
-</g>
-<line x1="364" y1="326" x2="364" y2="339" stroke="#7a2a1a" stroke-width="1" class="fl2" marker-end="url(#ar)"/>
-
-<!-- ══ SELF-HEALING ══ -->
-<g onclick="tip('selfheal')" style="cursor:pointer">
-  <rect x="20" y="230" width="220" height="188" rx="12" fill="#020a04" stroke="#0a4a1a" stroke-width="1"/>
-  <rect x="44" y="248" width="18" height="18" rx="2" fill="#0a2a10" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="66" y="248" width="18" height="18" rx="2" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="44" y="270" width="18" height="18" rx="2" fill="#0d3a14" stroke="#1D9E75" stroke-width="0.5"/>
-  <rect x="66" y="270" width="18" height="18" rx="2" fill="#1a5a24" stroke="#1D9E75" stroke-width="0.5"/>
-  <path d="M102 256 Q130 246 140 258 Q150 270 135 280 Q120 290 102 283" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ar)" class="fl2"/>
-  <text x="130" y="306" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="13" font-weight="700" font-family="Arial,sans-serif">Self-Healing</text>
-  <text x="130" y="322" text-anchor="middle" dominant-baseline="central" fill="#0a8a55" font-size="11" font-family="Arial,sans-serif">Autoreparacion automatica</text>
-  <line x1="34" y1="335" x2="228" y2="335" stroke="#0a4a1a" stroke-width="0.5" stroke-dasharray="2 2"/>
-  <text x="130" y="350" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Verifica ComponentID</text>
-  <text x="130" y="366" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Detecta archivos faltantes</text>
-  <text x="130" y="382" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Repara claves registro</text>
-  <text x="130" y="398" text-anchor="middle" dominant-baseline="central" fill="#0a6a40" font-size="11" font-family="Arial,sans-serif">Sin intervencion usuario</text>
-  <text x="130" y="412" text-anchor="middle" dominant-baseline="central" fill="#0a5a30" font-size="11" font-family="Arial,sans-serif">↻ cada lanzamiento</text>
-</g>
-<!-- rollback → self-healing -->
-<path d="M278 308 L242 308" fill="none" stroke="#1D9E75" stroke-width="1.5" class="flr" marker-end="url(#ar)"/>
-<!-- self-healing → MSI file -->
-<path d="M232 371 L276 371" fill="none" stroke="#0a4a1a" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar)"/>
-
-<!-- ══ LEYENDA PIE ══ -->
-<line x1="20" y1="430" x2="660" y2="430" stroke="#0d1a2a" stroke-width="0.5"/>
-<text x="40" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">1 Descarga</text>
-<text x="40" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">Server → .msi</text>
-<text x="140" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">2 Adquisicion</text>
-<text x="140" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">OLE-DB → memoria</text>
-<text x="260" y="447" fill="#7a4a00" font-size="10" font-weight="700" font-family="Arial,sans-serif">3 UAC</text>
-<text x="260" y="460" fill="#7a5a2a" font-size="10" font-family="Arial,sans-serif">Token elevado</text>
-<text x="340" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">4 Delegacion</text>
-<text x="340" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">→ TrustedInstaller</text>
-<text x="460" y="447" fill="#1a4a7a" font-size="10" font-weight="700" font-family="Arial,sans-serif">5 Ejecucion</text>
-<text x="460" y="460" fill="#2a5a8a" font-size="10" font-family="Arial,sans-serif">Files + Registry + DB</text>
-<text x="580" y="447" fill="#0a4a1a" font-size="10" font-weight="700" font-family="Arial,sans-serif">↻ Self-Healing</text>
-<text x="580" y="460" fill="#0a5a2a" font-size="10" font-family="Arial,sans-serif">Autoreparacion</text>
-
-</svg>
-
-<!-- PANEL DETALLE -->
-<div id="tip-box">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <span id="tip-icon" style="font-size:16px;width:20px;color:#4db8ff;font-family:Arial,sans-serif"></span>
-    <span id="tip-title"></span>
-    <button class="cbtn" onclick="document.getElementById('tip-box').style.display='none'" style="margin-left:auto">cerrar</button>
+  <div>
+    <h1>Windows Installer (.msi): arquitectura y flujo</h1>
+    <p class="sub">Haz clic en cualquier bloque para ver qué es, cuál es su función y un ejemplo de laboratorio. Usa los escenarios para animar el recorrido paso a paso.</p>
   </div>
-  <div id="tip-body"></div>
-  <div style="display:flex;flex-wrap:wrap;gap:5px" id="tip-tags"></div>
+
+  <div class="ctrl">
+    <div class="seg" role="group" aria-label="Escenario">
+      <button type="button" data-sc="install" aria-pressed="true">Instalación correcta</button>
+      <button type="button" data-sc="rollback" aria-pressed="false">Falla y rollback</button>
+      <button type="button" data-sc="heal" aria-pressed="false">Autoreparación</button>
+    </div>
+    <button type="button" class="play" id="play">▶ Reproducir</button>
+    <button type="button" id="prev" aria-label="Paso anterior">◀</button>
+    <button type="button" id="next" aria-label="Paso siguiente">▶</button>
+    <button type="button" id="reset">Ver todo</button>
+  </div>
+
+  <div class="dia"><svg id="svg" viewBox="0 0 900 600" role="group" aria-label="Diagrama de arquitectura de Windows Installer"></svg></div>
+
+  <div class="cap" aria-live="polite">
+    <div class="row"><h2 id="capT">Vista general</h2><div class="dots" id="dots"></div></div>
+    <p id="capD">Elige un escenario y pulsa Reproducir. Las flechas punteadas muestran el sentido del flujo; los puntos luminosos, lo que ocurre en cada paso.</p>
+  </div>
+
+  <div class="foot">Ejemplo transversal: despliegue del paquete MSI de 7-Zip en las 30 PC de un laboratorio. Contenido elaborado a partir de la documentación de Windows Installer de Microsoft; verificar detalles en Microsoft Learn. Los comandos se prueban en una máquina virtual de laboratorio, no en equipos de producción.</div>
 </div>
 
-<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-  <button class="dbtn" onclick="sendPrompt('Explica el mecanismo de rollback transaccional de Windows Installer y cómo el script de rollback protege la integridad del sistema')">Rollback transaccional ↗</button>
-  <button class="dbtn" onclick="sendPrompt('¿Cómo funciona exactamente el self-healing de Windows Installer? ¿Qué detecta, qué tablas consulta y cuándo se activa?')">Self-healing detalle ↗</button>
-  <button class="dbtn" onclick="sendPrompt('Diferencia técnica entre msiexec.exe en modo usuario y TrustedInstaller en modo SYSTEM durante la instalación MSI')">User vs SYSTEM ↗</button>
-</div>
+<div class="bd" id="bd" hidden>
+  <div class="pop" id="pop" role="dialog" aria-modal="true" aria-labelledby="pT">
+    <div class="ph"><div><div class="ey" id="pE"></div><h3 id="pT"></h3></div><button type="button" class="x" id="pX" aria-label="Cerrar">×</button></div>
+    <div class="pb" id="pB"></div>
+  </div>
 </div>
 
 <script>
-const data={
-  server:{icon:"▣",title:"Server — Repositorio",body:"Origen del paquete MSI. Puede ser servidor de red SMB, WSUS, SCCM/Intune o carpeta local. El circuito de comunicación RED gestiona la transmisión completa del archivo .msi al cliente antes de iniciar cualquier instalación.",tags:["SMB/HTTP","WSUS","SCCM","Intune","Descarga .msi"]},
-  msi:{icon:"◈",title:"Paquete .msi — OLE-DB Storage",body:"Archivo que es una base de datos relacional Microsoft (OLE Structured Storage). Contiene streams binarios con tablas: Directory, Component, File, InstallExecuteSequence, Registry, Condition, CustomAction. También empaqueta un CAB con los binarios del producto.",tags:["OLE-DB","CAB embebido","Property","Feature","Component","CustomAction"]},
-  usermode:{icon:"◉",title:"Modo usuario — msiexec.exe",body:"Fase 2 de adquisición. msiexec.exe mapea las tablas MSI a memoria del cliente usando SQL COM. Evalúa LaunchCondition, resuelve Features, ejecuta la UI Sequence y escribe TARGETDIR e INSTALLLEVEL en tabla Property.",tags:["InstallUISequence","SQL COM","TARGETDIR","INSTALLLEVEL","Dialog table","LaunchCondition"]},
-  uac:{icon:"◆",title:"UAC — Elevación de privilegios",body:"Antes de delegar al servicio TrustedInstaller, msiexec solicita elevación UAC mostrando el prompt de consentimiento. El token elevado permite escribir en directorios protegidos del sistema y en HKLM del Registro.",tags:["UAC prompt","Token elevado","HKLM write","Admin consent","ShellExecute runas"]},
-  sysmode:{icon:"◎",title:"Modo sistema — TrustedInstaller",body:"El motor delega la ejecución al servicio TrustedInstaller que corre con privilegio SYSTEM. Genera primero el Script de Ejecución y luego ejecuta la InstallExecuteSequence: copia archivos, escribe registro, registra COM servers.",tags:["TrustedInstaller","SYSTEM token","InstallExecuteSequence","Script ejecucion","WRP bypass"]},
-  progfiles:{icon:"▤",title:"Program Files — Tabla File",body:"TrustedInstaller copia los archivos extraídos del CAB embebido a los directorios resueltos desde la tabla Directory. Cada archivo tiene hash MD5 para verificación de integridad, usada también por el self-healing.",tags:["Tabla File","Tabla Directory","CAB extraccion","Hash MD5","ComponentKeyPath"]},
-  registry:{icon:"▥",title:"Registro de Windows — Tabla Registry",body:"Todas las claves declaradas en la tabla Registry del MSI se escriben en HKLM o HKCU según el atributo Root. Las claves de desinstalación se generan automáticamente en HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall.",tags:["Tabla Registry","HKLM","HKCU","Uninstall keys","COM registration"]},
-  localdb:{icon:"◫",title:"Local DB — C:\\Windows\\Installer",body:"El motor guarda una copia del .msi y registra ProductCode, UpgradeCode y ComponentIDs en la base de datos interna del instalador de Windows. Imprescindible para desinstalación, reparación y self-healing.",tags:["ProductCode","UpgradeCode","ComponentID","C:\\Windows\\Installer","Add/Remove Programs"]},
-  rollback:{icon:"↩",title:"Rollback — Reversión transaccional",body:"Si cualquier acción de InstallExecuteSequence falla, el motor ejecuta el Script de Rollback pre-generado. Cada operación tiene su inversa grabada: archivos copiados se eliminan, claves escritas se borran. La instalación es atómica.",tags:["Script rollback","Transaccion atomica","Idempotente","Error handler","Revert"]},
-  msifile:{icon:"◪",title:"MSI File — Caché local",body:"Copia del paquete .msi en C:\\Windows\\Installer. Usada por el self-healing para reparar componentes sin el medio original. También la requieren Add/Remove Features y la desinstalación completa.",tags:["Cache offline","Add features","Remove features","Desinstalacion","Reparacion"]},
-  selfheal:{icon:"↻",title:"Self-Healing — Autoreparación",body:"En cada lanzamiento del producto, Windows Installer verifica la integridad de componentes comparando ComponentIDs con la Local DB. Si detecta archivo faltante, clave ausente o COM roto, re-ejecuta silenciosamente usando el MSI cacheado.",tags:["ComponentID check","File hash verify","Registry check","COM repair","Silencioso"]}
+const N={
+ server:{x:20,y:80,w:140,h:130,c:'#4DB8FF',f:'#060e18',t:'Servidor / origen',l:['Recurso compartido','GPO · ConfigMgr · Intune'],ic:'server'},
+ msi:{x:185,y:80,w:160,h:130,c:'#4DB8FF',f:'#060e18',t:'Paquete .msi',l:['Base de datos relacional','OLE Structured Storage'],ic:'db'},
+ usermode:{x:370,y:80,w:150,h:130,c:'#00CC88',f:'#04120c',t:'Cliente (usuario)',l:['msiexec.exe','Secuencia de UI'],ic:'user'},
+ uac:{x:545,y:95,w:120,h:100,c:'#EF9F27',f:'#120a00',t:'UAC',l:['Elevación de','privilegios'],ic:'shield'},
+ sysmode:{x:690,y:80,w:190,h:130,c:'#00CC88',f:'#04120c',t:'Servicio (sistema)',l:['msiserver · LocalSystem','Script de instalación'],ic:'gear'},
+ phases:{x:20,y:275,w:320,h:105,c:'#9DB6D2',f:'#070b12',t:'Fases del motor',l:['Adquisición → Generación del script','→ Ejecución → Commit o Rollback'],ic:'phases'},
+ rollback:{x:370,y:275,w:170,h:105,c:'#FF6644',f:'#120605',t:'Rollback',l:['Reversión transaccional','Respaldo en C:\\Config.Msi'],ic:'rollback'},
+ progfiles:{x:575,y:275,w:150,h:105,c:'#9A8AFF',f:'#080614',t:'Archivos',l:['C:\\Program Files','Tabla File'],ic:'folder'},
+ registry:{x:745,y:275,w:135,h:105,c:'#9A8AFF',f:'#080614',t:'Registro',l:['HKLM / HKCU','Tabla Registry'],ic:'reg'},
+ selfheal:{x:20,y:420,w:300,h:105,c:'#00CC88',f:'#02100a',t:'Autoreparación (self-healing)',l:['Verifica la ruta clave (KeyPath)','de los componentes anunciados'],ic:'heal'},
+ msifile:{x:370,y:420,w:170,h:105,c:'#4DB8FF',f:'#060e18',t:'Caché del .msi',l:['C:\\Windows\\Installer','Reparar · desinstalar'],ic:'file'},
+ localdb:{x:575,y:420,w:305,h:105,c:'#9A8AFF',f:'#080614',t:'Registro de productos',l:['ProductCode · ComponentId','HKLM\\…\\Installer\\UserData'],ic:'db'}
 };
-function tip(k){
-  const d=data[k];if(!d)return;
-  document.getElementById('tip-icon').textContent=d.icon;
-  document.getElementById('tip-title').textContent=d.title;
-  document.getElementById('tip-body').textContent=d.body;
-  document.getElementById('tip-tags').innerHTML=d.tags.map(t=>`<span class="tag">${t}</span>`).join('');
-  document.getElementById('tip-box').style.display='block';
+const P={
+ p1:{d:'M160 145 L183 145',c:'#4DB8FF',to:'msi',b:[171,128,'1']},
+ p2:{d:'M345 145 L368 145',c:'#00CC88',to:'usermode',b:[356,128,'2']},
+ p3:{d:'M520 145 L543 145',c:'#EF9F27',to:'uac',b:[531,128,'3']},
+ p4:{d:'M665 145 L688 145',c:'#00CC88',to:'sysmode',b:[676,128,'4']},
+ p5a:{d:'M740 210 L665 273',c:'#9A8AFF',to:'progfiles',b:[690,236,'5']},
+ p5b:{d:'M830 210 L815 273',c:'#9A8AFF',to:'registry'},
+ p6:{d:'M880 150 L893 150 L893 472 L882 472',c:'#9A8AFF',to:'localdb',b:[893,318,'6']},
+ p7:{d:'M575 472 L542 472',c:'#4DB8FF',to:'msifile'},
+ pErr:{d:'M700 210 L542 292',c:'#FF6644',to:'rollback',lab:[585,238,'error 1603']},
+ pRev:{d:'M540 327 L573 327',c:'#FF6644',to:'progfiles'},
+ pDet:{d:'M650 525 C 600 588, 250 588, 200 527',c:'#00CC88',to:'selfheal',lab:[425,580,'consulta el registro del componente']},
+ p8:{d:'M370 472 L322 472',c:'#4DB8FF',to:'selfheal'},
+ p9:{d:'M300 420 C 380 392, 560 402, 640 382',c:'#00CC88',to:'progfiles',lab:[470,392,'repara']}
+};
+const SC={
+ install:[
+  {p:['p1'],n:['server','msi'],t:'1 · Origen',d:'El administrador publica 7zip-x64.msi en \\\\srv-lab\\software y lo asigna por GPO a la OU del laboratorio. En cada PC, msiexec abre el paquete desde ese origen.'},
+  {p:['p2'],n:['msi','usermode'],t:'2 · Adquisición en el cliente',d:'msiexec.exe, con el token del usuario, lee las tablas del paquete, evalúa los requisitos (LaunchCondition) y ejecuta la secuencia de UI. Solo reúne decisiones como propiedades; todavía no cambia nada en el sistema.'},
+  {p:['p3'],n:['usermode','uac'],t:'3 · Elevación',d:'La instalación es por equipo (ALLUSERS=1), así que se requiere el token completo de administrador. UAC pide consentimiento o credenciales.'},
+  {p:['p4'],n:['uac','sysmode'],t:'4 · Delegación al servicio',d:'El cliente entrega las propiedades al servicio Windows Installer (msiserver), que corre como LocalSystem. Las acciones inmediatas de InstallExecuteSequence generan el script de instalación.'},
+  {p:['p5a','p5b'],n:['sysmode','progfiles','registry'],t:'5 · Ejecución del script',d:'Las acciones diferidas copian 7z.exe y 7z.dll a C:\\Program Files\\7-Zip y escriben las claves de registro. En paralelo se construye el script de rollback.'},
+  {p:['p6','p7'],n:['sysmode','localdb','msifile'],t:'6 · Registro y caché (commit)',d:'El motor registra ProductCode y ComponentId, guarda una copia del paquete en C:\\Windows\\Installer y confirma la transacción: se borran los respaldos de rollback.'}
+ ],
+ rollback:[
+  {p:['p5a','p5b'],n:['sysmode','progfiles','registry'],t:'1 · Ejecución en curso',d:'El servicio ya copió parte de los archivos. Cada archivo reemplazado se respalda en la carpeta oculta C:\\Config.Msi.'},
+  {p:['pErr'],n:['sysmode','rollback'],t:'2 · Falla una acción',d:'Una acción personalizada devuelve error. El instalador informa el código 1603 (error grave) y detiene la ejecución del script.'},
+  {p:['pRev'],n:['rollback','progfiles','registry'],bad:['progfiles'],t:'3 · Reversión',d:'Se ejecuta el script de rollback: cada operación tiene su inversa. Se eliminan los archivos copiados, se restauran los respaldados y se borran las claves escritas.'},
+  {p:[],n:['rollback'],t:'4 · Estado anterior restaurado',d:'El equipo queda como antes de iniciar. En el log detallado (/l*v), la primera línea con "Return value 3" indica qué acción falló.'}
+ ],
+ heal:[
+  {p:[],n:['progfiles'],bad:['progfiles'],t:'1 · Falta un archivo',d:'Un alumno borra C:\\Program Files\\7-Zip\\7z.dll. La aplicación queda dañada.'},
+  {p:['pDet'],n:['localdb','selfheal'],t:'2 · Detección al iniciar',d:'El usuario abre la aplicación desde un acceso directo anunciado. Windows Installer comprueba la ruta clave de cada componente de la característica y detecta que falta.'},
+  {p:['p8'],n:['msifile','selfheal'],t:'3 · Origen de la reparación',d:'Se usa la información en caché y, si hace falta, el origen registrado (SourceList) para obtener el archivo. En el Visor de eventos aparecen los eventos 1004 y 1001 de MsiInstaller.'},
+  {p:['p9'],n:['selfheal','progfiles'],t:'4 · Componente restaurado',d:'Tras un breve "Preparando para instalar…", 7z.dll vuelve a su lugar y la aplicación se abre normalmente, sin intervención del usuario.'}
+ ]
+};
+const INFO={
+ server:{e:'Distribución',t:'Servidor / origen del paquete',
+  q:'Ubicación desde la que se obtiene el .msi: un recurso compartido SMB, un punto de instalación administrativa o una herramienta de distribución como Directiva de grupo, Configuration Manager o Intune.',
+  f:'Entregar el paquete al equipo y quedar registrado como origen (SourceList). Windows Installer recuerda esa ruta por si luego necesita volver a leer archivos durante una reparación.',
+  x:'El administrador copia 7zip-x64.msi a \\\\srv-lab\\software y crea una GPO de instalación de software asignada a la OU de las 30 PC. En el siguiente reinicio, cada PC lo instala sin intervención.',
+  c:'msiexec /i "\\\\srv-lab\\software\\7zip-x64.msi" /qn /l*v C:\\Temp\\7zip.log',
+  g:['SMB','GPO','Configuration Manager','Intune','SourceList']},
+ msi:{e:'Formato',t:'Paquete .msi',
+  q:'Un .msi no es un ejecutable. Es una base de datos relacional guardada como archivo compuesto COM (OLE Structured Storage), con decenas de tablas relacionadas. Los binarios van en un .cab embebido o externo.',
+  f:'Describir de forma declarativa qué instalar y dónde (Feature → Component → File / Registry) y en qué orden (InstallUISequence e InstallExecuteSequence). El motor interpreta las tablas; el autor no programa la instalación paso a paso.',
+  x:'Al abrir 7zip-x64.msi con Orca (Windows SDK) se ven la tabla File con 7z.exe y 7z.dll, la tabla Registry con las claves del menú contextual y la tabla Property con ProductCode y ProductVersion.',
+  c:'# Instalación administrativa: extrae los archivos sin instalar nada\nmsiexec /a 7zip-x64.msi TARGETDIR=C:\\Temp\\admin /qn',
+  g:['OLE Structured Storage','Property','Feature','Component','File','Registry','CustomAction','CAB']},
+ usermode:{e:'Fase de adquisición',t:'Cliente: msiexec.exe en contexto de usuario',
+  q:'Primera fase de la instalación. msiexec.exe se ejecuta con el token del usuario que la inició.',
+  f:'Abrir la base de datos, evaluar los requisitos (LaunchCondition), mostrar los diálogos (InstallUISequence) y guardar las decisiones del usuario como propiedades, por ejemplo INSTALLDIR o ADDLOCAL. No modifica el sistema.',
+  x:'Al hacer doble clic en 7zip-x64.msi aparece el asistente y el alumno cambia la carpeta a D:\\Apps\\7-Zip. Eso solo fija la propiedad INSTALLDIR; todavía no se copia ningún archivo. Con /qn, la secuencia de UI se omite.',
+  c:'msiexec /i 7zip-x64.msi INSTALLDIR="D:\\Apps\\7-Zip" /qb',
+  g:['InstallUISequence','LaunchCondition','Property','INSTALLDIR','ADDLOCAL']},
+ uac:{e:'Seguridad',t:'UAC: elevación de privilegios',
+  q:'Control de cuentas de usuario. Aunque el usuario sea administrador, trabaja con un token filtrado. Una instalación por equipo (ALLUSERS=1) necesita el token completo.',
+  f:'Pedir consentimiento o credenciales antes de que el servicio ejecute las acciones que modifican el sistema. El diálogo muestra el editor según la firma digital (Authenticode) del paquete; si no está firmado, aparece "Editor desconocido".',
+  x:'Un alumno sin permisos de administrador intenta instalar 7-Zip. UAC pide credenciales; si cancela, la instalación termina sin cambios con el código 1602 (cancelado por el usuario).',
+  c:'Get-AuthenticodeSignature .\\7zip-x64.msi | Format-List Status, SignerCertificate',
+  g:['Token filtrado','ALLUSERS','Authenticode','1602']},
+ sysmode:{e:'Fases de script y ejecución',t:'Servicio Windows Installer (msiserver)',
+  q:'El servicio Windows Installer ejecuta msiexec.exe como servicio con la cuenta LocalSystem. No es TrustedInstaller: ese es el servicio Instalador de módulos de Windows, que gestiona actualizaciones y componentes del propio sistema operativo.',
+  f:'Recorrer InstallExecuteSequence. Las acciones inmediatas generan el script de instalación y las acciones diferidas lo ejecutan con privilegios de sistema. Mientras ejecuta, construye el script de rollback.',
+  x:'Durante la instalación de 7-Zip, el Administrador de tareas muestra dos procesos msiexec.exe: uno con el usuario del alumno (cliente) y otro con SYSTEM (servicio), que es el que copia los archivos.',
+  c:'Get-Service msiserver\nGet-Process msiexec -IncludeUserName   # requiere consola elevada',
+  g:['msiserver','LocalSystem','InstallExecuteSequence','Acciones diferidas','Script de instalación']},
+ phases:{e:'Modelo de ejecución',t:'Fases del motor de Windows Installer',
+  q:'La instalación no es un proceso lineal único: el motor la divide en fases con contextos de seguridad distintos.',
+  f:'1) Adquisición en el cliente (usuario): lee el paquete y la UI. 2) Generación del script en el servicio: las acciones inmediatas deciden qué hacer. 3) Ejecución: las acciones diferidas modifican el sistema como LocalSystem. 4) Commit si todo sale bien, o rollback si algo falla.',
+  x:'En el log detallado de la instalación de 7-Zip, las líneas "Doing action:" permiten seguir cada acción; InstallFinalize marca el final de la ejecución del script.',
+  c:'Select-String -Path C:\\Temp\\7zip.log -Pattern "Doing action" | Select-Object -First 20',
+  g:['Adquisición','Script','Ejecución','Commit','Rollback']},
+ rollback:{e:'Transaccionalidad',t:'Rollback: reversión transaccional',
+  q:'Mecanismo que hace la instalación atómica: se completa entera o no deja cambios.',
+  f:'Cada operación del script tiene su inversa. Los archivos que se reemplazan se respaldan en la carpeta oculta C:\\Config.Msi. Si una acción falla, el motor ejecuta el script de rollback y restaura el estado anterior. Si todo termina bien, hace commit y borra los respaldos.',
+  x:'Una acción personalizada falla al 80 %. El instalador muestra el error 1603 y en segundos elimina lo copiado y las claves escritas: C:\\Program Files\\7-Zip no queda a medias.',
+  c:'msiexec /i 7zip-x64.msi /l*v C:\\Temp\\7zip.log\nSelect-String -Path C:\\Temp\\7zip.log -Pattern "Return value 3"',
+  g:['Script de rollback','C:\\Config.Msi','1603','Return value 3','Commit'],
+  w:'El rollback puede desactivarse por directiva (DisableRollback). No es recomendable: una instalación fallida dejaría el equipo en un estado intermedio.'},
+ progfiles:{e:'Destino',t:'Archivos del producto',
+  q:'Destino de los archivos, resuelto a partir de las tablas Directory y Component.',
+  f:'Copiar cada archivo de la tabla File respetando las reglas de versionado: un archivo con versión no reemplaza a uno más nuevo. Para archivos sin versión se comparan fechas y el hash de la tabla MsiFileHash.',
+  x:'7z.exe y 7z.dll se copian a C:\\Program Files\\7-Zip. Si otro programa ya instaló una versión más nueva de una DLL compartida, Windows Installer no la sobrescribe.',
+  c:'(Get-Item "C:\\Program Files\\7-Zip\\7z.dll").VersionInfo.FileVersion',
+  g:['Directory','Component','File','MsiFileHash','KeyPath','Reglas de versionado']},
+ registry:{e:'Configuración',t:'Registro de Windows',
+  q:'Claves y valores declarados en la tabla Registry, escritos en HKLM (instalación por equipo) o HKCU (por usuario).',
+  f:'Configurar la aplicación e integrarla con Windows: asociaciones de archivos, menú contextual y registro de componentes COM. Además, Windows Installer crea la entrada de desinstalación con el ProductCode.',
+  x:'Tras instalar 7-Zip aparece la entrada HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{ProductCode}, que es la que muestra "Aplicaciones instaladas".',
+  c:'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall" /s /f "7-Zip"',
+  g:['Tabla Registry','HKLM','HKCU','Uninstall','COM']},
+ localdb:{e:'Estado del sistema',t:'Registro de productos instalados',
+  q:'La "base de datos local" de Windows Installer no es un archivo único. Es la información de productos y componentes en HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Installer\\UserData\\<SID>, más la caché de paquetes. En instalaciones por equipo, el SID es S-1-5-18.',
+  f:'Saber qué productos están instalados, qué componentes pertenecen a cada uno (ComponentId y KeyPath) y cuántos productos comparten un componente. Sin esto no hay reparación, actualización (UpgradeCode) ni desinstalación limpia.',
+  x:'Para inventariar el software MSI de las 30 PC se consulta el registro de desinstalación. No se usa Win32_Product: esa clase fuerza una verificación de coherencia de todos los productos MSI y puede disparar reparaciones.',
+  c:'Get-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" |\n  Where-Object DisplayName -like "7-Zip*" | Select-Object DisplayName, DisplayVersion, PSChildName',
+  g:['ProductCode','UpgradeCode','ComponentId','UserData','S-1-5-18'],
+  w:'Evita Get-CimInstance Win32_Product en equipos reales: es lenta y puede provocar reparaciones no deseadas.'},
+ msifile:{e:'Caché',t:'Caché del paquete: C:\\Windows\\Installer',
+  q:'Copia del paquete instalado, con un nombre aleatorio (por ejemplo, 3f2a1c.msi), en una carpeta oculta y protegida. También guarda los parches .msp.',
+  f:'Permitir modificar, reparar y desinstalar sin el medio original, y aplicar parches. Si la reparación necesita un archivo que no está en caché, Windows Installer lo pide al origen registrado.',
+  x:'Un técnico "libera espacio" borrando C:\\Windows\\Installer. Después, al desinstalar 7-Zip, Windows pide el paquete original porque la caché ya no existe. Esa carpeta nunca se limpia manualmente.',
+  c:'Get-ChildItem C:\\Windows\\Installer -Force -Filter *.msi | Measure-Object -Property Length -Sum',
+  g:['Caché','.msp','Desinstalación','Reparación','SourceList']},
+ selfheal:{e:'Resiliencia',t:'Autoreparación (self-healing)',
+  q:'Reparación automática de Windows Installer.',
+  f:'Cuando la aplicación se inicia por un punto de entrada anunciado (acceso directo anunciado, asociación de archivo o activación COM), Windows Installer verifica la ruta clave (KeyPath) de los componentes. Si falta un archivo o una clave, repara la característica. Un .exe abierto directamente desde el Explorador no dispara esta verificación.',
+  x:'Un alumno borra 7z.dll. Si el paquete creó un acceso directo anunciado, al abrir 7-Zip desde el menú Inicio aparece brevemente "Preparando para instalar…" y la DLL se restaura. En el Visor de eventos (Aplicación, origen MsiInstaller) quedan los eventos 1004 y 1001.',
+  c:'# Reparación manual: reinstala solo los archivos que faltan\nmsiexec /fp {ProductCode}',
+  g:['Punto de entrada anunciado','KeyPath','MsiInstaller 1004/1001','msiexec /f'],
+  w:'Que la autoreparación se active depende de cómo se creó el paquete: no todos los .msi usan accesos directos anunciados.'}
+};
+
+const NS='http://www.w3.org/2000/svg',svg=document.getElementById('svg');
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e};
+const txt=(p,x,y,s,a)=>{const e=el('text',Object.assign({x,y,'text-anchor':'middle','dominant-baseline':'central','font-family':'Arial,sans-serif'},a),p);e.textContent=s;return e};
+// defs
+const defs=el('defs',{});
+defs.innerHTML='<marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+el('rect',{x:0,y:0,width:900,height:600,fill:'#000'});
+[240,400].forEach(y=>el('line',{x1:0,y1:y,x2:900,y2:y,stroke:'#0d1a2a','stroke-width':.5}));
+txt(svg,450,26,'Windows Installer (.msi): arquitectura y flujo',{fill:'#E8F0FE','font-size':16,'font-weight':700});
+txt(svg,450,48,'Motor de instalación transaccional de Microsoft · ejemplo: 7-Zip en un laboratorio',{fill:'#7F97B3','font-size':12});
+
+function icon(g,k,cx,cy,c){
+ const s={stroke:c,'stroke-width':1.2,fill:'none'};
+ if(k==='server'){[0,1,2].forEach(i=>{el('rect',{x:cx-24,y:cy-15+i*11,width:48,height:8,rx:2,fill:'#0d2a4a',stroke:c,'stroke-width':.6},g);el('circle',Object.assign({cx:cx+18,cy:cy-11+i*11,r:2.2,fill:c},i===0?{class:'blink'}:{}),g)})}
+ else if(k==='db'){el('path',{d:`M${cx-18} ${cy-10} v18 a18 6 0 0 0 36 0 v-18`,fill:'#0d2040',stroke:c,'stroke-width':.8},g);el('ellipse',{cx,cy:cy-10,rx:18,ry:6,fill:'#12305a',stroke:c,'stroke-width':.8},g)}
+ else if(k==='user'){el('circle',{cx,cy:cy-6,r:6,fill:c},g);el('path',{d:`M${cx-12} ${cy+12} q12 -14 24 0`,fill:c},g)}
+ else if(k==='shield'){el('path',{d:`M${cx-9} ${cy-12} h18 v10 q0 9 -9 13 q-9 -4 -9 -13 z`,fill:'#2a1800',stroke:c,'stroke-width':1},g);el('path',{d:`M${cx-4} ${cy-1} l3 4 l6 -8`,fill:'none',stroke:c,'stroke-width':1.6,'stroke-linecap':'round'},g)}
+ else if(k==='gear'){for(let i=0;i<8;i++){const a=i*Math.PI/4;el('rect',{x:cx-3,y:cy-15,width:6,height:6,rx:1,fill:c,transform:`rotate(${i*45} ${cx} ${cy})`},g)}el('circle',{cx,cy,r:10,fill:'#041a10',stroke:c,'stroke-width':1.2},g);el('circle',{cx,cy,r:4,fill:c},g)}
+ else if(k==='rollback'){el('polygon',{points:`${cx-2},${cy-10} ${cx-2},${cy+10} ${cx-18},${cy}`,fill:c},g);el('polygon',{points:`${cx+16},${cy-10} ${cx+16},${cy+10} ${cx},${cy}`,fill:'#993020'},g)}
+ else if(k==='folder'){el('path',{d:`M${cx-20} ${cy-10} h14 l4 4 h22 v18 h-40 z`,fill:'#120d30',stroke:c,'stroke-width':.8},g)}
+ else if(k==='reg'){[[0,0],[1,0],[0,1],[1,1]].forEach(([i,j])=>el('rect',{x:cx-14+i*15,y:cy-13+j*14,width:12,height:11,rx:2,fill:i+j===2?'#2a1f6a':'#120d30',stroke:c,'stroke-width':.7},g))}
+ else if(k==='file'){el('path',{d:`M${cx-10} ${cy-14} h14 l7 7 v21 h-21 z`,fill:'#0d2040',stroke:c,'stroke-width':.8},g);el('path',{d:`M${cx+4} ${cy-14} v7 h7`,fill:'none',stroke:c,'stroke-width':.8},g);[0,5].forEach(d=>el('line',{x1:cx-6,y1:cy+1+d,x2:cx+7,y2:cy+1+d,stroke:c,'stroke-width':.7},g))}
+ else if(k==='heal'){el('path',{d:`M${cx+12} ${cy-6} A13 13 0 1 0 ${cx+11} ${cy+7}`,fill:'none',stroke:c,'stroke-width':1.8,'marker-end':'url(#ar)'},g);el('path',{d:`M${cx-5} ${cy} h10 M${cx} ${cy-5} v10`,stroke:c,'stroke-width':1.8},g)}
+ else if(k==='phases'){['#00CC88','#00CC88','#9A8AFF','#FF6644'].forEach((col,i)=>{el('circle',{cx:cx-45+i*30,cy,r:7,fill:'#070b12',stroke:col,'stroke-width':1.5},g);if(i<3)el('line',{x1:cx-38+i*30,y1:cy,x2:cx-22+i*30,y2:cy,stroke:'#3a5572'},g)})}
 }
+const nodeEls={};
+for(const k in N){const n=N[k],g=el('g',{class:'node',tabindex:0,role:'button','aria-label':n.t+'. Ver explicación'});
+ el('rect',{class:'box',x:n.x,y:n.y,width:n.w,height:n.h,rx:10,fill:n.f,stroke:n.c,'stroke-opacity':.55,'stroke-width':1},g);
+ const cx=n.x+n.w/2,big=n.h>=120,iy=n.y+(big?32:24),ty=n.y+(big?68:52),l0=n.y+(big?90:71);
+ icon(g,n.ic,cx,iy,n.c);
+ txt(g,cx,ty,n.t,{fill:n.c,'font-size':13.5,'font-weight':700});
+ n.l.forEach((s,i)=>txt(g,cx,l0+i*16,s,{fill:'#A9BED6','font-size':11.5}));
+ g.addEventListener('click',()=>openPop(k));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPop(k)}});
+ nodeEls[k]=g}
+const pathEls={};
+for(const k in P){const p=P[k];pathEls[k]=el('path',{class:'flow',d:p.d,stroke:p.c,'marker-end':'url(#ar)',...(k==='pErr'||k==='pRev'?{'stroke-dasharray':'4 3'}:{})});
+ if(p.b){el('rect',{x:p.b[0]-8,y:p.b[1]-8,width:16,height:15,rx:3,fill:'#060e18',stroke:p.c,'stroke-width':.6});txt(svg,p.b[0],p.b[1],p.b[2],{fill:p.c,'font-size':10.5,'font-weight':700})}
+ if(p.lab)txt(svg,p.lab[0],p.lab[1],p.lab[2],{fill:p.c,'font-size':11})}
+// nodes above flows? bring nodes to front
+for(const k in nodeEls)svg.appendChild(nodeEls[k]);
+const pg=el('g',{});
+
+// animation
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let sc='install',step=-1,timer=null,live=[],t0=0,raf=0;
+function particles(ids){pg.innerHTML='';live=ids.map(id=>{const path=pathEls[id],len=path.getTotalLength(),c=P[id].c;
+ const dots=[0,1,2].map(i=>el('circle',{r:i===0?4.5:3,fill:c,opacity:i===0?1:.5,filter:'url(#glow)'},pg));return{path,len,dots}});
+ svg.appendChild(pg);t0=performance.now();if(!raf)raf=requestAnimationFrame(tick)}
+function tick(now){raf=0;if(!live.length)return;
+ live.forEach(o=>{const dur=Math.max(700,o.len*14);o.dots.forEach((d,i)=>{let t=((now-t0)/dur-i*0.12)%1;if(t<0)t+=1;const pt=o.path.getPointAtLength(reduce?o.len:t*o.len);d.setAttribute('cx',pt.x);d.setAttribute('cy',pt.y)})});
+ if(!reduce)raf=requestAnimationFrame(tick);}
+function show(i){const steps=SC[sc];step=i;
+ if(i<0){for(const k in nodeEls)nodeEls[k].classList.remove('dim','active','bad');for(const k in pathEls)pathEls[k].classList.remove('dim','on');live=[];pg.innerHTML='';
+  capT.textContent='Vista general';capD.textContent='Elige un escenario y pulsa Reproducir. Las flechas punteadas muestran el sentido del flujo; los puntos luminosos, lo que ocurre en cada paso.';renderDots();return}
+ const s=steps[i];
+ for(const k in nodeEls){const on=s.n.includes(k);nodeEls[k].classList.toggle('dim',!on);nodeEls[k].classList.toggle('active',on);nodeEls[k].classList.toggle('bad',!!(s.bad&&s.bad.includes(k)))}
+ for(const k in pathEls){const on=s.p.includes(k);pathEls[k].classList.toggle('dim',!on);pathEls[k].classList.toggle('on',on)}
+ particles(s.p);capT.textContent=s.t;capD.textContent=s.d;renderDots()}
+const capT=document.getElementById('capT'),capD=document.getElementById('capD'),dots=document.getElementById('dots'),playB=document.getElementById('play');
+function renderDots(){dots.innerHTML=SC[sc].map((_,i)=>`<span class="${i===step?'on':''}"></span>`).join('')}
+function stop(){clearInterval(timer);timer=null;playB.textContent='▶ Reproducir'}
+function play(){if(timer){stop();return}if(step>=SC[sc].length-1||step<0)show(0);else show(step+1);playB.textContent='⏸ Pausar';
+ timer=setInterval(()=>{if(step>=SC[sc].length-1){stop();return}show(step+1)},4200)}
+playB.onclick=play;
+document.getElementById('next').onclick=()=>{stop();show(Math.min(SC[sc].length-1,step+1))};
+document.getElementById('prev').onclick=()=>{stop();show(Math.max(0,step-1))};
+document.getElementById('reset').onclick=()=>{stop();show(-1)};
+document.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{stop();sc=b.dataset.sc;document.querySelectorAll('[data-sc]').forEach(x=>x.setAttribute('aria-pressed',x===b));show(0)});
+renderDots();
+
+// popup
+const bd=document.getElementById('bd'),pop=document.getElementById('pop');let lastF=null;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openPop(k){const d=INFO[k],n=N[k];lastF=document.activeElement;pop.style.setProperty('--pc',n.c);
+ document.getElementById('pE').textContent=d.e;document.getElementById('pT').textContent=d.t;
+ document.getElementById('pB').innerHTML=`<div><div class="lab">Qué es</div><p>${esc(d.q)}</p></div>
+  <div><div class="lab">Función</div><p>${esc(d.f)}</p></div>
+  <div class="ex"><div class="lab">Ejemplo: 7-Zip en el laboratorio</div><p>${esc(d.x)}</p></div>
+  <div><div class="lab">Pruébalo en una VM de laboratorio</div><div class="code"><pre>${esc(d.c)}</pre><button type="button" class="cp">Copiar</button></div></div>
+  ${d.w?`<p class="warn">${esc(d.w)}</p>`:''}
+  <div class="tags">${d.g.map(t=>`<span>${esc(t)}</span>`).join('')}</div>`;
+ const cp=pop.querySelector('.cp');cp.onclick=()=>{const pre=pop.querySelector('pre');
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);cp.textContent='Seleccionado'};
+  try{navigator.clipboard.writeText(d.c).then(()=>cp.textContent='Copiado',sel)}catch(_){sel()}};
+ bd.hidden=false;document.getElementById('pX').focus()}
+function closePop(){bd.hidden=true;if(lastF&&lastF.focus)lastF.focus()}
+document.getElementById('pX').onclick=closePop;
+bd.addEventListener('click',e=>{if(e.target===bd)closePop()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!bd.hidden)closePop()});
 </script>
+
+</body>
+</html>
