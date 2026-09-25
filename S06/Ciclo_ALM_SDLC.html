@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<title>Ciclo de vida ALM</title>
+<style>
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --ink:#152033; --muted:#55617A; --line:#D3DAE6; --soft:#E8ECF3;
+  --gob:#2F6FD0; --dev:#2E9A58; --test:#E07428; --ops:#7B4FC6; --core:#1D2B45;
+  --font:Arial,"Helvetica Neue",Helvetica,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){color-scheme:dark;
+    --bg:#0D1220; --surface:#161F33; --ink:#E7ECF5; --muted:#9BA7BE; --line:#2A3551; --soft:#1D2740; --core:#24365A;}
+}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#0D1220; --surface:#161F33; --ink:#E7ECF5; --muted:#9BA7BE; --line:#2A3551; --soft:#1D2740; --core:#24365A;}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;padding:0 16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 40px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.btn{font:inherit;font-weight:700;font-size:14px;border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--core);color:#fff;border-color:var(--core)}
+.btn:focus-visible,[role=button]:focus-visible{outline:3px solid var(--gob);outline-offset:3px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.panel h2{margin:0;font-size:18px}
+.panel p{margin:0;color:var(--muted);font-size:14px}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+svg.dia{width:100%;height:auto;max-width:560px;align-self:center;display:block}
+svg.dia [role=button]{cursor:pointer;outline:none}
+svg.dia .seg path{transition:transform .2s ease,filter .2s ease;transform-origin:300px 300px}
+svg.dia .seg:hover path,svg.dia .seg:focus-visible path{transform:scale(1.035);filter:brightness(1.08)}
+svg.dia .seg:focus-visible path{stroke:var(--ink);stroke-width:3}
+svg.dia .lbl{fill:#fff;font-family:var(--font);font-weight:700;pointer-events:none}
+svg.dia .num{font-family:var(--font);font-weight:700;font-size:15px;pointer-events:none}
+svg.dia .ctr{fill:var(--surface);stroke:var(--line);stroke-width:2}
+svg.dia .ctrtxt{fill:var(--ink);font-family:var(--font);pointer-events:none}
+svg.dia .mini:hover circle,svg.dia .mini:focus-visible circle{stroke-width:5}
+.hint{font-size:13px;color:var(--muted);text-align:center}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.note strong{color:var(--ink)}
+
+/* Popup */
+.backdrop{position:fixed;inset:0;background:rgba(8,12,22,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+.pop{background:var(--surface);color:var(--ink);border-radius:18px;width:min(560px,100%);max-height:88vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.pop-head{padding:20px 22px 14px;display:flex;gap:14px;align-items:flex-start;border-bottom:1px solid var(--line)}
+.chip{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px}
+.pop-head h3{margin:2px 0 0;font-size:21px;line-height:1.2;text-wrap:balance}
+.x{margin-left:auto;flex:none;font:inherit;font-size:22px;line-height:1;background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}
+.x:hover{background:var(--soft)}
+.pop-body{padding:16px 22px;display:flex;flex-direction:column;gap:14px}
+.pop-body p{margin:0}
+.ex{border-radius:12px;padding:14px 16px;background:color-mix(in srgb,var(--pc) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--pc) 35%,var(--surface))}
+.ex .eyebrow{color:var(--pc)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.tags li{font-size:13px;background:var(--soft);border-radius:999px;padding:4px 10px}
+.warn{font-size:13px;color:var(--muted);border-left:3px solid var(--test);padding-left:10px}
+.pop-foot{padding:12px 22px 18px;display:flex;gap:10px;align-items:center;border-top:1px solid var(--line)}
+.pop-foot .pos{margin-right:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media (max-width:560px){.backdrop{align-items:flex-end;padding:0}.pop{border-radius:18px 18px 0 0;max-height:85vh}}
+
+/* AR mode: deliberate single dark "hologram" look */
+.ar{position:fixed;inset:0;z-index:40;background:#05080F;color:#EAF6FF;display:flex;flex-direction:column;font-family:var(--font)}
+.ar-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:rgba(5,8,15,.82);border-bottom:1px solid rgba(120,200,255,.2);position:relative;z-index:5}
+.ar-bar .t{font-weight:700;margin-right:auto;font-size:15px}
+.ar-bar .t small{display:block;font-weight:400;color:#8FB3CC;font-size:12px}
+.arbtn{font:inherit;font-size:13px;font-weight:700;color:#EAF6FF;background:rgba(255,255,255,.08);border:1px solid rgba(120,200,255,.35);border-radius:9px;padding:8px 12px;cursor:pointer}
+.arbtn[aria-pressed="true"]{background:#1E6FD9;border-color:#1E6FD9}
+.arbtn:focus-visible{outline:2px solid #7FD4FF;outline-offset:2px}
+.zoom{display:flex;align-items:center;gap:6px;font-size:12px;color:#8FB3CC}
+.zoom input{width:90px}
+.stage{position:relative;flex:1;overflow:hidden;touch-action:none;cursor:grab}
+.stage.drag{cursor:grabbing}
+.stage .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none}
+.stage .grid3d{position:absolute;inset:0;background:
+  radial-gradient(ellipse at 50% 60%,rgba(40,110,200,.25),transparent 60%),
+  linear-gradient(#05080F,#0A1426)}
+.stage .grid3d::after{content:"";position:absolute;left:-50%;right:-50%;bottom:-10%;height:70%;
+  background-image:linear-gradient(rgba(100,180,255,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(100,180,255,.18) 1px,transparent 1px);
+  background-size:48px 48px;transform:perspective(420px) rotateX(62deg);transform-origin:50% 0}
+.stage svg.ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.card{position:absolute;left:0;top:0;transform-origin:50% 50%;font:inherit;color:#fff;cursor:pointer;
+  border-radius:12px;padding:8px 12px;min-width:112px;text-align:center;border:1px solid var(--pc);
+  background:color-mix(in srgb,var(--pc) 38%,rgba(6,12,24,.72));
+  box-shadow:0 0 18px color-mix(in srgb,var(--pc) 70%,transparent),inset 0 0 12px color-mix(in srgb,var(--pc) 40%,transparent);
+  backdrop-filter:blur(3px)}
+.card b{display:block;font-size:14px}
+.card span{display:block;font-size:11px;opacity:.85}
+.card:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.core{position:absolute;transform:translate(-50%,-100%);text-align:center;pointer-events:none}
+.core .beam{width:2px;margin:0 auto;background:linear-gradient(to top,rgba(127,212,255,.9),transparent)}
+.core .tag{font-weight:700;font-size:22px;letter-spacing:.06em;color:#BFE8FF;text-shadow:0 0 14px #3AA8FF}
+.core .tag small{display:block;font-size:11px;letter-spacing:.1em;font-weight:400;text-transform:uppercase;color:#8FB3CC}
+.scan{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#7FD4FF,transparent);box-shadow:0 0 16px #7FD4FF;top:0;animation:scan 1.6s ease-out forwards;pointer-events:none}
+@keyframes scan{from{top:0;opacity:1}to{top:100%;opacity:0}}
+.reticle{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border:2px solid #7FD4FF;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .4s}
+.reticle.on{opacity:1}
+.ar-help{position:absolute;left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;pointer-events:none}
+.ar-help p{margin:0;background:rgba(5,8,15,.78);border:1px solid rgba(120,200,255,.25);border-radius:10px;padding:8px 12px;font-size:12px;color:#BFD7E8;max-width:62ch;text-align:center}
+@media (prefers-reduced-motion:reduce){.scan{display:none}svg.dia .seg path{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Ingeniería de software · Gestión de aplicaciones</div>
+      <h1>Ciclo de vida de aplicaciones: ALM y SDLC</h1>
+      <p class="sub">Toca cualquier fase para ver qué ocurre en ella, un ejemplo con un sistema de matrícula universitaria, sus entregables y quién participa.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="tourBtn" type="button">Recorrido guiado</button>
+      <button class="btn primary" id="arBtn" type="button">Abrir modo RA</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="almT">
+      <div class="eyebrow">Vista 1 · Toda la vida de la aplicación</div>
+      <h2 id="almT">ALM: Application Lifecycle Management</h2>
+      <p>Cuatro dominios que se repiten versión tras versión. En el centro, cada SDLC es un ciclo de desarrollo completo.</p>
+      <svg class="dia" id="almSvg" viewBox="0 0 600 600" role="group" aria-label="Diagrama del ciclo ALM"></svg>
+      <div class="hint">Toca un sector o uno de los ciclos SDLC del centro</div>
+    </section>
+    <section class="panel" aria-labelledby="sdlcT">
+      <div class="eyebrow">Vista 2 · Un ciclo de desarrollo</div>
+      <h2 id="sdlcT">SDLC: System Development Life Cycle</h2>
+      <p>Las nueve fases de un SDLC, en el orden de la diapositiva. Cada vuelta produce una versión de la aplicación.</p>
+      <svg class="dia" id="sdlcSvg" viewBox="0 0 600 600" role="group" aria-label="Diagrama del ciclo SDLC"></svg>
+      <div class="hint">Toca una fase numerada o el centro</div>
+    </section>
+  </div>
+
+  <div class="note">
+    <span><strong>Fuentes.</strong> La estructura de fases sigue la diapositiva del curso, que cita a redhat.com. Las definiciones y ejemplos son material docente elaborado a partir de conocimiento general de ingeniería de software; el sistema de matrícula y sus cifras son ilustrativos, no datos de una universidad real.</span>
+    <span><strong>Modo RA.</strong> La cámara en vivo no está disponible dentro de esta página. En su lugar, sube o toma una foto del aula o la pizarra y el diagrama se proyecta como holograma sobre ella.</span>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop" hidden>
+  <div class="pop" role="dialog" aria-modal="true" aria-labelledby="popTitle" id="pop">
+    <div class="pop-head">
+      <div class="chip" id="popChip"></div>
+      <div>
+        <div class="eyebrow" id="popEyebrow"></div>
+        <h3 id="popTitle"></h3>
+      </div>
+      <button class="x" id="popClose" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="pop-body" id="popBody"></div>
+    <div class="pop-foot">
+      <span class="pos" id="popPos"></span>
+      <button class="btn" id="popPrev" type="button">Anterior</button>
+      <button class="btn primary" id="popNext" type="button">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<div class="ar" id="ar" hidden>
+  <div class="ar-bar">
+    <div class="t">Modo RA<small id="arSub">Holograma del SDLC</small></div>
+    <button class="arbtn" id="arMode" type="button">Ver ALM</button>
+    <label class="arbtn" for="arFile">Foto del aula</label>
+    <input id="arFile" type="file" accept="image/*" capture="environment" hidden>
+    <button class="arbtn" id="arAuto" type="button" aria-pressed="true">Giro automático</button>
+    <span class="zoom"><label for="arZoom">Tamaño</label><input id="arZoom" type="range" min="0.6" max="1.6" step="0.05" value="1"></span>
+    <button class="arbtn" id="arClose" type="button">Salir</button>
+  </div>
+  <div class="stage" id="stage">
+    <div class="grid3d" id="grid3d"></div>
+    <img class="bgimg" id="bgimg" alt="Foto del aula usada como fondo" hidden>
+    <svg class="ring" id="ring"></svg>
+    <div class="core" id="core"><div class="tag" id="coreTag">SDLC<small>Ciclo de desarrollo</small></div><div class="beam" id="beam"></div></div>
+    <div id="cards"></div>
+    <div class="reticle" id="reticle"></div>
+    <div class="scan" id="scan"></div>
+    <div class="ar-help"><p>Arrastra para girar e inclinar. Toca un espacio libre para anclar el holograma en ese punto. Toca una tarjeta para ver su explicación.</p></div>
+  </div>
+</div>
+
+<script>
+const C={gob:'#2F6FD0',dev:'#2E9A58',test:'#E07428',ops:'#7B4FC6'};
+const ALM=[
+ {id:'gob',n:'G',t:'Gobernanza',s:'Objetivos, políticas, requisitos, costos y cumplimiento',c:C.gob,
+  q:'Define qué se construye y por qué, antes de decidir cómo. No termina al inicio: acompaña toda la vida de la aplicación y es la que decide cuándo se abre un nuevo ciclo de desarrollo.',
+  e:'La universidad decide digitalizar la matrícula. Fija como objetivo que todos los estudiantes puedan matricularse en 48 horas, exige cumplir la Ley N° 29733 de protección de datos personales y aprueba un presupuesto. Años después, un cambio normativo hace que la gobernanza ordene una adaptación del sistema.',
+  d:['Acta del proyecto','Requisitos de negocio','Políticas de seguridad','Presupuesto','Matriz de cumplimiento'],
+  r:['Dirección','Dueño del producto','Seguridad de la información','Área legal']},
+ {id:'dev',n:'D',t:'Desarrollo',s:'Diseño, construcción y despliegue',c:C.dev,
+  q:'Convierte los requisitos en software funcionando. Aquí se ejecuta cada SDLC: análisis, diseño, codificación y despliegue de una versión.',
+  e:'El equipo diseña una arquitectura web de tres capas, programa el módulo de selección de horarios con validación de cruces y prerrequisitos, y lo despliega mediante un pipeline de integración y entrega continua (CI/CD).',
+  d:['Arquitectura','Código versionado en Git','Pipeline CI/CD','Paquete desplegable'],
+  r:['Arquitecto de software','Desarrolladores','Ingeniero DevOps']},
+ {id:'test',n:'P',t:'Pruebas',s:'Verificación de calidad y funcionalidad',c:C.test,
+  q:'Comprueba que el software hace lo que debe (funcionalidad) y que lo hace bien (rendimiento, seguridad, usabilidad) antes de llegar a los usuarios.',
+  e:'Se simulan miles de estudiantes conectados a la vez a las 8:00 a. m. del primer día de matrícula (prueba de carga) y se verifica que nadie pueda inscribirse en dos cursos con cruce de horario (prueba funcional).',
+  d:['Plan de pruebas','Casos de prueba','Reporte de defectos','Reporte de carga'],
+  r:['Analistas de calidad (QA)','Usuarios clave','Seguridad']},
+ {id:'ops',n:'O',t:'Operación y mantenimiento',s:'Ejecución, soporte, actualizaciones, monitoreo y retiro',c:C.ops,
+  q:'Mantiene la aplicación funcionando en producción. Suele ser la fase más larga y costosa del ciclo. Incluye el retiro planificado cuando el sistema deja de ser útil.',
+  e:'Durante la semana de matrícula, el equipo de sistemas monitorea CPU, memoria y tiempos de respuesta; aplica parches de seguridad al sistema operativo fuera del horario de matrícula, verifica respaldos y atiende incidentes de la mesa de ayuda. Es el terreno de la administración de sistemas operativos.',
+  d:['Runbooks','Tableros de monitoreo','Registro de incidentes','Plan de respaldo','Plan de retiro'],
+  r:['Administradores de sistemas','Mesa de ayuda','Ingeniería de confiabilidad (SRE)']}
+];
+const CYCLES=[
+ {id:'s1',n:'1',t:'SDLC 1: versión inicial',s:'Primer ciclo de desarrollo',c:'#3A86C8',
+  q:'El primer SDLC construye la versión 1 a partir de los requisitos definidos por la gobernanza.',
+  e:'Se lanza el sistema de matrícula en línea con selección de cursos y horarios.',d:['Versión 1.0 en producción'],r:['Todo el equipo del proyecto']},
+ {id:'s2',n:'2',t:'SDLC 2: mejora',s:'Nuevo ciclo por una necesidad de negocio',c:'#3AA88A',
+  q:'Una nueva funcionalidad abre otro ciclo completo de desarrollo, con sus propias fases de análisis a despliegue.',
+  e:'Se agrega el pago de la matrícula en línea, integrado con una pasarela de pagos.',d:['Versión 2.0 con módulo de pagos'],r:['Equipo de desarrollo','Área de finanzas']},
+ {id:'s3',n:'3',t:'SDLC 3: adaptación',s:'Nuevo ciclo por un cambio del entorno',c:'#8A6CD0',
+  q:'Los cambios externos (normas, tecnología, sistema operativo) también obligan a evolucionar la aplicación.',
+  e:'Un cambio en la normativa de datos personales exige registrar el consentimiento del estudiante y cifrar ciertos campos.',d:['Versión 3.0 adaptada'],r:['Gobernanza','Desarrollo','Área legal']}
+];
+const ALMCORE={id:'alm',n:'A',t:'ALM: gestión integral',s:'Centro del diagrama',c:'#1D2B45',
+  q:'El ALM coordina la aplicación desde su definición inicial hasta su operación, evolución y retiro. Dentro de un solo ALM ocurren varios SDLC, uno por cada versión, mejora o adaptación.',
+  e:'El sistema de matrícula vive más de diez años: tiene un ALM y muchos SDLC (versión inicial, pago en línea, adaptación normativa, rediseño móvil...).',
+  d:['Trazabilidad requisito → código → prueba → versión'],r:['Todas las áreas: negocio, desarrollo, QA, operaciones, seguridad']};
+const SD=[
+ {t:'Análisis',s:'Qué se necesita',c:'#2F6FD0',
+  q:'Identifica las necesidades de los usuarios y las convierte en requisitos claros y verificables.',
+  e:'Se entrevista a estudiantes y al área de registro académico. Resultado: requisitos como "el sistema debe impedir la matrícula en cursos con cruce de horario" o "debe validar prerrequisitos aprobados".',
+  d:['Documento de requisitos','Historias de usuario','Criterios de aceptación'],r:['Analista de negocio','Usuarios','Dueño del producto'],
+  w:'En la diapositiva, el análisis aparece antes de la planificación. En muchas formulaciones clásicas del SDLC el orden es el inverso. No hay un orden único: lo importante es la lógica de cada fase.'},
+ {t:'Planificación',s:'Cómo y cuándo',c:'#3A86C8',
+  q:'Define alcance, cronograma, recursos, costos y riesgos del ciclo.',
+  e:'Se planifican cuatro sprints de dos semanas con un equipo de cinco personas. Riesgo principal identificado: la sobrecarga de los servidores el primer día de matrícula.',
+  d:['Plan del proyecto','Backlog priorizado','Matriz de riesgos'],r:['Jefe de proyecto','Dueño del producto']},
+ {t:'Diseño',s:'Arquitectura y datos',c:'#2A9CA0',
+  q:'Decide la estructura de la solución: arquitectura, modelo de datos, interfaces y seguridad.',
+  e:'Se define un modelo entidad-relación (Estudiante, Curso, Horario, Matrícula), una arquitectura de tres capas y un prototipo de la pantalla de selección de cursos.',
+  d:['Diagrama de arquitectura','Modelo de datos','Prototipos de interfaz'],r:['Arquitecto','Diseñador UX','DBA']},
+ {t:'Desarrollo',s:'Construcción',c:'#2E9A58',
+  q:'Implementa el diseño en código, con control de versiones y revisión entre pares.',
+  e:'Se programa la validación de cruces de horario y prerrequisitos. Cada cambio pasa por una revisión de código en Git y por pruebas unitarias automáticas.',
+  d:['Código fuente','Pruebas unitarias','Documentación técnica'],r:['Desarrolladores']},
+ {t:'Pruebas',s:'Verificación',c:'#D9A21B',
+  q:'Verifica que el software cumpla los requisitos y detecta defectos antes de producción.',
+  e:'Prueba de integración con el módulo de pagos y prueba de carga con miles de usuarios simulados.',
+  d:['Plan y casos de prueba','Reporte de defectos'],r:['QA','Usuarios clave']},
+ {t:'Despliegue',s:'Puesta en producción',c:'#E07428',
+  q:'Publica la versión en el entorno de producción de forma controlada y reversible.',
+  e:'La versión se publica una semana antes de la matrícula, con un plan de reversión (rollback) listo por si algo falla.',
+  d:['Notas de versión','Plan de despliegue y reversión'],r:['DevOps','Administradores de sistemas']},
+ {t:'Mantenimiento',s:'Correcciones y ajustes',c:'#D24C4C',
+  q:'Corrige y ajusta el sistema en uso. Se distingue entre mantenimiento correctivo, adaptativo, perfectivo y preventivo.',
+  e:'Correctivo: se arregla un error que mostraba vacantes incorrectas. Adaptativo: se ajusta el sistema tras actualizar la versión del sistema operativo del servidor.',
+  d:['Parches','Registro de cambios'],r:['Desarrollo','Operaciones']},
+ {t:'Evaluación',s:'Medir resultados',c:'#B04A9C',
+  q:'Mide si la versión cumplió sus objetivos. Sus conclusiones alimentan el siguiente ciclo.',
+  e:'Tras la matrícula se mide el tiempo promedio de matrícula, el número de incidentes y la satisfacción de los estudiantes. Los hallazgos generan requisitos para el siguiente SDLC.',
+  d:['Métricas','Lecciones aprendidas'],r:['Dueño del producto','Gobernanza']},
+ {t:'Retiro',s:'Fin de la vida útil',c:'#7B4FC6',
+  q:'Da de baja el sistema de forma planificada y segura. Suele olvidarse, pero tiene implicancias legales y de seguridad.',
+  e:'El sistema se reemplaza por una plataforma nueva: se migran los datos vigentes, se archivan los históricos según los plazos de conservación, se borran datos de forma segura y se apagan los servidores.',
+  d:['Plan de retiro','Migración de datos','Constancia de borrado seguro'],r:['Operaciones','Seguridad','Área legal']}
+];
+SD.forEach((x,i)=>{x.n=String(i+1);x.id='sd'+i});
+const SDCORE={id:'sdc',n:'↻',t:'SDLC: un ciclo de desarrollo',s:'Centro del diagrama',c:'#1D2B45',
+  q:'El SDLC es el proceso para construir una versión: va del análisis al despliegue, se mantiene y evalúa, y termina con el retiro. Dentro del ALM se repite muchas veces.',
+  e:'Con prácticas DevOps y CI/CD, un SDLC puede durar días u horas en lugar de meses. Las fases siguen existiendo, pero se comprimen y se automatizan.',
+  d:['Una versión de la aplicación'],r:['Equipo de desarrollo, QA y operaciones']};
+
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const pt=(r,a)=>{const rad=(a-90)*Math.PI/180;return[300+r*Math.cos(rad),300+r*Math.sin(rad)]};
+function chevron(r1,r2,a0,a1,tip){
+  const rm=(r1+r2)/2,[ox0,oy0]=pt(r2,a0),[ox1,oy1]=pt(r2,a1),[ix1,iy1]=pt(r1,a1),[ix0,iy0]=pt(r1,a0),
+  [tx,ty]=pt(rm,a1+tip),[nx,ny]=pt(rm,a0+tip),lg=(a1-a0)>180?1:0;
+  return `M${ox0},${oy0} A${r2},${r2} 0 ${lg} 1 ${ox1},${oy1} L${tx},${ty} L${ix1},${iy1} A${r1},${r1} 0 ${lg} 0 ${ix0},${iy0} L${nx},${ny} Z`;
+}
+function label(g,lines,r,a,size){
+  const[x,y]=pt(r,a);const t=el('text',{class:'lbl',x,y,'text-anchor':'middle','font-size':size},g);
+  lines.forEach((l,i)=>{const s=el('tspan',{x,dy:i===0?(-(lines.length-1)*size*0.55+size*0.35):size*1.1},t);s.textContent=l});
+}
+function btn(g,item,list,idx){
+  g.setAttribute('role','button');g.setAttribute('tabindex','0');g.setAttribute('aria-label',item.t);
+  const go=()=>openPop(list,idx);
+  g.addEventListener('click',go);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}});
+}
+// ALM diagram
+(function(){
+  const s=document.getElementById('almSvg');
+  const starts=[270,0,90,180],names=[['Gobernanza'],['Desarrollo'],['Pruebas'],['Operación y','mantenimiento']];
+  ALM.forEach((it,i)=>{
+    const g=el('g',{class:'seg'},s);
+    el('path',{d:chevron(170,285,starts[i]+2,starts[i]+86,8),fill:it.c},g);
+    label(g,names[i],228,starts[i]+45,i===3?17:20);
+    btn(g,it,ALM,i);
+  });
+  const cg=el('g',{},s);
+  el('circle',{class:'ctr',cx:300,cy:300,r:158},cg);
+  const core=el('g',{},s);btn(core,ALMCORE,[ALMCORE],0);
+  el('circle',{cx:300,cy:300,r:48,fill:'var(--core)'},core);
+  const at=el('text',{class:'lbl',x:300,y:306,'text-anchor':'middle','font-size':24},core);at.textContent='ALM';
+  const pos=[[300,195],[210,352],[390,352]];
+  CYCLES.forEach((c,i)=>{
+    const g=el('g',{class:'mini'},s);
+    el('circle',{cx:pos[i][0],cy:pos[i][1],r:38,fill:'var(--surface)',stroke:c.c,'stroke-width':4,'stroke-dasharray':'52 8'},g);
+    const t=el('text',{class:'ctrtxt',x:pos[i][0],y:pos[i][1]+5,'text-anchor':'middle','font-size':15,'font-weight':700},g);t.textContent='SDLC '+(i+1);
+    btn(g,c,CYCLES,i);
+  });
+})();
+// SDLC diagram
+(function(){
+  const s=document.getElementById('sdlcSvg');const n=SD.length,step=360/n;
+  SD.forEach((it,i)=>{
+    const a0=i*step-step/2,g=el('g',{class:'seg'},s);
+    el('path',{d:chevron(150,238,a0+1.5,a0+step-1.5,5),fill:it.c},g);
+    const words=it.t.length>11?[it.t.slice(0,9)+'-',it.t.slice(9)]:[it.t];
+    label(g,it.t==='Mantenimiento'?['Manteni-','miento']:it.t==='Planificación'?['Planifi-','cación']:words,194,i*step,13);
+    const[bx,by]=pt(266,i*step);
+    el('circle',{cx:bx,cy:by,r:16,fill:'var(--surface)',stroke:it.c,'stroke-width':3},g);
+    const nt=el('text',{class:'num',x:bx,y:by+5,'text-anchor':'middle',fill:it.c},g);nt.textContent=i+1;
+    btn(g,it,SD,i);
+  });
+  const core=el('g',{},s);btn(core,SDCORE,[SDCORE],0);
+  el('circle',{class:'ctr',cx:300,cy:300,r:130},core);
+  const t1=el('text',{class:'ctrtxt',x:300,y:296,'text-anchor':'middle','font-size':30,'font-weight':700},core);t1.textContent='SDLC';
+  const t2=el('text',{class:'ctrtxt',x:300,y:322,'text-anchor':'middle','font-size':13,fill:'var(--muted)'},core);t2.textContent='System Development Life Cycle';
+})();
+
+// Popup
+const bd=document.getElementById('backdrop');let cur={list:null,i:0},lastFocus=null;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openPop(list,i){
+  if(bd.hidden)lastFocus=document.activeElement;
+  cur={list,i};const it=list[i];
+  const pop=document.getElementById('pop');pop.style.setProperty('--pc',it.c);
+  const chip=document.getElementById('popChip');chip.textContent=it.n;chip.style.background=it.c;
+  document.getElementById('popEyebrow').textContent=it.s;
+  document.getElementById('popTitle').textContent=it.t;
+  document.getElementById('popBody').innerHTML=
+    `<p>${esc(it.q)}</p>
+     <div class="ex"><div class="eyebrow">Ejemplo: sistema de matrícula</div><p>${esc(it.e)}</p></div>
+     <div><div class="eyebrow">Entregables</div><ul class="tags">${it.d.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+     <div><div class="eyebrow">Quién participa</div><ul class="tags">${it.r.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+     ${it.w?`<p class="warn">${esc(it.w)}</p>`:''}`;
+  const multi=list.length>1;
+  document.getElementById('popPos').textContent=multi?`${i+1} de ${list.length}`:'';
+  document.getElementById('popPrev').hidden=!multi;document.getElementById('popNext').hidden=!multi;
+  bd.hidden=false;document.getElementById('popClose').focus();
+}
+function closePop(){bd.hidden=true;if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+function stepPop(d){const L=cur.list.length;openPop(cur.list,(cur.i+d+L)%L)}
+document.getElementById('popClose').onclick=closePop;
+document.getElementById('popPrev').onclick=()=>stepPop(-1);
+document.getElementById('popNext').onclick=()=>stepPop(1);
+bd.addEventListener('click',e=>{if(e.target===bd)closePop()});
+document.addEventListener('keydown',e=>{
+  if(!bd.hidden){if(e.key==='Escape')closePop();else if(e.key==='ArrowRight')stepPop(1);else if(e.key==='ArrowLeft')stepPop(-1);}
+  else if(!ar.hidden&&e.key==='Escape')closeAR();
+});
+document.getElementById('tourBtn').onclick=()=>openPop(SD,0);
+
+// AR mode
+const ar=document.getElementById('ar'),stage=document.getElementById('stage'),cards=document.getElementById('cards'),
+ring=document.getElementById('ring'),core=document.getElementById('core'),beam=document.getElementById('beam'),reticle=document.getElementById('reticle');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S={mode:'sdlc',rot:0,tilt:.38,zoom:1,cx:.5,cy:.58,auto:!reduce,par:0,raf:0};
+document.getElementById('arAuto').setAttribute('aria-pressed',S.auto);
+let items=[];
+function build(){
+  const list=S.mode==='sdlc'?SD:ALM;cards.innerHTML='';
+  items=list.map((it,i)=>{const b=document.createElement('button');b.type='button';b.className='card';b.style.setProperty('--pc',it.c);
+    b.innerHTML=`<b>${S.mode==='sdlc'?(i+1)+'. ':''}${esc(it.t)}</b><span>${esc(it.s)}</span>`;
+    b.addEventListener('pointerdown',e=>e.stopPropagation());
+    b.onclick=()=>openPop(list,i);cards.appendChild(b);return b});
+  document.getElementById('coreTag').innerHTML=S.mode==='sdlc'?'SDLC<small>Ciclo de desarrollo</small>':'ALM<small>Gestión del ciclo de vida</small>';
+  document.getElementById('arSub').textContent=S.mode==='sdlc'?'Holograma del SDLC':'Holograma del ALM';
+  document.getElementById('arMode').textContent=S.mode==='sdlc'?'Ver ALM':'Ver SDLC';
+}
+function render(){
+  const W=stage.clientWidth,H=stage.clientHeight,R=Math.min(W,H*1.6)*0.36*S.zoom,cx=S.cx*W,cy=S.cy*H,ty=S.tilt,n=items.length;
+  ring.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  ring.innerHTML=`<ellipse cx="${cx}" cy="${cy}" rx="${R}" ry="${R*ty}" fill="rgba(60,150,255,.08)" stroke="rgba(127,212,255,.55)" stroke-width="2"/>
+   <ellipse cx="${cx}" cy="${cy}" rx="${R*.62}" ry="${R*.62*ty}" fill="none" stroke="rgba(127,212,255,.3)" stroke-dasharray="4 6"/>`;
+  items.forEach((b,i)=>{
+    const a=S.rot+S.par+i*2*Math.PI/n,x=R*Math.sin(a),z=R*Math.cos(a),d=(z/R+1)/2;
+    const sx=cx+x,sy=cy+z*ty-18*S.zoom,sc=(.62+.45*d)*S.zoom;
+    b.style.transform=`translate(${sx}px,${sy}px) translate(-50%,-50%) scale(${sc})`;
+    b.style.opacity=(.4+.6*d).toFixed(2);b.style.zIndex=Math.round(d*100)+10;
+    ring.insertAdjacentHTML('beforeend',`<line x1="${cx}" y1="${cy}" x2="${sx}" y2="${cy+z*ty}" stroke="${b.style.getPropertyValue('--pc')}" stroke-opacity="${(.15+.35*d).toFixed(2)}"/>`);
+  });
+  core.style.left=cx+'px';core.style.top=cy+'px';core.style.zIndex=60;beam.style.height=(R*.35)+'px';
+}
+function loop(){if(S.auto&&!drag)S.rot+=0.004;render();S.raf=requestAnimationFrame(loop)}
+let drag=null;
+stage.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false};stage.classList.add('drag');try{stage.setPointerCapture(e.pointerId)}catch(_){}} );
+stage.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>6)drag.moved=true;
+  S.rot+=dx*0.01;S.tilt=Math.min(.8,Math.max(.12,S.tilt-dy*0.003));drag.x=e.clientX;drag.y=e.clientY;if(!S.raf)render()});
+stage.addEventListener('pointerup',e=>{stage.classList.remove('drag');
+  if(drag&&!drag.moved){const r=stage.getBoundingClientRect();S.cx=(e.clientX-r.left)/r.width;S.cy=(e.clientY-r.top)/r.height;
+    reticle.style.left=(e.clientX-r.left)+'px';reticle.style.top=(e.clientY-r.top)+'px';reticle.classList.add('on');setTimeout(()=>reticle.classList.remove('on'),700);if(!S.raf)render()}
+  drag=null});
+stage.addEventListener('pointercancel',()=>{drag=null;stage.classList.remove('drag')});
+stage.addEventListener('wheel',e=>{e.preventDefault();S.zoom=Math.min(1.6,Math.max(.6,S.zoom-e.deltaY*0.001));document.getElementById('arZoom').value=S.zoom;if(!S.raf)render()},{passive:false});
+document.getElementById('arZoom').oninput=e=>{S.zoom=+e.target.value;if(!S.raf)render()};
+document.getElementById('arMode').onclick=()=>{S.mode=S.mode==='sdlc'?'alm':'sdlc';build();render()};
+document.getElementById('arAuto').onclick=e=>{S.auto=!S.auto;e.currentTarget.setAttribute('aria-pressed',S.auto)};
+document.getElementById('arFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{const img=document.getElementById('bgimg');img.src=rd.result;img.hidden=false;document.getElementById('grid3d').hidden=true;
+    const sc=document.getElementById('scan');sc.style.animation='none';void sc.offsetWidth;sc.style.animation=''};rd.readAsDataURL(f)};
+window.addEventListener('deviceorientation',e=>{if(!ar.hidden&&typeof e.gamma==='number')S.par=e.gamma*Math.PI/360});
+window.addEventListener('resize',()=>{if(!ar.hidden)render()});
+function openAR(){ar.hidden=false;build();render();if(!reduce)S.raf=requestAnimationFrame(loop);else S.raf=0;document.getElementById('arClose').focus()}
+function closeAR(){ar.hidden=true;cancelAnimationFrame(S.raf);S.raf=0;document.getElementById('arBtn').focus()}
+document.getElementById('arBtn').onclick=openAR;
+document.getElementById('arClose').onclick=closeAR;
+</script>
+
+</body>
+</html>
