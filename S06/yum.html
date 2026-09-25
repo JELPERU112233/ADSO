@@ -1,378 +1,329 @@
-
-<h2 class="sr-only">Arquitectura Red Hat Linux: flujo sudo yum update desde repositorio remoto hasta caché local con GPG y HTTPS/SSL</h2>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>Flujo yum update RHEL</title>
 <style>
-@keyframes dash{to{stroke-dashoffset:-20}}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
-.fl{stroke-dasharray:6 3;animation:dash 1.5s linear infinite}
-.fl2{stroke-dasharray:6 3;animation:dash 2.2s linear infinite}
-.fl3{stroke-dasharray:6 3;animation:dash 1s linear infinite}
+:root{color-scheme:dark;--bg:#000;--panel:#0b1119;--line:#1e3a5a;--ink:#E8F0FE;--muted:#9DB6D2;--blue:#4DB8FF;--green:#00CC88;--amber:#EF9F27;--purple:#9A8AFF;--red:#FF6644}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;padding:0 16px}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 32px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:clamp(20px,3vw,28px);text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.dia{overflow-x:auto;border:1px solid #0f2236;border-radius:14px;background:#000}
+.dia svg{display:block;width:100%;min-width:720px;height:auto;font-family:Arial,Helvetica,sans-serif}
+.node{cursor:pointer;transition:opacity .35s}
+.node .box{transition:stroke-width .25s,filter .25s}
+.node:hover .box,.node:focus-visible .box{stroke-width:2.5;stroke-opacity:1}
+.node:focus-visible{outline:none}
+.node:focus-visible .box{stroke:#fff}
+.node.active .box{stroke-width:2.5;stroke-opacity:1;filter:url(#glow)}
+.node.bad .box{stroke:#FF6644!important;stroke-width:3;animation:alarm .6s ease-in-out infinite alternate}
+.node.dim{opacity:.28}
+.flow{fill:none;stroke-width:1.6;stroke-dasharray:5 3;animation:dash 1.6s linear infinite;transition:opacity .35s,stroke-width .25s}
+.flow.dim{opacity:.18}
+.flow.on{stroke-width:2.6;opacity:1}
 .blink{animation:blink 2s ease-in-out infinite}
-.pulse{animation:pulse 1.8s ease-in-out infinite}
-*{font-family:Arial,sans-serif}
-.wrap{background:#000;border-radius:16px;padding:16px}
-#tipbox{background:#080f18;border:0.5px solid #1a3a5a;border-radius:10px;padding:12px 16px;margin-top:10px;display:none}
-.tag{background:#040a12;border:0.5px solid #1a3a5a;color:#4a8abf;font-size:11px;padding:2px 8px;border-radius:4px;font-family:Arial,monospace}
-.dbtn{background:#040a12;border:0.5px solid #1a3a5a;color:#4db8ff;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Arial,sans-serif}
-.dbtn:hover{background:#0a1e30}
-.cbtn{background:#111;border:0.5px solid #333;color:#777;font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:Arial,sans-serif}
+@keyframes dash{to{stroke-dashoffset:-16}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes alarm{from{stroke-opacity:1}to{stroke-opacity:.25}}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+button{font:inherit;font-size:13px;font-weight:700;color:var(--blue);background:#060e18;border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button:hover{background:#0d1e30}
+button[aria-pressed="true"]{background:#12375C;color:#fff}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.play{background:#12375C;color:#fff}
+.cap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-height:104px}
+.cap .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cap h2{margin:0;font-size:16px}
+.dots{display:flex;gap:6px;margin-left:auto}
+.dots span{width:9px;height:9px;border-radius:50%;background:#1e3a5a}
+.dots span.on{background:var(--blue)}
+.cap p{margin:0;color:var(--muted);max-width:90ch}
+.foot{font-size:12px;color:#7F97B3;border-top:1px solid #0f2236;padding-top:10px}
+/* modal */
+.bd{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.pop{background:#070d15;border:1px solid var(--pc,#1e3a5a);box-shadow:0 0 40px color-mix(in srgb,var(--pc,#1e3a5a) 30%,transparent);border-radius:16px;width:min(620px,100%);max-height:88vh;overflow:auto}
+.ph{display:flex;gap:12px;align-items:flex-start;padding:18px 20px 12px;border-bottom:1px solid #13263b}
+.ph .ey{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pc)}
+.ph h3{margin:2px 0 0;font-size:20px;line-height:1.25}
+.x{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px;line-height:1;padding:4px 8px}
+.pb{padding:14px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.pb p{margin:0}
+.lab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted);margin-bottom:3px}
+.ex{background:color-mix(in srgb,var(--pc) 10%,#070d15);border:1px solid color-mix(in srgb,var(--pc) 35%,#070d15);border-radius:10px;padding:12px 14px}
+.ex .lab{color:var(--pc)}
+.code{position:relative;background:#02060b;border:1px solid #13263b;border-radius:10px}
+.code pre{margin:0;padding:12px 14px;padding-right:74px;overflow-x:auto;font-family:Consolas,"Courier New",monospace;font-size:12.5px;color:#CFE6FF;white-space:pre}
+.code button{position:absolute;top:8px;right:8px;padding:4px 10px;font-size:12px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{background:#060e18;border:1px solid #1e3a5a;color:#7FB6E6;font-size:12px;padding:2px 9px;border-radius:5px}
+.warn{font-size:13px;color:#F3C27A;border-left:3px solid var(--amber);padding-left:10px}
+@media (prefers-reduced-motion:reduce){.flow,.blink,.node.bad .box{animation:none}}
 </style>
 
 <div class="wrap">
-<svg width="100%" viewBox="0 0 680 600" role="img" style="display:block">
-<title>Red Hat Linux — flujo sudo yum update</title>
-<desc>Diagrama profesional: repositorio remoto Red Hat Network, HTTPS/SSL, YUM/DNF Engine, GPG keys, caché de índices y paquetes actualizables</desc>
-<defs>
-  <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </marker>
-</defs>
-
-<!-- fondo -->
-<rect width="680" height="600" fill="#000"/>
-
-<!-- separadores de zona -->
-<line x1="200" y1="50" x2="200" y2="570" stroke="#0d1a2a" stroke-width="0.5" stroke-dasharray="4 4"/>
-<line x1="360" y1="50" x2="360" y2="570" stroke="#0d1a2a" stroke-width="0.5" stroke-dasharray="4 4"/>
-
-<!-- zona labels -->
-<rect x="20" y="14" width="174" height="22" rx="4" fill="#060e18" stroke="#1a3a5a" stroke-width="0.5"/>
-<text x="107" y="25" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-weight="700">REPOSITORIO REMOTO</text>
-
-<rect x="208" y="14" width="144" height="22" rx="4" fill="#060e18" stroke="#1a3a5a" stroke-width="0.5"/>
-<text x="280" y="25" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-weight="700">NETWORK</text>
-
-<rect x="368" y="14" width="290" height="22" rx="4" fill="#060e18" stroke="#1a3a5a" stroke-width="0.5"/>
-<text x="513" y="25" text-anchor="middle" dominant-baseline="central" fill="#2a6aaf" font-size="10" font-weight="700">EQUIPO CLIENTE RED HAT LINUX</text>
-
-<!-- ═══════════════════════════════════════
-     TÍTULO
-═══════════════════════════════════════ -->
-<text x="340" y="48" text-anchor="middle" dominant-baseline="central" fill="#e8f0fe" font-size="14" font-weight="700">$ sudo yum update — flujo completo Red Hat</text>
-
-<!-- ═══════════════════════════════════════
-     REPOSITORIO REMOTO
-═══════════════════════════════════════ -->
-<g onclick="tip('repo')" style="cursor:pointer">
-  <rect x="20" y="62" width="172" height="110" rx="10" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <!-- server rack icon -->
-  <rect x="36" y="76" width="50" height="9" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="36" y="89" width="50" height="9" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="36" y="102" width="50" height="9" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <rect x="36" y="115" width="50" height="9" rx="2" fill="#0d2a4a" stroke="#1a4a7a" stroke-width="0.5"/>
-  <circle cx="80" cy="80" r="2" fill="#378ADD" class="blink"/>
-  <circle cx="80" cy="93" r="2" fill="#1a4a7a"/>
-  <circle cx="80" cy="106" r="2" fill="#378ADD"/>
-  <circle cx="80" cy="119" r="2" fill="#1a4a7a"/>
-  <!-- label -->
-  <text x="140" y="88" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="12" font-weight="700">Repositorio</text>
-  <text x="140" y="104" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="10">Red Hat Network</text>
-  <text x="140" y="118" text-anchor="middle" dominant-baseline="central" fill="#2a5a8a" font-size="10">/ Mirror</text>
-  <text x="140" y="134" text-anchor="middle" dominant-baseline="central" fill="#1a3a6a" font-size="9">cdn.redhat.com</text>
-  <text x="140" y="148" text-anchor="middle" dominant-baseline="central" fill="#1a3a6a" font-size="9">cdn.redhat.com/mirror</text>
-</g>
-
-<!-- flechas repo → paquetes internos -->
-<line x1="100" y1="120" x2="100" y2="196" stroke="#1a4a7a" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<line x1="100" y1="120" x2="100" y2="286" stroke="#1a4a7a" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<line x1="100" y1="120" x2="100" y2="376" stroke="#1a4a7a" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-
-<!-- INDICES -->
-<g onclick="tip('indices')" style="cursor:pointer">
-  <rect x="20" y="198" width="172" height="76" rx="10" fill="#060e18" stroke="#0a5a40" stroke-width="1"/>
-  <!-- folder icon -->
-  <path d="M36 212 L36 258 L88 258 L88 212 L70 212 L66 208 L36 208 Z" fill="#041a10" stroke="#1D9E75" stroke-width="0.5"/>
-  <line x1="36" y1="218" x2="88" y2="218" stroke="#1D9E75" stroke-width="0.5"/>
-  <!-- doc lines inside folder -->
-  <line x1="44" y1="228" x2="80" y2="228" stroke="#0a5a40" stroke-width="0.5"/>
-  <line x1="44" y1="234" x2="72" y2="234" stroke="#0a5a40" stroke-width="0.5"/>
-  <line x1="44" y1="240" x2="76" y2="240" stroke="#0a5a40" stroke-width="0.5"/>
-  <text x="130" y="220" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="12" font-weight="700">Indices</text>
-  <text x="130" y="236" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="10">repomd.xml</text>
-  <text x="130" y="250" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="10">primary.xml.gz</text>
-  <text x="130" y="266" text-anchor="middle" dominant-baseline="central" fill="#0a5a3a" font-size="9">Metadatos RPM</text>
-</g>
-
-<!-- FIRMAS DIGITALES -->
-<g onclick="tip('gpg')" style="cursor:pointer">
-  <rect x="20" y="288" width="172" height="76" rx="10" fill="#080610" stroke="#4a2a6a" stroke-width="1"/>
-  <!-- shield + key icon -->
-  <path d="M36 300 L36 322 Q36 332 45 334 Q54 332 54 322 L54 300 Z" fill="#120a24" stroke="#7a4aaf" stroke-width="0.5"/>
-  <path d="M41 312 L43 320 L50 311" fill="none" stroke="#9a6aef" stroke-width="1.2" stroke-linecap="round"/>
-  <!-- key shape -->
-  <circle cx="70" cy="314" r="5" fill="none" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="75" y1="314" x2="84" y2="314" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="82" y1="314" x2="82" y2="318" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="78" y1="314" x2="78" y2="317" stroke="#9a6aef" stroke-width="1"/>
-  <text x="130" y="304" text-anchor="middle" dominant-baseline="central" fill="#bf8aff" font-size="12" font-weight="700">Firmas Digitales</text>
-  <text x="130" y="320" text-anchor="middle" dominant-baseline="central" fill="#7a4aaf" font-size="10">GPG Key</text>
-  <text x="130" y="334" text-anchor="middle" dominant-baseline="central" fill="#7a4aaf" font-size="9">/etc/pki/rpm-gpg/</text>
-  <text x="130" y="350" text-anchor="middle" dominant-baseline="central" fill="#5a3a8a" font-size="9">RPM-GPG-KEY-redhat</text>
-</g>
-
-<!-- PAQUETES BINARIOS -->
-<g onclick="tip('rpms')" style="cursor:pointer">
-  <rect x="20" y="378" width="172" height="76" rx="10" fill="#060e18" stroke="#7a4a00" stroke-width="1"/>
-  <!-- package/box icon -->
-  <rect x="36" y="394" width="44" height="38" rx="3" fill="#1a1000" stroke="#c87800" stroke-width="0.5"/>
-  <line x1="36" y1="408" x2="80" y2="408" stroke="#c87800" stroke-width="0.5"/>
-  <line x1="58" y1="394" x2="58" y2="432" stroke="#c87800" stroke-width="0.5"/>
-  <text x="36" y="426" text-anchor="start" dominant-baseline="central" fill="#c87800" font-size="8" font-weight="700">.rpm</text>
-  <text x="130" y="400" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="12" font-weight="700">Paquetes Binarios</text>
-  <text x="130" y="416" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10">Archivos .rpm</text>
-  <text x="130" y="430" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10">Compilados RHEL</text>
-  <text x="130" y="446" text-anchor="middle" dominant-baseline="central" fill="#5a4000" font-size="9">Firmados + versionados</text>
-</g>
-
-<!-- LEYENDA CROSS-REF -->
-<rect x="20" y="468" width="172" height="100" rx="8" fill="#040810" stroke="#0d1a2a" stroke-width="0.5"/>
-<text x="106" y="481" text-anchor="middle" dominant-baseline="central" fill="#1a4a7a" font-size="10" font-weight="700">Cross-reference</text>
-<text x="32" y="497" fill="#2a5a8a" font-size="9">1 — Repos y Config (*.repo)</text>
-<text x="32" y="511" fill="#2a5a8a" font-size="9">2 — Indices: repomd.xml</text>
-<text x="32" y="525" fill="#2a5a8a" font-size="9">3 — Firmas GPG (RPM-GPG-KEY)</text>
-<text x="32" y="539" fill="#2a5a8a" font-size="9">4 — Paquetes binarios (.rpm)</text>
-<text x="32" y="553" fill="#2a5a8a" font-size="9">5 — RHN Subscription / HTTPS</text>
-
-<!-- ═══════════════════════════════════════
-     NETWORK — HTTPS/SSL
-═══════════════════════════════════════ -->
-<g onclick="tip('https')" style="cursor:pointer">
-  <rect x="208" y="180" width="144" height="140" rx="10" fill="#060e18" stroke="#1a5a6a" stroke-width="1"/>
-  <!-- globe icon -->
-  <circle cx="280" cy="220" r="24" fill="#041418" stroke="#1a8a9a" stroke-width="1"/>
-  <ellipse cx="280" cy="220" rx="12" ry="24" fill="none" stroke="#1a6a7a" stroke-width="0.5"/>
-  <line x1="256" y1="220" x2="304" y2="220" stroke="#1a6a7a" stroke-width="0.5"/>
-  <line x1="258" y1="210" x2="302" y2="210" stroke="#1a6a7a" stroke-width="0.5"/>
-  <line x1="258" y1="230" x2="302" y2="230" stroke="#1a6a7a" stroke-width="0.5"/>
-  <!-- lock under globe -->
-  <rect x="264" y="254" width="32" height="24" rx="4" fill="#041418" stroke="#1a8a9a" stroke-width="1"/>
-  <path d="M272 254 L272 248 Q272 244 280 244 Q288 244 288 248 L288 254" fill="none" stroke="#1a8a9a" stroke-width="1"/>
-  <circle cx="280" cy="264" r="3" fill="#1a8a9a"/>
-  <line x1="280" y1="267" x2="280" y2="272" stroke="#1a8a9a" stroke-width="1"/>
-  <text x="280" y="295" text-anchor="middle" dominant-baseline="central" fill="#00c8d8" font-size="12" font-weight="700">HTTPS/SSL</text>
-  <text x="280" y="310" text-anchor="middle" dominant-baseline="central" fill="#1a6a7a" font-size="10">Puerto 443</text>
-</g>
-
-<!-- CONEXION SEGURA label -->
-<g onclick="tip('https')" style="cursor:pointer">
-  <rect x="208" y="332" width="144" height="54" rx="8" fill="#040c10" stroke="#0a3a4a" stroke-width="0.5"/>
-  <text x="280" y="350" text-anchor="middle" dominant-baseline="central" fill="#1a8a9a" font-size="11" font-weight="700">Conexion Segura</text>
-  <text x="280" y="366" text-anchor="middle" dominant-baseline="central" fill="#0a5a6a" font-size="10">RHN Subscription</text>
-  <text x="280" y="378" text-anchor="middle" dominant-baseline="central" fill="#0a4a5a" font-size="9">Autenticada y cifrada</text>
-</g>
-
-<!-- ═══════════════════════════════════════
-     FLECHAS REPO ↔ NETWORK ↔ CLIENTE
-═══════════════════════════════════════ -->
-<!-- repo → network (indices) -->
-<line x1="192" y1="240" x2="206" y2="240" stroke="#1D9E75" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-<!-- network → repo (gpg) -->
-<line x1="206" y1="320" x2="192" y2="320" stroke="#9a6aef" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-<!-- network → cliente -->
-<line x1="352" y1="250" x2="376" y2="250" stroke="#00c8d8" stroke-width="1.5" class="fl3" marker-end="url(#ar)"/>
-<line x1="376" y1="280" x2="352" y2="280" stroke="#00c8d8" stroke-width="1.5" class="fl3" marker-end="url(#ar)"/>
-
-<!-- ═══════════════════════════════════════
-     CLIENTE — COMANDO
-═══════════════════════════════════════ -->
-<g onclick="tip('cmd')" style="cursor:pointer">
-  <rect x="368" y="58" width="200" height="46" rx="8" fill="#040a04" stroke="#1D9E75" stroke-width="1"/>
-  <!-- terminal cursor -->
-  <rect x="380" y="70" width="8" height="14" rx="1" fill="#1D9E75" class="blink"/>
-  <text x="394" y="78" text-anchor="start" dominant-baseline="central" fill="#00cc88" font-size="12" font-weight="700" font-family="Arial,monospace">$ sudo yum update</text>
-  <text x="380" y="95" text-anchor="start" dominant-baseline="central" fill="#0a5a3a" font-size="9" font-family="Arial,monospace">/usr/bin/yum — iniciando resolucion</text>
-</g>
-
-<!-- flecha cmd → yum engine -->
-<line x1="468" y1="104" x2="468" y2="128" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-
-<!-- YUM/DNF ENGINE -->
-<g onclick="tip('yum')" style="cursor:pointer">
-  <rect x="368" y="130" width="200" height="100" rx="10" fill="#060e18" stroke="#1a6a9a" stroke-width="1.5"/>
-  <!-- gear icon -->
-  <circle cx="414" cy="170" r="18" fill="#040c18" stroke="#1a6a9a" stroke-width="1"/>
-  <circle cx="414" cy="170" r="9" fill="#1a6a9a"/>
-  <rect x="411" y="150" width="6" height="8" rx="1" fill="#1a6a9a"/>
-  <rect x="411" y="182" width="6" height="8" rx="1" fill="#1a6a9a"/>
-  <rect x="394" y="167" width="8" height="6" rx="1" fill="#1a6a9a"/>
-  <rect x="426" y="167" width="8" height="6" rx="1" fill="#1a6a9a"/>
-  <rect x="399" y="154" width="6" height="6" rx="1" fill="#1a6a9a" transform="rotate(45,402,157)"/>
-  <rect x="423" y="154" width="6" height="6" rx="1" fill="#1a6a9a" transform="rotate(45,426,157)"/>
-  <rect x="399" y="178" width="6" height="6" rx="1" fill="#1a6a9a" transform="rotate(45,402,181)"/>
-  <rect x="423" y="178" width="6" height="6" rx="1" fill="#1a6a9a" transform="rotate(45,426,181)"/>
-  <text x="468" y="152" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="13" font-weight="700">YUM / DNF Engine</text>
-  <text x="468" y="168" text-anchor="middle" dominant-baseline="central" fill="#2a6a9a" font-size="10">/usr/bin/yum</text>
-  <text x="468" y="183" text-anchor="middle" dominant-baseline="central" fill="#2a6a9a" font-size="10">Resolucion dependencias</text>
-  <text x="468" y="198" text-anchor="middle" dominant-baseline="central" fill="#1a5a7a" font-size="9">SAT solver · RPM transactions</text>
-  <text x="468" y="212" text-anchor="middle" dominant-baseline="central" fill="#1a5a7a" font-size="9">Descarga + verifica + instala</text>
-</g>
-
-<!-- REPOS LIST -->
-<g onclick="tip('reposlist')" style="cursor:pointer">
-  <rect x="576" y="62" width="94" height="80" rx="8" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <!-- doc icon -->
-  <rect x="584" y="72" width="24" height="30" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <path d="M600 72 L608 80 L608 102 L584 102 L584 72 Z" fill="none" stroke="#1a4a7a" stroke-width="0.5"/>
-  <path d="M600 72 L600 80 L608 80" fill="none" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="86" x2="604" y2="86" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="91" x2="604" y2="91" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="96" x2="598" y2="96" stroke="#1a4a7a" stroke-width="0.5"/>
-  <text x="623" y="110" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="11" font-weight="700">Repos List</text>
-  <text x="623" y="124" text-anchor="middle" dominant-baseline="central" fill="#1a4a7a" font-size="9">/etc/yum.repos.d/</text>
-  <text x="623" y="136" text-anchor="middle" dominant-baseline="central" fill="#1a3a6a" font-size="9">*.repo — URLs conf.</text>
-</g>
-<!-- flecha yum → reposlist -->
-<path d="M568 155 L620 130" fill="none" stroke="#1a4a7a" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<rect x="574" y="129" width="12" height="12" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="580" y="135" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="9" font-weight="700">1</text>
-
-<!-- RPM-GPG-KEY -->
-<g onclick="tip('rpgpg')" style="cursor:pointer">
-  <rect x="576" y="156" width="94" height="80" rx="8" fill="#080610" stroke="#4a2a6a" stroke-width="1"/>
-  <path d="M585 165 L585 183 Q585 189 591 191 Q597 189 597 183 L597 165 Z" fill="#120a24" stroke="#7a4aaf" stroke-width="0.5"/>
-  <path d="M589 175 L591 181 L595 174" fill="none" stroke="#9a6aef" stroke-width="1" stroke-linecap="round"/>
-  <circle cx="610" cy="176" r="4" fill="none" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="614" y1="176" x2="622" y2="176" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="620" y1="176" x2="620" y2="180" stroke="#9a6aef" stroke-width="1"/>
-  <line x1="617" y1="176" x2="617" y2="179" stroke="#9a6aef" stroke-width="1"/>
-  <text x="623" y="196" text-anchor="middle" dominant-baseline="central" fill="#bf8aff" font-size="11" font-weight="700">RPM-GPG-KEY</text>
-  <text x="623" y="210" text-anchor="middle" dominant-baseline="central" fill="#7a4aaf" font-size="9">/etc/pki/rpm-gpg/</text>
-  <text x="623" y="222" text-anchor="middle" dominant-baseline="central" fill="#5a3a8a" font-size="9">Validacion criptografica</text>
-</g>
-<!-- yum → rpgpg -->
-<path d="M568 180 L574 186" fill="none" stroke="#7a4aaf" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<rect x="556" y="174" width="12" height="12" rx="3" fill="#060e18" stroke="#4a2a6a" stroke-width="0.5"/>
-<text x="562" y="180" text-anchor="middle" dominant-baseline="central" fill="#bf8aff" font-size="9" font-weight="700">2</text>
-
-<!-- SOURCES LIST -->
-<g onclick="tip('sources')" style="cursor:pointer">
-  <rect x="576" y="250" width="94" height="70" rx="8" fill="#060e18" stroke="#1a4a7a" stroke-width="1"/>
-  <rect x="584" y="258" width="22" height="28" rx="2" fill="#0d2040" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="265" x2="602" y2="265" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="270" x2="602" y2="270" stroke="#1a4a7a" stroke-width="0.5"/>
-  <line x1="588" y1="275" x2="598" y2="275" stroke="#1a4a7a" stroke-width="0.5"/>
-  <text x="623" y="270" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="11" font-weight="700">Sources List</text>
-  <text x="623" y="284" text-anchor="middle" dominant-baseline="central" fill="#1a4a7a" font-size="9">/etc/cache.repos.list</text>
-  <text x="623" y="298" text-anchor="middle" dominant-baseline="central" fill="#1a3a6a" font-size="9">Copia local sincronizada</text>
-</g>
-<!-- yum → sources -->
-<path d="M568 215 L600 254" fill="none" stroke="#1a4a7a" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<rect x="558" y="228" width="12" height="12" rx="3" fill="#060e18" stroke="#1a4a7a" stroke-width="0.5"/>
-<text x="564" y="234" text-anchor="middle" dominant-baseline="central" fill="#4db8ff" font-size="9" font-weight="700">5</text>
-
-<!-- ═══════════════════════════════════════
-     CACHE DE INDICES
-═══════════════════════════════════════ -->
-<g onclick="tip('cache')" style="cursor:pointer">
-  <rect x="368" y="344" width="194" height="90" rx="10" fill="#060e18" stroke="#7a4a00" stroke-width="1"/>
-  <!-- folder + gear overlay -->
-  <path d="M380 358 L380 396 L440 396 L440 358 L422 358 L418 354 L380 354 Z" fill="#1a1000" stroke="#c87800" stroke-width="0.5"/>
-  <line x1="380" y1="366" x2="440" y2="366" stroke="#c87800" stroke-width="0.5"/>
-  <circle cx="430" cy="383" r="8" fill="#000" stroke="#c87800" stroke-width="0.5"/>
-  <circle cx="430" cy="383" r="3.5" fill="#c87800"/>
-  <rect x="428" y="373" width="4" height="4" rx="1" fill="#c87800"/>
-  <rect x="428" y="389" width="4" height="4" rx="1" fill="#c87800"/>
-  <rect x="421" y="381" width="4" height="4" rx="1" fill="#c87800"/>
-  <rect x="436" y="381" width="4" height="4" rx="1" fill="#c87800"/>
-  <text x="492" y="364" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="12" font-weight="700">Cache de Indices</text>
-  <text x="492" y="380" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10">/var/cache/yum/</text>
-  <text x="492" y="396" text-anchor="middle" dominant-baseline="central" fill="#7a5a00" font-size="10">repomd.xml local</text>
-  <text x="492" y="412" text-anchor="middle" dominant-baseline="central" fill="#5a4000" font-size="9">Metadatos sincronizados</text>
-  <text x="492" y="426" text-anchor="middle" dominant-baseline="central" fill="#5a4000" font-size="9">TTL configurable</text>
-</g>
-<!-- yum → cache -->
-<line x1="468" y1="230" x2="468" y2="343" stroke="#EF9F27" stroke-width="1.5" class="fl2" marker-end="url(#ar)"/>
-<rect x="456" y="280" width="12" height="12" rx="3" fill="#060e18" stroke="#7a4a00" stroke-width="0.5"/>
-<text x="462" y="286" text-anchor="middle" dominant-baseline="central" fill="#EF9F27" font-size="9" font-weight="700">4</text>
-
-<!-- PAQUETES ACTUALIZABLES -->
-<g onclick="tip('updates')" style="cursor:pointer">
-  <rect x="368" y="448" width="194" height="90" rx="10" fill="#040c08" stroke="#1a5a1a" stroke-width="1"/>
-  <!-- list icon -->
-  <rect x="380" y="462" width="6" height="6" rx="1" fill="#1D9E75"/>
-  <rect x="380" y="474" width="6" height="6" rx="1" fill="#1D9E75"/>
-  <rect x="380" y="486" width="6" height="6" rx="1" fill="#EF9F27" class="pulse"/>
-  <rect x="380" y="498" width="6" height="6" rx="1" fill="#1D9E75"/>
-  <line x1="390" y1="465" x2="424" y2="465" stroke="#1D9E75" stroke-width="0.5"/>
-  <line x1="390" y1="477" x2="418" y2="477" stroke="#1D9E75" stroke-width="0.5"/>
-  <line x1="390" y1="489" x2="420" y2="489" stroke="#EF9F27" stroke-width="0.5"/>
-  <line x1="390" y1="501" x2="416" y2="501" stroke="#1D9E75" stroke-width="0.5"/>
-  <text x="502" y="468" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="12" font-weight="700">X paquetes</text>
-  <text x="502" y="484" text-anchor="middle" dominant-baseline="central" fill="#00cc88" font-size="12" font-weight="700">actualizables</text>
-  <text x="502" y="502" text-anchor="middle" dominant-baseline="central" fill="#0a7a50" font-size="10">Resolucion completada</text>
-  <text x="502" y="516" text-anchor="middle" dominant-baseline="central" fill="#0a5a3a" font-size="9">Listo para descargar e instalar</text>
-  <text x="502" y="530" text-anchor="middle" dominant-baseline="central" fill="#0a5a3a" font-size="9">$ yum update -y para confirmar</text>
-</g>
-<!-- cache → updates -->
-<line x1="465" y1="434" x2="465" y2="447" stroke="#1D9E75" stroke-width="1.5" class="fl" marker-end="url(#ar)"/>
-
-<!-- flechas network → yum (3 y 5) -->
-<line x1="352" y1="260" x2="368" y2="230" stroke="#00c8d8" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-<rect x="342" y="238" width="12" height="12" rx="3" fill="#060e18" stroke="#1a5a6a" stroke-width="0.5"/>
-<text x="348" y="244" text-anchor="middle" dominant-baseline="central" fill="#00c8d8" font-size="9" font-weight="700">3</text>
-
-<!-- repo → network (rpm binarios) -->
-<line x1="192" y1="416" x2="280" y2="310" stroke="#EF9F27" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar)"/>
-
-<!-- ═══════════════════════════════════════
-     LEYENDA PIE
-═══════════════════════════════════════ -->
-<line x1="20" y1="572" x2="660" y2="572" stroke="#0d1a2a" stroke-width="0.5"/>
-<text x="50" y="585" text-anchor="middle" fill="#1a4a7a" font-size="9" font-weight="700">1 Repos List</text>
-<text x="50" y="596" text-anchor="middle" fill="#2a5a8a" font-size="9">*.repo conf</text>
-<text x="150" y="585" text-anchor="middle" fill="#1a4a7a" font-size="9" font-weight="700">2 Indices XML</text>
-<text x="150" y="596" text-anchor="middle" fill="#2a5a8a" font-size="9">repomd.xml</text>
-<text x="250" y="585" text-anchor="middle" fill="#7a4aaf" font-size="9" font-weight="700">3 Firmas GPG</text>
-<text x="250" y="596" text-anchor="middle" fill="#5a3a8a" font-size="9">RPM-GPG-KEY</text>
-<text x="350" y="585" text-anchor="middle" fill="#7a4a00" font-size="9" font-weight="700">4 Cache indices</text>
-<text x="350" y="596" text-anchor="middle" fill="#5a4000" font-size="9">/var/cache/yum/</text>
-<text x="460" y="585" text-anchor="middle" fill="#1a5a6a" font-size="9" font-weight="700">5 HTTPS/SSL</text>
-<text x="460" y="596" text-anchor="middle" fill="#0a4a5a" font-size="9">Puerto 443 RHN</text>
-<text x="590" y="585" text-anchor="middle" fill="#0a4a1a" font-size="9" font-weight="700">X Paquetes</text>
-<text x="590" y="596" text-anchor="middle" fill="#0a5a2a" font-size="9">actualizables</text>
-
-</svg>
-
-<!-- PANEL DETALLE -->
-<div id="tipbox">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <span id="tip-icon" style="font-size:15px;width:18px;color:#4db8ff"></span>
-    <span id="tip-title" style="font-size:13px;font-weight:700;color:#e8f0fe"></span>
-    <button class="cbtn" onclick="document.getElementById('tipbox').style.display='none'" style="margin-left:auto">cerrar</button>
+  <div>
+    <h1>$ sudo yum update en Red Hat Enterprise Linux</h1>
+    <p class="sub">Haz clic en cualquier bloque para ver qué es, cuál es su función y un ejemplo de laboratorio. Usa los escenarios para animar el recorrido paso a paso.</p>
   </div>
-  <div id="tip-body" style="font-size:12px;color:#7ab3e0;line-height:1.7;margin-bottom:8px"></div>
-  <div id="tip-tags" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+
+  <div class="ctrl">
+    <div class="seg" role="group" aria-label="Escenario">
+      <button type="button" data-sc="update" aria-pressed="true">Actualización correcta</button>
+      <button type="button" data-sc="gpg" aria-pressed="false">Firma GPG inválida</button>
+      <button type="button" data-sc="nosub" aria-pressed="false">Sin suscripción (403)</button>
+    </div>
+    <button type="button" class="play" id="play">▶ Reproducir</button>
+    <button type="button" id="prev" aria-label="Paso anterior">◀</button>
+    <button type="button" id="next" aria-label="Paso siguiente">▶</button>
+    <button type="button" id="reset">Ver todo</button>
+  </div>
+
+  <div class="dia"><svg id="svg" viewBox="0 0 900 580" role="group" aria-label="Diagrama del flujo de yum update en RHEL"></svg></div>
+
+  <div class="cap" aria-live="polite">
+    <div class="row"><h2 id="capT">Vista general</h2><div class="dots" id="dots"></div></div>
+    <p id="capD">Elige un escenario y pulsa Reproducir. Las flechas punteadas muestran el sentido del flujo; los puntos luminosos, lo que ocurre en cada paso.</p>
+  </div>
+
+  <div class="foot">Ejemplo transversal: aplicar la actualización de seguridad de openssl en una VM RHEL 9 del laboratorio. En RHEL 8 y posteriores, yum es un enlace a DNF; las rutas que se muestran son las de DNF. Contenido elaborado a partir de la documentación de Red Hat y de DNF; verificar detalles en docs.redhat.com. Los comandos se prueban en una VM de laboratorio, no en servidores de producción.</div>
 </div>
 
-<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-  <button class="dbtn" onclick="sendPrompt('Explica en detalle cómo YUM/DNF resuelve dependencias en Red Hat: SAT solver, RPM transactions y orden de instalación')">YUM dependency solver ↗</button>
-  <button class="dbtn" onclick="sendPrompt('¿Cómo funciona la validación GPG en yum update? ¿Qué sucede si un paquete no tiene firma válida?')">Validacion GPG ↗</button>
-  <button class="dbtn" onclick="sendPrompt('Explica la diferencia entre yum y DNF en Red Hat/CentOS y cómo gestionan la caché de metadatos')">YUM vs DNF ↗</button>
-  <button class="dbtn" onclick="sendPrompt('¿Cómo configura Red Hat los archivos .repo en /etc/yum.repos.d/ y qué parámetros acepta cada repositorio?')">Configuracion .repo ↗</button>
-</div>
+<div class="bd" id="bd" hidden>
+  <div class="pop" id="pop" role="dialog" aria-modal="true" aria-labelledby="pT">
+    <div class="ph"><div><div class="ey" id="pE"></div><h3 id="pT"></h3></div><button type="button" class="x" id="pX" aria-label="Cerrar">×</button></div>
+    <div class="pb" id="pB"></div>
+  </div>
 </div>
 
 <script>
-const D={
-  repo:{icon:"▣",title:"Repositorio remoto — Red Hat Network",body:"Servidor origen que almacena índices, firmas GPG y paquetes .rpm. Puede ser cdn.redhat.com (subscripción activa), un mirror corporativo, o un repositorio local Satellite/Foreman. Expone los metadatos vía HTTPS en rutas estandarizadas.",tags:["cdn.redhat.com","RHSM","Satellite","Mirror","BaseURL"]},
-  indices:{icon:"◈",title:"Indices — repomd.xml y primary.xml.gz",body:"El archivo repomd.xml es el índice raíz del repositorio: lista checksums de primary.xml.gz (catálogo de todos los paquetes), filelists.xml.gz (archivos por paquete) y other.xml.gz (changelogs). YUM los descarga primero para construir el grafo de dependencias sin descargar los .rpm.",tags:["repomd.xml","primary.xml.gz","filelists.xml.gz","SHA256","Metadatos"]},
-  gpg:{icon:"◆",title:"Firmas Digitales — RPM-GPG-KEY",body:"Cada .rpm está firmado con la clave privada GPG de Red Hat. Antes de instalar, YUM verifica la firma contra la clave pública importada en /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release. Si la verificación falla, la instalación se aborta.",tags:["GPG","/etc/pki/rpm-gpg/","RPM-GPG-KEY-redhat","gpgcheck=1","Firma SHA256"]},
-  rpms:{icon:"◉",title:"Paquetes Binarios — archivos .rpm",body:"Los paquetes .rpm contienen binarios compilados para la arquitectura objetivo (x86_64, aarch64), scripts pre/post instalación, metadatos de dependencias y la firma GPG. YUM sólo los descarga tras resolver el grafo completo de dependencias.",tags:[".rpm","NEVRA","Requires","Provides","Pre/Post scripts"]},
-  https:{icon:"◎",title:"HTTPS/SSL — Conexión segura RHN",body:"Todo el tráfico entre el cliente y cdn.redhat.com va cifrado en TLS 1.2/1.3 por el puerto 443. La autenticación se realiza con el certificado de subscripción RHSM almacenado en /etc/pki/consumer/. Sin subscripción activa, el servidor devuelve 403.",tags:["TLS 1.3","Puerto 443","RHSM cert","/etc/pki/consumer/","RHN Subscription"]},
-  cmd:{icon:"▶",title:"$ sudo yum update — punto de entrada",body:"El usuario o sistema (cron, Ansible) ejecuta sudo yum update. El binario /usr/bin/yum (Python o DNF según versión RHEL) lee la configuración de /etc/yum.conf, carga los plugins activos y delega al motor de resolución.",tags:["sudo","yum update","dnf upgrade","yum.conf","plugins"]},
-  yum:{icon:"◐",title:"YUM / DNF Engine — /usr/bin/yum",body:"El motor central: lee los archivos .repo, descarga metadatos, construye el grafo de dependencias usando el SAT solver (libsolv en DNF), calcula el conjunto mínimo de paquetes a instalar/actualizar, verifica GPG y ejecuta las transacciones RPM.",tags:["libsolv","SAT solver","rpm -U","Transaction","depsolve"]},
-  reposlist:{icon:"◫",title:"Repos List — /etc/yum.repos.d/*.repo",body:"Directorio con archivos .repo que definen los repositorios habilitados. Cada archivo puede contener múltiples secciones [repoid] con parámetros: baseurl, mirrorlist, enabled, gpgcheck, gpgkey. YUM carga todos los archivos *.repo al inicio.",tags:["/etc/yum.repos.d/","baseurl","mirrorlist","gpgcheck","enabled=1"]},
-  rpgpg:{icon:"◆",title:"RPM-GPG-KEY — /etc/pki/rpm-gpg/",body:"Directorio con las claves públicas GPG importadas. La clave RPM-GPG-KEY-redhat-release es la oficial de Red Hat. Se importa con rpm --import. El parámetro gpgcheck=1 en el .repo activa la verificación obligatoria.",tags:["rpm --import","gpgkey=","RPM-GPG-KEY-redhat","gpgcheck=1","/etc/pki/rpm-gpg/"]},
-  sources:{icon:"◪",title:"Sources List — /etc/cache.repos.list",body:"Archivo de caché con la lista sincronizada de repositorios activos y sus metadatos descargados. YUM lo usa para evitar re-descargar índices en cada ejecución si el TTL no ha expirado (configurado en yum.conf con metadata_expire).",tags:["/etc/cache.repos.list","metadata_expire","TTL","Sincronizacion","Offline mode"]},
-  cache:{icon:"▤",title:"Cache de Indices — /var/cache/yum/",body:"Directorio donde YUM almacena los metadatos descargados (repomd.xml, primary.xml.gz, filelists) y los .rpm descargados pero aún no instalados. yum clean all borra esta caché. Mejora drásticamente el rendimiento de ejecuciones sucesivas.",tags:["/var/cache/yum/","/var/cache/dnf/","yum clean all","keepcache=1","Metadatos locales"]},
-  updates:{icon:"✓",title:"X paquetes actualizables — resultado",body:"YUM presenta la lista de paquetes con nueva versión disponible: nombre, versión actual vs nueva, tamaño de descarga. El usuario confirma con 'y' o se fuerza con -y. YUM descarga los .rpm, verifica GPG, resuelve conflictos y ejecuta las transacciones RPM en orden topológico.",tags:["Lista updates","Confirmacion","rpm -U","Post-install scripts","yum history"]}
+const N={
+ repo:{x:20,y:92,w:210,h:110,c:'#4DB8FF',f:'#060e18',t:'Repositorio',l:['CDN de Red Hat · Satellite','BaseOS · AppStream'],ic:'server'},
+ meta:{x:20,y:222,w:210,h:105,c:'#00CC88',f:'#04120c',t:'Metadatos (repodata/)',l:['repomd.xml · primary','filelists · updateinfo'],ic:'folder'},
+ rpms:{x:20,y:347,w:210,h:105,c:'#EF9F27',f:'#120a00',t:'Paquetes .rpm',l:['Cabecera + payload','Firmados con GPG'],ic:'box'},
+ https:{x:250,y:200,w:130,h:180,c:'#00C8D8',f:'#041418',t:'HTTPS / TLS',l:['Puerto 443','Certificado de','entitlement'],ic:'globe'},
+ concept:{x:20,y:472,w:360,h:86,c:'#7FD4FF',f:'#050b12',t:'TLS protege el transporte; GPG, el paquete',l:['Dos capas de seguridad independientes'],ic:'none'},
+ cmd:{x:400,y:92,w:220,h:56,c:'#00CC88',f:'#040a04',t:'$ sudo yum update',l:[],ic:'term'},
+ config:{x:640,y:92,w:240,h:100,c:'#4DB8FF',f:'#060e18',t:'Configuración',l:['/etc/dnf/dnf.conf','/etc/yum.repos.d/*.repo'],ic:'doc'},
+ engine:{x:400,y:168,w:220,h:120,c:'#4DB8FF',f:'#060e18',t:'Motor DNF',l:['libsolv (resolución)','librpm (transacciones)'],ic:'gear'},
+ gpg:{x:640,y:210,w:240,h:95,c:'#BF8AFF',f:'#0a0614',t:'Claves GPG',l:['/etc/pki/rpm-gpg/','RPM-GPG-KEY-redhat-release'],ic:'key'},
+ cache:{x:400,y:308,w:220,h:100,c:'#EF9F27',f:'#120a00',t:'Caché local',l:['/var/cache/dnf/','Metadatos y .rpm descargados'],ic:'folder'},
+ rpmdb:{x:640,y:322,w:240,h:86,c:'#9A8AFF',f:'#080614',t:'Base de datos RPM',l:['/var/lib/rpm/ · paquetes instalados'],ic:'db'},
+ trans:{x:400,y:430,w:480,h:96,c:'#00CC88',f:'#02100a',t:'Transacción RPM e historial',l:['Prueba · instala · ejecuta scriptlets · elimina versión anterior · registra en dnf history'],ic:'list'}
 };
-function tip(k){
-  const d=D[k];if(!d)return;
-  document.getElementById('tip-icon').textContent=d.icon;
-  document.getElementById('tip-title').textContent=d.title;
-  document.getElementById('tip-body').textContent=d.body;
-  document.getElementById('tip-tags').innerHTML=d.tags.map(t=>`<span class="tag">${t}</span>`).join('');
-  document.getElementById('tipbox').style.display='block';
+const P={
+ c1:{d:'M510 148 L510 166',c:'#00CC88',b:[530,157,'1']},
+ c2:{d:'M620 190 L638 165',c:'#4DB8FF',b:[630,180,'2']},
+ pReq:{d:'M400 225 L382 250',c:'#00C8D8',b:[390,238,'3']},
+ pMeta:{d:'M230 274 L248 274',c:'#00CC88'},
+ pHC:{d:'M380 330 L398 345',c:'#EF9F27'},
+ pDep1:{d:'M470 308 L470 290',c:'#EF9F27',b:[490,298,'4']},
+ pDep2:{d:'M640 355 C 628 335, 628 300, 622 275',c:'#9A8AFF'},
+ pRpm:{d:'M230 400 L248 362',c:'#EF9F27',b:[240,386,'5']},
+ pGpg:{d:'M640 292 L622 335',c:'#BF8AFF',b:[630,318,'6']},
+ pTrans:{d:'M510 408 L510 428',c:'#00CC88',b:[530,419,'7']},
+ pDb:{d:'M760 430 L760 410',c:'#9A8AFF'},
+ pAbort:{d:'M640 236 L622 236',c:'#FF6644',lab:[684,201,'firma inválida: aborta']},
+ p403:{d:'M382 300 L400 282',c:'#FF6644',lab:[315,394,'403 Forbidden']}
+};
+const SC={
+ update:[
+  {p:['c1'],n:['cmd','engine'],t:'1 · Ejecución del comando',d:'El usuario ejecuta sudo yum update. En RHEL 8 y posteriores, /usr/bin/yum es un enlace a dnf-3, así que el trabajo lo hace DNF con privilegios de root.'},
+  {p:['c2'],n:['engine','config'],t:'2 · Lectura de la configuración',d:'DNF lee /etc/dnf/dnf.conf (opciones globales como gpgcheck=1) y los archivos .repo habilitados, incluido redhat.repo, que genera subscription-manager.'},
+  {p:['pReq','pMeta','pHC'],n:['engine','https','repo','meta','cache'],t:'3 · Actualización de metadatos',d:'Si los metadatos locales expiraron (metadata_expire), DNF descarga repomd.xml por HTTPS, compara checksums y solo baja los archivos que cambiaron: primary, filelists y updateinfo.'},
+  {p:['pDep1','pDep2'],n:['cache','rpmdb','engine'],t:'4 · Resolución de dependencias',d:'libsolv combina lo instalado (base de datos RPM) con lo disponible (caché) y calcula la transacción. Ejemplo: actualizar openssl arrastra openssl-libs de la misma versión. DNF muestra el resumen y pide confirmación.'},
+  {p:['pRpm','pHC'],n:['rpms','https','cache'],t:'5 · Descarga de paquetes',d:'Tras la confirmación, DNF descarga los .rpm a la caché local y verifica sus checksums contra los metadatos.'},
+  {p:['pGpg'],n:['gpg','cache','engine'],t:'6 · Verificación de firmas',d:'Con gpgcheck=1, cada paquete debe estar firmado por una clave importada en la base de datos RPM (por ejemplo, la de /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release).'},
+  {p:['pTrans','pDb'],n:['cache','trans','rpmdb'],t:'7 · Transacción RPM',d:'DNF prueba la transacción (conflictos, espacio en disco), instala las nuevas versiones, ejecuta los scriptlets, elimina las versiones anteriores, actualiza la base de datos RPM y registra todo en dnf history.'}
+ ],
+ gpg:[
+  {p:['pRpm','pHC'],n:['rpms','https','cache'],t:'1 · Descarga completada',d:'Los paquetes llegan a la caché por HTTPS sin errores de transporte. TLS garantiza que nadie los alteró en el camino, pero no quién los construyó.'},
+  {p:['pGpg'],n:['gpg','cache'],bad:['cache'],t:'2 · La firma no es válida',d:'Un paquete está firmado con una clave que no fue importada, o su contenido no coincide con la firma. DNF informa "GPG check FAILED".'},
+  {p:['pAbort'],n:['gpg','engine'],bad:['engine'],t:'3 · Se cancela la transacción',d:'DNF no instala solo los paquetes buenos: cancela la transacción completa para no dejar dependencias a medias.'},
+  {p:[],n:['rpmdb'],t:'4 · El sistema queda intacto',d:'La base de datos RPM y los archivos instalados no cambian. El administrador investiga el origen del paquete antes de importar cualquier clave.'}
+ ],
+ nosub:[
+  {p:['pReq'],n:['engine','https'],t:'1 · Solicitud de metadatos',d:'Una VM clonada o recién instalada intenta actualizar. redhat.repo apunta al CDN, que exige un certificado de entitlement válido.'},
+  {p:['p403'],n:['https','engine'],bad:['https'],t:'2 · El CDN rechaza la conexión',d:'Sin suscripción activa, el CDN responde 403 y DNF muestra "Failed to download metadata for repo". En RHEL 8+, skip_if_unavailable=False por defecto, así que la operación se detiene.'},
+  {p:[],n:['engine'],bad:['engine'],t:'3 · No hay resolución posible',d:'Sin metadatos no se puede calcular ninguna actualización. No se descarga ni instala nada.'},
+  {p:['pReq','pMeta'],n:['https','repo','meta','engine'],t:'4 · Solución: registrar el sistema',d:'Con subscription-manager register se obtienen los certificados de entitlement y se regenera redhat.repo. La siguiente ejecución descarga los metadatos con normalidad.'}
+ ]
+};
+const INFO={
+ repo:{e:'Origen',t:'Repositorio de paquetes',
+  q:'Servidor que publica los paquetes y sus metadatos. En RHEL puede ser el CDN de Red Hat (cdn.redhat.com) con suscripción, un Red Hat Satellite interno o un espejo local. En RHEL 9 los repositorios principales son BaseOS y AppStream.',
+  f:'Servir por HTTPS, con una estructura estándar, el directorio repodata/ y los archivos .rpm. El registro de sistemas se hace con Red Hat Subscription Management (RHSM); la antigua Red Hat Network (RHN) ya fue retirada.',
+  x:'La VM srv-lab01 con RHEL 9 recibe paquetes de rhel-9-for-x86_64-baseos-rpms y rhel-9-for-x86_64-appstream-rpms. Una universidad con muchos servidores suele usar Satellite para no descargar lo mismo desde internet en cada equipo.',
+  c:'sudo dnf repolist -v',
+  g:['cdn.redhat.com','RHSM','Satellite','BaseOS','AppStream']},
+ meta:{e:'Índices',t:'Metadatos del repositorio (repodata/)',
+  q:'repomd.xml es el índice raíz: lista, con sus checksums, los demás archivos de metadatos. primary contiene paquetes, versiones y dependencias; filelists, los archivos de cada paquete; other, los changelogs; updateinfo, las erratas (RHSA, RHBA, RHEA).',
+  f:'Permitir que DNF resuelva dependencias y encuentre actualizaciones sin descargar ningún .rpm. Gracias a los checksums de repomd.xml, solo se baja lo que cambió.',
+  x:'Para saber qué actualizaciones de seguridad hay para openssl sin instalar nada, DNF consulta updateinfo y muestra la errata RHSA correspondiente con su severidad.',
+  c:'sudo dnf check-update\nsudo dnf updateinfo list --security',
+  g:['repomd.xml','primary','filelists','updateinfo','RHSA']},
+ rpms:{e:'Paquetes',t:'Paquetes .rpm',
+  q:'Un .rpm tiene una cabecera (nombre, versión, dependencias, lista de archivos y firma GPG) y un payload comprimido con los archivos. Puede incluir scriptlets (%pre, %post) que se ejecutan al instalar. Se identifica por su NEVRA: nombre-época:versión-release.arquitectura.',
+  f:'Entregar el software compilado para una arquitectura (x86_64, aarch64) junto con la información necesaria para instalarlo y verificarlo.',
+  x:'Se descarga el paquete de openssl sin instalarlo, se revisan su cabecera y sus scriptlets, y se comprueba su firma antes de usarlo.',
+  c:'dnf download openssl\nrpm -qip openssl-*.rpm\nrpm -K openssl-*.rpm        # verifica firma y checksums',
+  g:['NEVRA','Requires','Provides','Scriptlets','Firma en cabecera']},
+ https:{e:'Transporte',t:'HTTPS / TLS hacia el CDN',
+  q:'Canal cifrado por el puerto 443. El CDN de Red Hat exige autenticación del cliente con el certificado de entitlement que entrega subscription-manager.',
+  f:'Proteger la confidencialidad e integridad en tránsito y restringir el acceso a sistemas con suscripción. En redhat.repo, sslclientcert y sslclientkey apuntan a /etc/pki/entitlement/, y sslcacert al certificado de la CA de Red Hat.',
+  x:'Un alumno clona una VM registrada. Si los certificados no son válidos para la nueva VM, dnf falla al descargar metadatos. Se revisa con subscription-manager status.',
+  c:'sudo subscription-manager status\ngrep -E "sslclient|sslcacert" /etc/yum.repos.d/redhat.repo | head',
+  g:['TLS','Puerto 443','/etc/pki/entitlement/','subscription-manager'],
+  w:'TLS no reemplaza a GPG: protege el transporte, no garantiza quién construyó el paquete. Un espejo HTTP sin TLS sigue siendo seguro frente a alteraciones si gpgcheck=1.'},
+ concept:{e:'Concepto clave',t:'TLS y GPG: dos capas distintas',
+  q:'La cadena de confianza de DNF tiene dos capas independientes. TLS protege la conexión con el servidor. GPG verifica que el paquete fue firmado por quien dice ser su autor.',
+  f:'Aunque un espejo sea comprometido y sirva paquetes alterados por HTTPS válido, la verificación GPG los rechaza porque no coinciden con la firma de Red Hat. Por eso gpgcheck=1 nunca debe desactivarse en producción.',
+  x:'En el laboratorio se configura un repositorio local por HTTP simple (sin TLS) en la red interna. Mientras gpgcheck=1 esté activo, un paquete alterado es rechazado igual.',
+  c:'grep -r "gpgcheck" /etc/dnf/dnf.conf /etc/yum.repos.d/',
+  g:['Transporte','Integridad','Autenticidad','gpgcheck=1']},
+ cmd:{e:'Punto de entrada',t:'$ sudo yum update',
+  q:'En RHEL 8 y posteriores, yum es un enlace simbólico a dnf-3: yum update equivale a dnf upgrade. En RHEL 7 todavía era el yum clásico escrito en Python.',
+  f:'Pedir al gestor de paquetes que actualice todo el sistema, o solo los paquetes indicados. Se necesita root (sudo) porque modifica archivos del sistema y la base de datos RPM.',
+  x:'Para aplicar solo las correcciones de seguridad en una VM de laboratorio se usa dnf upgrade --security; para un paquete puntual, sudo yum update openssl.',
+  c:'ls -l /usr/bin/yum\nsudo dnf upgrade --security',
+  g:['yum → dnf-3','dnf upgrade','--security','sudo']},
+ config:{e:'Configuración',t:'dnf.conf y archivos .repo',
+  q:'/etc/dnf/dnf.conf contiene las opciones globales (/etc/yum.conf es un enlace a este archivo). /etc/yum.repos.d/*.repo define cada repositorio con secciones [id].',
+  f:'Indicar qué repositorios usar y cómo: baseurl, mirrorlist o metalink, enabled, gpgcheck, gpgkey. Opciones globales habituales: gpgcheck=1, installonly_limit=3 (versiones de kernel que se conservan), keepcache y metadata_expire.',
+  x:'redhat.repo lo genera subscription-manager y no se edita a mano. Para habilitar el repositorio CodeReady Builder en la VM se usa subscription-manager, no un editor de texto.',
+  c:'sudo subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms\nsudo dnf repolist --all',
+  g:['dnf.conf','*.repo','redhat.repo','gpgcheck','installonly_limit']},
+ engine:{e:'Motor',t:'Motor DNF: libsolv y librpm',
+  q:'DNF usa libsolv, un resolvedor basado en satisfacibilidad booleana (SAT), para calcular dependencias, y librpm para ejecutar las transacciones. El yum clásico de RHEL 7 usaba su propio resolvedor en Python.',
+  f:'Cargar repositorios, refrescar metadatos si expiraron, combinar paquetes instalados y disponibles, calcular un conjunto consistente de cambios (actualizaciones, obsoletos, conflictos), mostrar el resumen y pedir confirmación.',
+  x:'Al actualizar openssl, DNF también actualiza openssl-libs, porque el paquete exige exactamente la misma versión de su biblioteca.',
+  c:'sudo dnf upgrade --assumeno     # muestra la transacción y responde "no"',
+  g:['libsolv','SAT','librpm','Depsolve','Obsoletes']},
+ gpg:{e:'Autenticidad',t:'Claves GPG de confianza',
+  q:'Claves públicas en /etc/pki/rpm-gpg/ (por ejemplo, RPM-GPG-KEY-redhat-release). Al importarse, quedan en la base de datos RPM como pseudopaquetes gpg-pubkey.',
+  f:'Verificar la firma de cada paquete antes de la transacción. Si la clave de un repositorio no está importada, DNF la ofrece mostrando su huella digital y pide confirmación. Si la firma no es válida, la transacción se cancela.',
+  x:'Al agregar un repositorio de terceros, DNF muestra la huella de su clave. El administrador la compara con la publicada por el proveedor antes de aceptar.',
+  c:'rpm -q gpg-pubkey --qf "%{NAME}-%{VERSION}\\t%{SUMMARY}\\n"',
+  g:['gpg-pubkey','rpm --import','gpgcheck=1','Huella digital'],
+  w:'Con -y, DNF también acepta automáticamente la importación de claves nuevas. En repositorios de terceros, revisa la huella antes de usar -y.'},
+ cache:{e:'Caché',t:'Caché local: /var/cache/dnf/',
+  q:'Directorio donde DNF guarda los metadatos de cada repositorio y los .rpm descargados. En RHEL 7, con yum clásico, era /var/cache/yum/.',
+  f:'Evitar descargas repetidas. Los metadatos se reutilizan hasta que vence metadata_expire; los .rpm se borran tras una instalación exitosa salvo que keepcache=1. El temporizador dnf-makecache los refresca en segundo plano.',
+  x:'En una VM de laboratorio sin red, dnf -C (solo caché) permite consultar lo que ya se descargó.',
+  c:'sudo dnf makecache\ndnf -C list --upgrades\nsudo dnf clean all',
+  g:['metadata_expire','keepcache','dnf-makecache','dnf clean all']},
+ rpmdb:{e:'Estado del sistema',t:'Base de datos RPM',
+  q:'Registro de todos los paquetes instalados, con sus archivos, checksums, permisos y dependencias. Está en /var/lib/rpm/ (en RHEL 9, en formato SQLite). DNF guarda además su historial en /var/lib/dnf/.',
+  f:'Ser la fuente de verdad sobre lo instalado: DNF la usa para resolver dependencias y rpm para verificar si los archivos fueron modificados.',
+  x:'Después de la actualización se confirma la nueva versión de openssl y se verifica que ningún archivo del paquete haya sido alterado.',
+  c:'rpm -q openssl\nrpm -V openssl          # sin salida = archivos íntegros\nrpm -qa --last | head',
+  g:['/var/lib/rpm/','rpm -V','rpm -qa','SQLite']},
+ trans:{e:'Ejecución',t:'Transacción RPM e historial',
+  q:'Aplicación atómica de todos los cambios calculados, ejecutada por librpm.',
+  f:'Probar la transacción (conflictos de archivos, espacio en disco), instalar las nuevas versiones, ejecutar los scriptlets, eliminar las versiones anteriores y actualizar la base de datos RPM. El kernel es la excepción: se instala junto al anterior (installonly_limit) y requiere reiniciar.',
+  x:'Si tras actualizar falla un servicio de la VM, dnf history permite ver qué cambió y revertir esa transacción. dnf needs-restarting indica si hace falta reiniciar.',
+  c:'sudo dnf history list | head\nsudo dnf history undo last\nsudo dnf needs-restarting -r',
+  g:['Transaction test','Scriptlets','dnf history','needs-restarting','installonly']}
+};
+
+const NS='http://www.w3.org/2000/svg',svg=document.getElementById('svg');
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e};
+const txt=(p,x,y,s,a)=>{const e=el('text',Object.assign({x,y,'text-anchor':'middle','dominant-baseline':'central','font-family':'Arial,sans-serif'},a),p);e.textContent=s;return e};
+el('defs',{}).innerHTML='<marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker><filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+el('rect',{x:0,y:0,width:900,height:580,fill:'#000'});
+[240,390].forEach(x=>el('line',{x1:x,y1:62,x2:x,y2:460,stroke:'#0d1a2a','stroke-width':.6,'stroke-dasharray':'4 4'}));
+txt(svg,450,22,'$ sudo yum update: del repositorio remoto a la base de datos RPM',{fill:'#E8F0FE','font-size':15,'font-weight':700});
+[[20,210,'REPOSITORIO REMOTO'],[250,130,'RED'],[400,480,'EQUIPO CLIENTE RHEL']].forEach(([x,w,s])=>{el('rect',{x,y:44,width:w,height:22,rx:4,fill:'#060e18',stroke:'#1e3a5a','stroke-width':.6});txt(svg,x+w/2,55,s,{fill:'#7FB6E6','font-size':10.5,'font-weight':700,'letter-spacing':'.08em'})});
+el('path',{d:'M125 202 L125 220',stroke:'#1e4a7a','stroke-dasharray':'3 2','marker-end':'url(#ar)',fill:'none'});
+el('path',{d:'M36 202 L36 345',stroke:'#1e4a7a','stroke-dasharray':'3 2','marker-end':'url(#ar)',fill:'none'});
+
+function icon(g,k,cx,cy,c){
+ if(k==='server'){[0,1,2].forEach(i=>{el('rect',{x:cx-24,y:cy-15+i*11,width:48,height:8,rx:2,fill:'#0d2a4a',stroke:c,'stroke-width':.6},g);el('circle',Object.assign({cx:cx+18,cy:cy-11+i*11,r:2.2,fill:c},i===0?{class:'blink'}:{}),g)})}
+ else if(k==='db'){el('path',{d:`M${cx-18} ${cy-8} v16 a18 6 0 0 0 36 0 v-16`,fill:'#120d30',stroke:c,'stroke-width':.8},g);el('ellipse',{cx,cy:cy-8,rx:18,ry:6,fill:'#1d1650',stroke:c,'stroke-width':.8},g)}
+ else if(k==='gear'){for(let i=0;i<8;i++)el('rect',{x:cx-3,y:cy-15,width:6,height:6,rx:1,fill:c,transform:`rotate(${i*45} ${cx} ${cy})`},g);el('circle',{cx,cy,r:10,fill:'#040c18',stroke:c,'stroke-width':1.2},g);el('circle',{cx,cy,r:4,fill:c},g)}
+ else if(k==='folder'){el('path',{d:`M${cx-20} ${cy-10} h14 l4 4 h22 v18 h-40 z`,fill:'#0c1410',stroke:c,'stroke-width':.8},g);[0,5].forEach(d=>el('line',{x1:cx-13,y1:cy+d,x2:cx+13,y2:cy+d,stroke:c,'stroke-width':.6,'stroke-opacity':.7},g))}
+ else if(k==='box'){el('rect',{x:cx-18,y:cy-13,width:36,height:26,rx:3,fill:'#1a1000',stroke:c,'stroke-width':.8},g);el('line',{x1:cx-18,y1:cy-4,x2:cx+18,y2:cy-4,stroke:c,'stroke-width':.6},g);el('line',{x1:cx,y1:cy-13,x2:cx,y2:cy-4,stroke:c,'stroke-width':.6},g);txt(g,cx,cy+5,'.rpm',{fill:c,'font-size':8,'font-weight':700})}
+ else if(k==='globe'){el('circle',{cx,cy,r:18,fill:'#041418',stroke:c,'stroke-width':1},g);el('ellipse',{cx,cy,rx:8,ry:18,fill:'none',stroke:c,'stroke-width':.6},g);el('line',{x1:cx-18,y1:cy,x2:cx+18,y2:cy,stroke:c,'stroke-width':.6},g);el('rect',{x:cx+6,y:cy+6,width:16,height:12,rx:2,fill:'#041418',stroke:c,'stroke-width':1},g);el('path',{d:`M${cx+9} ${cy+6} v-4 a5 5 0 0 1 10 0 v4`,fill:'none',stroke:c,'stroke-width':1},g)}
+ else if(k==='term'){}
+ else if(k==='doc'){el('path',{d:`M${cx-10} ${cy-14} h14 l7 7 v21 h-21 z`,fill:'#0d2040',stroke:c,'stroke-width':.8},g);[0,5,10].forEach(d=>el('line',{x1:cx-6,y1:cy-4+d,x2:cx+7,y2:cy-4+d,stroke:c,'stroke-width':.7},g))}
+ else if(k==='key'){el('path',{d:`M${cx-26} ${cy-12} h16 v10 q0 9 -8 12 q-8 -3 -8 -12 z`,fill:'#120a24',stroke:c,'stroke-width':.8},g);el('circle',{cx:cx+4,cy,r:6,fill:'none',stroke:c,'stroke-width':1.3},g);el('path',{d:`M${cx+10} ${cy} h16 M${cx+22} ${cy} v5 M${cx+17} ${cy} v4`,stroke:c,'stroke-width':1.3},g)}
+ else if(k==='list'){[0,1,2,3].forEach(i=>{el('rect',{x:cx-16,y:cy-13+i*7,width:5,height:5,rx:1,fill:i===2?'#EF9F27':c,class:i===2?'blink':''},g);el('line',{x1:cx-8,y1:cy-10.5+i*7,x2:cx+16,y2:cy-10.5+i*7,stroke:c,'stroke-width':.8},g)})}
 }
+const nodeEls={};
+for(const k in N){const n=N[k],g=el('g',{class:'node',tabindex:0,role:'button','aria-label':n.t+'. Ver explicación'});
+ el('rect',{class:'box',x:n.x,y:n.y,width:n.w,height:n.h,rx:10,fill:n.f,stroke:n.c,'stroke-opacity':.55,'stroke-width':1},g);
+ const cx=n.x+n.w/2;
+ if(n.ic==='term'){el('rect',{x:n.x+16,y:n.y+14,width:8,height:15,rx:1,fill:n.c,class:'blink'},g);
+  el('text',{x:n.x+32,y:n.y+22,'dominant-baseline':'central',fill:n.c,'font-size':14,'font-weight':700,'font-family':'Consolas,"Courier New",monospace'},g).textContent=n.t;
+  el('text',{x:n.x+16,y:n.y+42,'dominant-baseline':'central',fill:'#A9BED6','font-size':11,'font-family':'Arial,sans-serif'},g).textContent='/usr/bin/yum → dnf-3';}
+ else if(n.ic==='none'){txt(g,cx,n.y+32,n.t,{fill:n.c,'font-size':13.5,'font-weight':700});n.l.forEach((s,i)=>txt(g,cx,n.y+54+i*16,s,{fill:'#A9BED6','font-size':11.5}));txt(g,cx,n.y+72,'Haz clic para ver por qué',{fill:'#5F7FA3','font-size':10.5})}
+ else{const tall=n.h>=110,iy=n.y+(tall?30:24),ty=n.y+(tall?60:52),l0=n.y+(tall?80:70);
+  icon(g,n.ic,cx,iy,n.c);txt(g,cx,ty,n.t,{fill:n.c,'font-size':13.5,'font-weight':700});
+  n.l.forEach((s,i)=>txt(g,cx,l0+i*15,s,{fill:'#A9BED6','font-size':11.5}))}
+ g.addEventListener('click',()=>openPop(k));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPop(k)}});
+ nodeEls[k]=g}
+const pathEls={};
+for(const k in P){const p=P[k];pathEls[k]=el('path',{class:'flow',d:p.d,stroke:p.c,'marker-end':'url(#ar)'});
+ if(p.b){el('rect',{x:p.b[0]-8,y:p.b[1]-8,width:16,height:15,rx:3,fill:'#060e18',stroke:p.c,'stroke-width':.6});txt(svg,p.b[0],p.b[1],p.b[2],{fill:p.c,'font-size':10.5,'font-weight':700})}
+ if(p.lab)txt(svg,p.lab[0],p.lab[1],p.lab[2],{fill:p.c,'font-size':10.5,'font-weight':700})}
+for(const k in nodeEls)svg.appendChild(nodeEls[k]);
+for(const k of ['pAbort','p403'])pathEls[k].style.opacity=.35;
+const pg=el('g',{});
+
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let sc='update',step=-1,timer=null,live=[],t0=0,raf=0;
+function particles(ids){pg.innerHTML='';live=ids.map(id=>{const path=pathEls[id],len=path.getTotalLength(),c=P[id].c;
+ const dots=[0,1,2].map(i=>el('circle',{r:i===0?4.5:3,fill:c,opacity:i===0?1:.5,filter:'url(#glow)'},pg));return{path,len,dots}});
+ svg.appendChild(pg);t0=performance.now();if(!raf)raf=requestAnimationFrame(tick)}
+function tick(now){raf=0;if(!live.length)return;
+ live.forEach(o=>{const dur=Math.max(800,o.len*16);o.dots.forEach((d,i)=>{let t=((now-t0)/dur-i*0.14)%1;if(t<0)t+=1;const pt=o.path.getPointAtLength(reduce?o.len:t*o.len);d.setAttribute('cx',pt.x);d.setAttribute('cy',pt.y)})});
+ if(!reduce)raf=requestAnimationFrame(tick)}
+const capT=document.getElementById('capT'),capD=document.getElementById('capD'),dots=document.getElementById('dots'),playB=document.getElementById('play');
+function show(i){step=i;
+ if(i<0){for(const k in nodeEls)nodeEls[k].classList.remove('dim','active','bad');for(const k in pathEls){pathEls[k].classList.remove('dim','on');pathEls[k].style.opacity=(k==='pAbort'||k==='p403')?.35:''}live=[];pg.innerHTML='';
+  capT.textContent='Vista general';capD.textContent='Elige un escenario y pulsa Reproducir. Las flechas punteadas muestran el sentido del flujo; los puntos luminosos, lo que ocurre en cada paso.';renderDots();return}
+ const s=SC[sc][i];
+ for(const k in nodeEls){const on=s.n.includes(k);nodeEls[k].classList.toggle('dim',!on);nodeEls[k].classList.toggle('active',on);nodeEls[k].classList.toggle('bad',!!(s.bad&&s.bad.includes(k)))}
+ for(const k in pathEls){const on=s.p.includes(k);pathEls[k].style.opacity='';pathEls[k].classList.toggle('dim',!on);pathEls[k].classList.toggle('on',on)}
+ particles(s.p);capT.textContent=s.t;capD.textContent=s.d;renderDots()}
+function renderDots(){dots.innerHTML=SC[sc].map((_,i)=>`<span class="${i===step?'on':''}"></span>`).join('')}
+function stop(){clearInterval(timer);timer=null;playB.textContent='▶ Reproducir'}
+function play(){if(timer){stop();return}show(step>=SC[sc].length-1||step<0?0:step+1);playB.textContent='⏸ Pausar';
+ timer=setInterval(()=>{if(step>=SC[sc].length-1){stop();return}show(step+1)},4500)}
+playB.onclick=play;
+document.getElementById('next').onclick=()=>{stop();show(Math.min(SC[sc].length-1,step+1))};
+document.getElementById('prev').onclick=()=>{stop();show(Math.max(0,step-1))};
+document.getElementById('reset').onclick=()=>{stop();show(-1)};
+document.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{stop();sc=b.dataset.sc;document.querySelectorAll('[data-sc]').forEach(x=>x.setAttribute('aria-pressed',x===b));show(0)});
+renderDots();
+
+const bd=document.getElementById('bd'),pop=document.getElementById('pop');let lastF=null;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openPop(k){const d=INFO[k],n=N[k];lastF=document.activeElement;pop.style.setProperty('--pc',n.c);
+ document.getElementById('pE').textContent=d.e;document.getElementById('pT').textContent=d.t;
+ document.getElementById('pB').innerHTML=`<div><div class="lab">Qué es</div><p>${esc(d.q)}</p></div>
+  <div><div class="lab">Función</div><p>${esc(d.f)}</p></div>
+  <div class="ex"><div class="lab">Ejemplo en el laboratorio</div><p>${esc(d.x)}</p></div>
+  <div><div class="lab">Pruébalo en una VM de laboratorio</div><div class="code"><pre>${esc(d.c)}</pre><button type="button" class="cp">Copiar</button></div></div>
+  ${d.w?`<p class="warn">${esc(d.w)}</p>`:''}
+  <div class="tags">${d.g.map(t=>`<span>${esc(t)}</span>`).join('')}</div>`;
+ const cp=pop.querySelector('.cp');cp.onclick=()=>{const pre=pop.querySelector('pre');
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);cp.textContent='Seleccionado'};
+  try{navigator.clipboard.writeText(d.c).then(()=>cp.textContent='Copiado',sel)}catch(_){sel()}};
+ bd.hidden=false;document.getElementById('pX').focus()}
+function closePop(){bd.hidden=true;if(lastF&&lastF.focus)lastF.focus()}
+document.getElementById('pX').onclick=closePop;
+bd.addEventListener('click',e=>{if(e.target===bd)closePop()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!bd.hidden)closePop()});
 </script>
+
+</body>
+</html>
