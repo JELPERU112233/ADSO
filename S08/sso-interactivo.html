@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SSO — Protocolo interactivo</title>
+<style>
+:root{--bg:#050808;--panel:#0a1110;--txt:#c9d4d0;--mut:#8fa09a;--red:#ff4d6a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
+button,input{font-family:inherit}
+.k-green{--k:#00ff88}.k-amber{--k:#ffaa00}.k-purple{--k:#c77dff}.k-cyan{--k:#00eeff}.k-red{--k:#ff4d6a}
+
+@keyframes pulse{0%,100%{box-shadow:0 0 6px var(--k),0 0 14px color-mix(in srgb,var(--k) 27%,transparent)}50%{box-shadow:0 0 14px var(--k),0 0 30px color-mix(in srgb,var(--k) 40%,transparent)}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes scan{0%{top:-10%}100%{top:110%}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 12px var(--k)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.wrap{padding:14px;max-width:900px;margin:0 auto}
+.header{text-align:center;margin-bottom:12px}
+.title{font-size:20px;font-weight:700;color:#00ff88;letter-spacing:2px;text-shadow:0 0 10px #00ff8888}
+.sub{font-size:11px;color:#5fbf93;letter-spacing:2px;margin-top:4px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;margin-bottom:12px;padding:10px;border:1px solid #00ff8822;border-radius:10px;background:var(--panel)}
+.grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.grp-label{font-size:10px;letter-spacing:1px;color:var(--mut);text-transform:uppercase}
+.chip{--k:#00ff88;border:1px solid #2a4a40;background:transparent;color:#9fb5ad;font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer;transition:.2s}
+.chip:hover{border-color:var(--k);color:var(--k)}
+.chip[aria-pressed=true]{border-color:var(--k);color:var(--k);background:color-mix(in srgb,var(--k) 14%,transparent);font-weight:700}
+.stat{font-size:12px;color:var(--mut)}.stat b{color:#00ff88}
+
+.diagram-area{position:relative;background:#030606;border:1px solid #00ff8822;border-radius:10px;padding:14px;margin-bottom:12px;overflow:hidden}
+.diagram-area::after{content:'';position:absolute;left:0;width:100%;height:6%;background:linear-gradient(to bottom,transparent,#00ff8808,transparent);animation:scan 6s linear infinite;pointer-events:none}
+.actors{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.actor{border:1px solid color-mix(in srgb,var(--k) 30%,transparent);background:color-mix(in srgb,var(--k) 5%,transparent);border-radius:8px;padding:10px 6px;text-align:center;cursor:pointer;color:var(--txt);transition:.25s}
+.actor:hover{border-color:var(--k)}
+.actor .icon{font-size:24px;display:block;margin-bottom:4px;animation:float 3s ease-in-out infinite}
+.actor .name{display:block;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--k)}
+.actor .role{display:block;font-size:10px;color:var(--mut);margin-top:2px}
+.actor.on{border-color:var(--k);animation:pulse 1.3s ease-in-out infinite}
+.ahint{font-size:12px;color:var(--mut);min-height:18px;text-align:center;margin-bottom:6px}
+.flow-svg{width:100%;display:block}
+.cap{font-size:12px;text-align:center;color:#9fb5ad;margin-top:4px;min-height:18px}
+
+.progress{height:4px;background:#ffffff10;border-radius:4px;margin-bottom:10px;overflow:hidden}
+.progress>div{height:100%;background:#00ff88;transition:width .4s;box-shadow:0 0 8px #00ff88}
+
+.nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:6px;margin-bottom:12px}
+.sn{border:1px solid color-mix(in srgb,var(--k) 35%,transparent);background:transparent;color:var(--mut);font-size:11px;padding:7px 6px;border-radius:8px;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:6px;justify-content:center}
+.sn .n{display:inline-flex;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;align-items:center;justify-content:center;font-size:10px}
+.sn:hover{color:var(--k);border-color:var(--k)}
+.sn.cur{color:var(--k);border-color:var(--k);background:color-mix(in srgb,var(--k) 14%,transparent);font-weight:700}
+.sn.done{color:var(--k)}
+.sn.den{color:var(--red);border-color:var(--red)}
+.sn.lock{opacity:.45}
+
+.card{border:1px solid color-mix(in srgb,var(--k) 40%,transparent);background:color-mix(in srgb,var(--k) 6%,#050808);border-radius:10px;padding:16px;margin-bottom:12px;animation:fadein .3s ease-out}
+.step-tag{font-size:11px;letter-spacing:2px;border:1px solid color-mix(in srgb,var(--k) 50%,transparent);color:var(--k);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px}
+.info-title{font-size:16px;font-weight:700;color:#eef3f1;margin-bottom:8px}
+.info-body{font-size:13px;color:#aebbb6;line-height:1.65}
+.info-body strong{color:#e3ece8}
+.info-body code{background:#ffffff12;padding:1px 5px;border-radius:3px;font-size:12px}
+.tech-box{margin-top:12px;background:#ffffff08;border-radius:6px;padding:8px 10px;border-left:2px solid var(--k)}
+.tech-h{font-size:10px;letter-spacing:1px;color:var(--k);margin-bottom:4px}
+.tech-pre{white-space:pre-wrap;word-break:break-word;font-size:12px;color:#b9c7c2}
+.badges{margin-top:10px}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:4px;margin:0 4px 4px 0;background:color-mix(in srgb,var(--k) 8%,transparent);border:1px solid color-mix(in srgb,var(--k) 25%,transparent);color:var(--k)}
+
+.banner{border:1px solid var(--k);background:color-mix(in srgb,var(--k) 10%,transparent);border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px;color:#e3ece8}
+.sub-h{font-size:11px;letter-spacing:1px;color:var(--mut);margin:12px 0 4px;text-transform:uppercase}
+
+.login{max-width:340px;margin:12px 0 4px;border:1px solid #00ff8844;border-radius:8px;background:#030606;padding:12px}
+.login-head{font-size:12px;color:#00ff88;margin-bottom:8px;letter-spacing:1px}
+.login label{display:block;font-size:12px;color:var(--mut);margin-bottom:8px}
+.login input{display:block;width:100%;margin-top:3px;padding:8px 10px;background:#0b1513;border:1px solid #2a4a40;border-radius:6px;color:#eef3f1;font-size:14px}
+.login input:focus{outline:2px solid #00ff88;outline-offset:1px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.lhint{font-size:11px;color:var(--mut);margin-top:8px}
+#loginfb{margin-top:8px;font-size:12px}
+.fbline{padding:8px 10px;border-radius:6px;border:1px solid var(--k);background:color-mix(in srgb,var(--k) 10%,transparent);color:#e3ece8}
+
+.btn{--k:#00ff88;border:1px solid #00ff8855;background:transparent;color:#8fe8bd;font-size:12px;letter-spacing:1px;padding:8px 16px;border-radius:6px;cursor:pointer;transition:.2s}
+.btn:hover:not(:disabled){border-color:#00ff88;color:#00ff88;background:#00ff880d}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.go{border-color:#00ff88;color:#00ff88;animation:glow 1.4s ease-in-out infinite}
+.btn:focus-visible,.chip:focus-visible,.sn:focus-visible,.actor:focus-visible,.opt:focus-visible{outline:2px solid #00ff88;outline-offset:2px}
+.controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.navhint{text-align:center;font-size:12px;color:#ffaa00;min-height:18px;margin-bottom:12px}
+
+.jwt{word-break:break-all;font-size:11px;margin:6px 0}
+.jh{color:#ff6b9d}.jp{color:#c77dff}.js{color:#00eeff}
+pre.tok{white-space:pre-wrap;word-break:break-word;font-size:12px;background:#ffffff08;border-radius:6px;padding:8px 10px;margin:6px 0;color:#b9c7c2;font-family:inherit}
+.bad{color:#ff4d6a;font-weight:700}
+.checks{list-style:none;margin-top:4px}
+.checks li{opacity:0;animation:fadein .35s forwards;padding:5px 0;font-size:13px}
+.checks .pass{color:#00ff88}.checks .fail{color:#ff4d6a}.checks .skip{color:var(--mut)}
+
+.quiz{margin-top:14px;border-top:1px dashed #ffffff25;padding-top:12px}
+.q-tag{font-size:11px;letter-spacing:2px;color:#ffaa00;margin-bottom:4px}
+.q-text{font-size:14px;color:#eef3f1;margin-bottom:6px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border:1px solid #ffffff25;border-radius:8px;background:#ffffff08;color:var(--txt);font-size:13px;cursor:pointer;transition:.2s}
+.opt:hover:not(:disabled){border-color:#00ff88;background:#00ff880d}
+.opt:disabled{cursor:default}
+.opt.ok{border-color:#00ff88;background:#00ff8820;color:#eafff4}
+.opt.bad{border-color:var(--red);background:#ff4d6a1a;color:#ffdfe5;font-weight:400}
+.fb{margin-top:8px;padding:9px 12px;border-radius:8px;font-size:13px}
+.fb-ok{border:1px solid #00ff88;background:#00ff8814}
+.fb-bad{border:1px solid #ffaa00;background:#ffaa0014}
+
+.sum{margin-top:12px;padding:12px;border:1px solid #00ff8844;border-radius:8px;background:#00ff8808;font-size:13px}
+.sum .chip{margin:4px 4px 0 0}
+
+.logbox{border:1px solid #00ff8822;border-radius:10px;background:#030606;margin-bottom:12px}
+.log-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #00ff8814;font-size:11px;letter-spacing:2px;color:var(--mut)}
+#log{max-height:150px;overflow:auto;padding:8px 12px;font-size:12px}
+.ln{padding:2px 0;color:#b9c7c2}
+.ln .tm{color:var(--k)}
+.foot{font-size:11px;color:var(--mut);line-height:1.6;text-align:center;padding:4px 8px 16px}
+
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);max-width:min(560px,92vw);padding:10px 14px;border-radius:8px;border:1px solid var(--k,#ffaa00);background:#0b1513;color:#eef3f1;font-size:13px;opacity:0;pointer-events:none;transition:.3s;z-index:10}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:560px){.actor .role{display:none}.title{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">◈ SINGLE SIGN-ON — SIMULADOR INTERACTIVO</div>
+    <div class="sub">▸ AUTENTÍCATE, ELIGE UN ESCENARIO Y RESPONDE LOS CHECKPOINTS ▸</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="grp" role="group" aria-label="Protocolo"><span class="grp-label">Protocolo</span><span id="protos" class="grp"></span></div>
+    <div class="grp" role="group" aria-label="Escenario"><span class="grp-label">Escenario</span><span id="scns" class="grp"></span></div>
+    <div class="stat" id="status" aria-live="polite"></div>
+    <button class="btn" id="restart" type="button">↺ REINICIAR</button>
+  </div>
+
+  <div class="diagram-area">
+    <div class="actors" id="actors"></div>
+    <div class="ahint" id="ahint" aria-live="polite">Toca un actor para ver su rol en el flujo.</div>
+    <svg class="flow-svg" viewBox="0 0 800 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flujo de mensajes entre usuario, website, SSO y servidor de autenticación">
+      <line x1="20" y1="59" x2="780" y2="59" stroke="#ffffff14" stroke-width="1" stroke-dasharray="4 4"/>
+      <g id="nodes"></g>
+      <g id="arrows"></g>
+      <circle id="packet" r="5" cx="0" cy="0" opacity="0"/>
+    </svg>
+    <div class="cap" id="cap" aria-live="polite"></div>
+  </div>
+
+  <div class="progress"><div id="bar" style="width:0"></div></div>
+  <div class="nav" id="nav"></div>
+
+  <div id="card" class="card k-amber"></div>
+
+  <div class="controls">
+    <button class="btn" id="prev" type="button">◂ ANTERIOR</button>
+    <button class="btn" id="next" type="button">SIGUIENTE ▸</button>
+  </div>
+  <div class="navhint" id="navhint" aria-live="polite"></div>
+
+  <div class="logbox">
+    <div class="log-head"><span>◈ REGISTRO DE EVENTOS</span><button class="btn" id="clearlog" type="button" style="padding:3px 10px;font-size:10px">LIMPIAR</button></div>
+    <div id="log" role="log" aria-live="off"></div>
+  </div>
+
+  <div class="foot">
+    Simulación educativa: las credenciales de demostración se validan en tu navegador y no se envían a ningún servidor.<br>
+    Atajos: ← / → para navegar. Contenido técnico basado en conocimiento general de OIDC/OAuth 2.0, SAML 2.0, CAS y LDAP; los valores de ejemplo (tokens, tickets, sub-códigos de AD) son ilustrativos.
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const NS='http://www.w3.org/2000/svg';
+const el=(tag,attrs)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;};
+const KEYS={green:'#00ff88',amber:'#ffaa00',purple:'#c77dff',cyan:'#00eeff',red:'#ff4d6a'};
+const NODE_X={user:100,web:300,sso:500,auth:700};
+const MAX_ATTEMPTS=3, LAST=6;
+const CIRC=['①','②','③','④','⑤','⑥','⑦'];
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const b64u=s=>btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+const banner=(k,h)=>`<div class="banner k-${k}">${h}</div>`;
+
+const ACTORS={
+  user:{icon:'👤',name:'USER',role:'Cliente final',k:'green',desc:'Persona (navegador) que quiere entrar a una aplicación. Solo escribe su contraseña en la página del SSO.'},
+  web:{icon:'🌐',name:'WEBSITE',role:'Portal / App',k:'amber',desc:'Aplicación (Service Provider / Relying Party). Delega el login y confía en la credencial firmada del SSO.'},
+  sso:{icon:'🔐',name:'SSO SERVER',role:'Identity Provider',k:'purple',desc:'Identity Provider: autentica, mantiene la sesión central y emite códigos, tickets o tokens firmados.'},
+  auth:{icon:'🗄️',name:'AUTH SERVER',role:'LDAP / AD / IDP',k:'cyan',desc:'Directorio o base de identidades (LDAP, Active Directory, Kerberos). Guarda hashes y atributos del usuario.'}
+};
+const PROTOS={oidc:'OIDC / JWT',saml:'SAML 2.0',cas:'CAS'};
+const SCN={
+  ok:{label:'✓ Flujo normal',k:'green',desc:'La credencial es válida: todas las verificaciones del paso 6 pasan.'},
+  expired:{label:'⏱ Credencial expirada',k:'amber',desc:'Se presenta una credencial vencida; el website la rechazará en el paso 6.'},
+  tampered:{label:'☠ Credencial manipulada',k:'red',desc:'Un atacante altera la credencial (p. ej. roles → admin); la firma dejará de coincidir en el paso 6.'}
+};
+
+const state={proto:'oidc',scn:'ok',cur:0,user:'',credsSubmitted:false,credsValid:false,denyReason:null,attempts:0,locked:false,loginFb:null,iat:0,quiz:{},visited:{}};
+
+/* ---------- Derivados del estado ---------- */
+function denyIndex(){
+  if(!state.credsSubmitted)return -1;
+  if(!state.credsValid)return 3;
+  if(state.scn!=='ok')return 5;
+  return -1;
+}
+function allowedMax(){
+  if(!state.credsSubmitted)return 1;
+  const d=denyIndex();
+  return d>=0?d:LAST;
+}
+function blockMsg(){
+  const d=denyIndex();
+  if(!state.credsSubmitted)return 'Autentica tus credenciales en el paso 2 para desbloquear los siguientes pasos.';
+  if(d===3)return 'El Auth Server respondió DENY: el SSO no emite credenciales. Reintenta el login (paso 2).';
+  return 'El website rechazó la credencial (401). Cambia el escenario a "Flujo normal" para continuar.';
+}
+const score=()=>Object.values(state.quiz).filter(v=>v.correct).length;
+function tokenData(){
+  const now=Math.floor(Date.now()/1000);
+  let iat=state.iat||now,exp=iat+28800;
+  if(state.scn==='expired'){iat=now-32400;exp=now-3600;}
+  return {iat,exp};
+}
+const fmtT=s=>new Date(s*1000).toLocaleString('es-PE',{hour12:false});
+function jwtParts(){
+  const {iat,exp}=tokenData();
+  const header={alg:'RS256',typ:'JWT',kid:'sso-2026-01'};
+  const payload={iss:'https://sso.empresa.com',sub:'jose',aud:'app-web',roles:state.scn==='tampered'?['admin']:['usuario'],iat,exp};
+  return {h:b64u(JSON.stringify(header)),p:b64u(JSON.stringify(payload)),s:'MEUCIQDx7vK2…(firma original, simulada)'};
+}
+function tokenLines(){
+  const {iat,exp}=tokenData(),t=state.scn,pr=state.proto;
+  if(pr==='oidc')return [
+    ['{'],['  "iss": "https://sso.empresa.com",'],['  "sub": "jose",'],['  "aud": "app-web",'],
+    ['  "roles": '+(t==='tampered'?'["admin"]':'["usuario"]')+',',t==='tampered'],
+    ['  "iat": '+iat+',   // '+fmtT(iat)],
+    ['  "exp": '+exp+'    // '+fmtT(exp),t==='expired'],['}']];
+  if(pr==='saml')return [
+    ['<saml:Assertion>'],['  <saml:Issuer>https://sso.empresa.com/saml</saml:Issuer>'],['  <saml:NameID>jose</saml:NameID>'],
+    ['  <saml:Conditions NotOnOrAfter="'+new Date(exp*1000).toISOString()+'">',t==='expired'],
+    ['    <saml:Audience>app-web</saml:Audience>'],
+    ['  <saml:Attribute Name="role">'+(t==='tampered'?'admin':'usuario')+'</saml:Attribute>',t==='tampered'],
+    ['  <ds:Signature>…firma original del IdP…</ds:Signature>'],['</saml:Assertion>']];
+  if(t==='ok')return [
+    ['GET /cas/serviceValidate?ticket=ST-12345-abcdef'],['<cas:serviceResponse>'],['  <cas:authenticationSuccess>'],
+    ['    <cas:user>jose</cas:user>'],['  </cas:authenticationSuccess>'],['</cas:serviceResponse>']];
+  return [
+    [t==='tampered'?'GET /cas/serviceValidate?ticket=ST-99999-forjado':'GET /cas/serviceValidate?ticket=ST-12345-abcdef',true],
+    ['<cas:serviceResponse>'],['  <cas:authenticationFailure code="INVALID_TICKET">',true],
+    ['    Ticket no reconocido o expirado (simulado)',true],['  </cas:authenticationFailure>'],['</cas:serviceResponse>']];
+}
+const CHECKS={
+  oidc:['Firma RS256 válida (clave pública vía JWKS)','exp: la credencial no ha vencido','aud: coincide con el client_id de la app','nonce: coincide con el de la petición'],
+  saml:['Firma XML válida (certificado del IdP)','NotOnOrAfter: la aserción sigue vigente','Audience: coincide con el entityID del SP','InResponseTo: coincide con el AuthnRequest'],
+  cas:['El ticket existe y no fue usado antes','El ticket no ha expirado','El parámetro service coincide','Respuesta authenticationSuccess']
+};
+function runChecks(){
+  const failAt=state.scn==='tampered'?0:state.scn==='expired'?1:-1;
+  return CHECKS[state.proto].map((t,i)=>({t,st:failAt<0?'pass':i<failAt?'pass':i===failAt?'fail':'skip'}));
+}
+
+/* ---------- Pasos ---------- */
+const STEPS=[
+{k:'amber',short:'Redirect',title:'Redirección inicial al SSO',actors:['user','web'],arrow:['web','user','302 → SSO'],
+ log:()=>`web → user · 302 Found hacia el SSO (${PROTOS[state.proto]})`,
+ body:()=>`El usuario intenta acceder a un <strong>recurso protegido</strong> del website (ej. panel de control, intranet). El website detecta que <strong>no hay sesión local</strong> y, en vez de mostrar su propio formulario, <strong>redirige el navegador al SSO</strong>.<br><br>La redirección lleva parámetros que identifican la aplicación (<em>client_id</em> / <em>service</em>), a dónde volver (<em>redirect_uri</em>) y un valor anti-CSRF (<em>state</em>).`,
+ tech:{oidc:'HTTP/1.1 302 Found\nLocation: https://sso.empresa.com/authorize\n  ?response_type=code&client_id=app-web\n  &redirect_uri=https://app.empresa.com/callback\n  &scope=openid profile&state=xyz&nonce=abc',
+       saml:'HTTP/1.1 302 Found\nLocation: https://sso.empresa.com/saml/sso\n  ?SAMLRequest=<AuthnRequest comprimido + base64>\n  &RelayState=/dashboard',
+       cas:'HTTP/1.1 302 Found\nLocation: https://sso.empresa.com/cas/login\n  ?service=https://app.empresa.com/dashboard'},
+ badges:['HTTPS obligatorio','Parámetro state anti-CSRF','Sin credenciales en la URL'],
+ quiz:{q:'¿Por qué el website redirige al SSO en lugar de mostrar su propio login?',
+  o:['Para que el navegador cifre la contraseña antes de enviarla','Para centralizar la autenticación: las aplicaciones nunca manejan contraseñas','Porque los formularios HTML no pueden enviar credenciales'],a:1,
+  why:'El IdP es el único que ve las credenciales; cada app delega la autenticación y solo recibe una afirmación verificable de identidad.'}},
+
+{k:'green',short:'Login',title:'Credenciales — el usuario se autentica',actors:['user','sso'],arrow:['user','sso','POST credenciales'],
+ log:()=>'user → sso · formulario de login del SSO mostrado',
+ body:()=>`El navegador muestra el formulario <strong>del SSO</strong> (no el del website). Las credenciales viajan <strong>solo al SSO</strong> y nunca llegan al website de destino.<br><br><strong>Pruébalo:</strong> ingresa credenciales en el formulario. Si fallas ${MAX_ATTEMPTS} veces se activa una política de bloqueo de cuenta.`,
+ extra:()=>`<form id="login" class="login" autocomplete="off">
+   <div class="login-head">🔐 sso.empresa.com — Iniciar sesión</div>
+   <label>Usuario<input id="u" name="u" type="text" maxlength="32" value="${esc(state.user)}"></label>
+   <label>Contraseña<input id="p" name="p" type="password" maxlength="64"></label>
+   <div class="row"><button class="btn" type="submit">AUTENTICAR</button><button class="btn" type="button" data-act="fill">AUTOCOMPLETAR DEMO</button></div>
+   <div class="lhint">Demo: <b>jose</b> / <b>sso2026</b> · <span id="left"></span></div>
+   <div id="loginfb" role="status" aria-live="polite"></div>
+ </form>`,
+ tech:()=>`POST https://sso.empresa.com/login\nContent-Type: application/x-www-form-urlencoded\n\nusername=${state.user||'<usuario>'}&password=********&csrf_token=…`,
+ badges:['Credenciales solo al IdP','Anti-CSRF','TLS obligatorio'],
+ quiz:{q:'¿Qué componente recibe la contraseña del usuario?',
+  o:['Todas las aplicaciones del ecosistema','El website que el usuario quiere visitar','Solo el SSO / Identity Provider'],a:2,
+  why:'Esto reduce la superficie de ataque: una sola pieza maneja secretos y aplica MFA, bloqueo y auditoría.'}},
+
+{k:'purple',short:'Verificar',title:'Verificación — el SSO consulta al Auth Server',actors:['sso','auth'],arrow:['sso','auth','bind / verify'],
+ log:()=>'sso → auth · BindRequest sobre canal cifrado (LDAPS / StartTLS)',
+ body:()=>`El SSO no guarda las contraseñas: las valida contra el <strong>servidor de identidad backend</strong> (LDAP, Active Directory / Kerberos u otro IdP). Este paso es interno; el usuario no lo ve.<br><br><strong>Aclaración técnica:</strong> el SSO <em>no</em> envía un hash. En un bind LDAP simple envía la contraseña dentro de un canal cifrado (LDAPS o StartTLS) y es el directorio quien la compara con el hash (con sal) que almacena.`,
+ tech:'LDAPS (636/tcp) · BindRequest\n  name: uid=jose,ou=people,dc=empresa,dc=com\n  authentication: simple (dentro de TLS)\n\nAD / Kerberos: AS-REQ con pre-autenticación → KDC',
+ badges:['LDAPS / StartTLS','Hash solo en el directorio','Canal cifrado'],
+ quiz:{q:'¿Por qué la conexión SSO → LDAP debe ir cifrada (LDAPS o StartTLS)?',
+  o:['Porque un bind simple transporta la contraseña y viajaría en claro','Para que las consultas sean más rápidas','Porque LDAP no admite usuarios sin TLS'],a:0,
+  why:'En un bind simple la contraseña va en la petición; sin TLS cualquiera en la red podría leerla. El directorio guarda solo el hash con sal.'}},
+
+{k:'cyan',short:'Respuesta',title:'Respuesta — resultado de la validación',actors:['auth','sso'],arrow:['auth','sso','OK / DENY'],
+ log:()=>state.credsValid?'auth → sso · resultCode 0 (success) + atributos del usuario':`auth → sso · DENY (${state.denyReason==='locked'?'cuenta bloqueada':'credenciales inválidas'})`,
+ banner:()=>state.credsValid
+   ?banner('green','✓ <b>OK — resultCode 0.</b> El Auth Server confirma la identidad y devuelve los atributos del usuario.')
+   :banner('red',`✗ <b>DENY — ${state.denyReason==='locked'?'cuenta bloqueada':'credenciales inválidas'}.</b> El SSO <b>no emite ninguna credencial</b> y el flujo se detiene aquí.<div class="row" style="margin-top:8px"><button class="btn" data-act="retry" type="button">↩ REINTENTAR LOGIN</button></div>`),
+ body:()=>`El Auth Server responde con el resultado de la validación.<br><br><strong>✓ OK:</strong> credenciales correctas; devuelve atributos (nombre, grupos, correo).<br><strong>✗ DENY:</strong> contraseña incorrecta, cuenta bloqueada o vencida. El SSO <strong>no emite ninguna credencial</strong> y el flujo termina.`,
+ tech:()=>state.credsValid
+   ?'BindResponse\n  resultCode: 0 (success)\nAtributos: { uid, cn, mail, memberOf, department }'
+   :state.denyReason==='locked'
+     ?'BindResponse\n  resultCode: 49 (invalidCredentials)\n  diagnosticMessage: "… data 775 …"   (AD: cuenta bloqueada)'
+     :'BindResponse\n  resultCode: 49 (invalidCredentials)\n  diagnosticMessage: "… data 52e …"   (AD: credenciales no válidas)',
+ badges:['LDAP 0 = éxito','LDAP 49 = inválidas','Política de bloqueo'],
+ quiz:{q:'Si el directorio responde con resultCode 49, ¿qué significa?',
+  o:['Autenticación exitosa','Credenciales inválidas (invalidCredentials)','El servidor LDAP está caído'],a:1,
+  why:'resultCode 0 es éxito y 49 es invalidCredentials. Un servidor no disponible se indica con otro código (p. ej. 52, unavailable).'}},
+
+{k:'purple',short:'Emitir',title:'Emisión — el SSO entrega una credencial de sesión',actors:['sso','web'],arrow:['sso','web','code / assertion / ticket'],
+ log:()=>`sso → web · ${{oidc:'authorization code',saml:'aserción SAML firmada',cas:'Service Ticket'}[state.proto]} (vía navegador)`,
+ banner:()=>state.scn==='ok'?'':banner(SCN[state.scn].k,`⚠ <b>Escenario activo: ${SCN[state.scn].label}.</b> ${SCN[state.scn].desc}`),
+ body:()=>{
+   const m={
+     oidc:'Con la identidad verificada, el SSO redirige el navegador al website con un <strong>authorization code</strong> de un solo uso y vida corta. El token real (JWT) se obtiene en el paso 6 por un canal directo, para que no pase por la barra del navegador.',
+     saml:'El SSO genera una <strong>aserción SAML</strong> (XML) <strong>firmada con su certificado X.509</strong> y la entrega al website (ACS) mediante el navegador, normalmente con un POST automático.',
+     cas:'El SSO emite un <strong>Service Ticket (ST)</strong> opaco, de un solo uso y muy corta vida, y redirige al navegador de vuelta al website con el ticket en la URL.'};
+   return m[state.proto]+'<br><br>El SSO también crea su <strong>propia sesión</strong> (cookie en el dominio del SSO): es la clave para no volver a pedir login en otras aplicaciones.';
+ },
+ tech:{oidc:'HTTP/1.1 302 Found\nLocation: https://app.empresa.com/callback\n  ?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz\nSet-Cookie: SSO_SESSION=…; Secure; HttpOnly   (dominio del SSO)',
+       saml:'POST https://app.empresa.com/saml/acs\nSAMLResponse=<Response><Assertion> firmada (X.509) </Assertion></Response>\nRelayState=/dashboard',
+       cas:'HTTP/1.1 302 Found\nLocation: https://app.empresa.com/dashboard\n  ?ticket=ST-12345-abcdef\nSet-Cookie: TGC=TGT-…; Secure; HttpOnly   (dominio del SSO)'},
+ badges:['Credencial de un solo uso o firmada','Vida corta','Sesión central del SSO'],
+ quiz:{q:'¿Qué hace que el login sea "Single" Sign-On?',
+  o:['Que solo exista una aplicación en la empresa','Que la sesión queda en el SSO y se reutiliza para emitir credenciales a otras apps','Que el usuario usa la misma contraseña en todas las apps'],a:1,
+  why:'La sesión central del IdP permite emitir nuevos códigos, aserciones o tickets sin pedir credenciales otra vez. Reutilizar contraseñas es justo lo contrario de lo que busca SSO.'}},
+
+{k:'amber',short:'Validar',title:'Validación — el website verifica la credencial',actors:['web','sso'],arrow:['web','sso','validar'],
+ log:()=>denyIndex()===5?`web · 401 Unauthorized: ${state.scn==='tampered'?'firma inválida':'credencial expirada'}`:'web · credencial validada (4/4 verificaciones)',
+ banner:()=>denyIndex()===5
+   ?banner('red',`✗ <b>401 Unauthorized — ${state.scn==='tampered'?'firma inválida: el contenido fue alterado':'credencial expirada'}.</b><div class="row" style="margin-top:8px"><button class="btn" data-act="fixscn" type="button">✓ PROBAR FLUJO NORMAL</button></div>`)
+   :banner('green','✓ <b>Credencial válida</b> — 4/4 verificaciones superadas. El website confía en la identidad.'),
+ body:()=>{
+   const m={
+     oidc:'El website intercambia el <em>code</em> por tokens en un canal directo (back-channel) y valida el <strong>id_token</strong>: firma con la clave pública del SSO (JWKS), <em>exp</em>, <em>aud</em> y <em>nonce</em>. Tras validar la firma ya no necesita consultar al SSO en cada request.',
+     saml:'El website verifica la <strong>firma XML</strong> de la aserción con el certificado público del IdP y comprueba vigencia (<em>NotOnOrAfter</em>), audiencia e <em>InResponseTo</em>. La validación es local: no hace falta llamar al SSO.',
+     cas:'El website llama al SSO por un canal directo (<em>serviceValidate</em>) para validar el ticket: debe existir, no haber sido usado, no estar vencido y corresponder al servicio. El SSO responde con el usuario y sus atributos.'};
+   return m[state.proto];
+ },
+ extra:()=>{
+   const ck=runChecks();
+   const tv=tokenLines().map(([t,b])=>b?`<span class="bad">${esc(t)}</span>`:esc(t)).join('\n');
+   let head='';
+   if(state.proto==='oidc'){const j=jwtParts();head=`<div class="jwt"><span class="jh">${j.h}</span>.<span class="jp">${j.p}</span>.<span class="js">${esc(j.s)}</span></div>`;}
+   const icon={pass:'✔',fail:'✘',skip:'—'};
+   const lis=ck.map((c,i)=>`<li class="${c.st}" style="animation-delay:${i*0.35}s">${icon[c.st]} ${esc(c.t)}${c.st==='fail'?' — <b>FALLÓ</b>':c.st==='skip'?' (no evaluada)':''}</li>`).join('');
+   let why='';
+   if(state.scn==='tampered')why='<div class="fb fb-bad"><b>¿Por qué falla?</b> La firma se calcula sobre el contenido original. Al cambiar el contenido, la verificación con la clave pública ya no coincide. El atacante no puede volver a firmar sin la clave privada del SSO.</div>';
+   if(state.scn==='expired')why='<div class="fb fb-bad"><b>¿Por qué falla?</b> La firma es correcta, pero la vigencia terminó. Con OIDC se usaría un refresh token (o un flujo silencioso); con SAML o CAS se exige una nueva autenticación.</div>';
+   return `<div class="sub-h">Credencial recibida${state.scn!=='ok'?' (alterada en la simulación)':''}</div>${head}<pre class="tok">${tv}</pre><div class="sub-h">Verificaciones del website</div><ul class="checks">${lis}</ul>${why}`;
+ },
+ tech:{oidc:'POST https://sso.empresa.com/token\n  grant_type=authorization_code&code=…\n  &client_id=app-web&client_secret=…\n→ { id_token: <JWT>, access_token: …, expires_in: 28800 }\n\nGET https://sso.empresa.com/.well-known/jwks.json   (clave pública, cacheable)',
+       saml:'Validación local en el SP:\n  1) ds:Signature válida con el certificado del IdP (metadata)\n  2) Conditions: NotBefore / NotOnOrAfter\n  3) AudienceRestriction = entityID del SP\n  4) InResponseTo = ID del AuthnRequest',
+       cas:'GET https://sso.empresa.com/cas/serviceValidate\n  ?ticket=ST-12345-abcdef&service=https://app.empresa.com/dashboard\n→ <cas:authenticationSuccess><cas:user>jose</cas:user>…'},
+ badges:['Validación de firma','Vigencia (exp)','Audiencia'],
+ quiz:{q:'Un atacante cambia roles a "admin" dentro de una credencial firmada. ¿Qué ocurre al validarla?',
+  o:['Pasa: el contenido es solo texto','Falla la firma: no puede recalcularla sin la clave privada del SSO','El SSO ajusta el rol automáticamente'],a:1,
+  why:'Cualquier cambio en el contenido invalida la firma. Por eso el website valida siempre la firma antes de confiar en los datos.'}},
+
+{k:'green',short:'Acceso',title:'Acceso concedido — sesión establecida',actors:['user','web'],arrow:['web','user','200 OK'],
+ log:()=>'web → user · 200 OK: sesión local creada, recurso entregado',
+ body:()=>`Con la credencial validada, el website <strong>crea su sesión local</strong> y responde con el recurso solicitado. Desde aquí el usuario puede abrir <em>otras aplicaciones</em> del ecosistema sin escribir su contraseña otra vez: eso es <strong>Single Sign-On</strong>. (En APIs, la credencial viaja en <code>Authorization: Bearer …</code>.)`,
+ extra:()=>`<div class="row" style="margin-top:10px"><button class="btn" data-act="otherapp" type="button">🔁 ABRIR OTRA APLICACIÓN (app2.empresa.com)</button></div><div id="app2" role="status" aria-live="polite" style="margin-top:8px"></div><div class="sum" id="sum">${summaryHtml()}</div>`,
+ tech:{oidc:'GET /dashboard HTTP/1.1\nCookie: APPSESSION=…   (sesión local tras validar el id_token)\n→ 200 OK — Bienvenido, jose\n\nAPIs: Authorization: Bearer <access_token>',
+       saml:'GET /dashboard HTTP/1.1\nCookie: APPSESSION=…   (sesión local tras validar la aserción)\n→ 200 OK — Bienvenido, jose',
+       cas:'GET /dashboard HTTP/1.1\nCookie: APPSESSION=…   (sesión local tras validar el ticket)\n→ 200 OK — Bienvenido, jose'},
+ badges:['Sesión local creada','SSO activo en el dominio','Auditoría del acceso'],
+ quiz:{q:'Si una credencial está firmada (JWT), ¿su contenido está cifrado?',
+  o:['Sí, la firma lo cifra','No: solo está codificado en Base64URL; la firma garantiza integridad, no confidencialidad','Solo si el sitio usa HTTPS'],a:1,
+  why:'Firmar no es cifrar: cualquiera puede leer el payload. No pongas secretos dentro; para confidencialidad existe JWE.'}}
+];
+
+function summaryHtml(){
+  const sc=score(),ans=Object.keys(state.quiz).length;
+  const pend=STEPS.map((s,i)=>({s,i,a:state.quiz[i]})).filter(x=>!x.a||!x.a.correct);
+  let h=`<div>Checkpoints correctos: <b>${sc}/7</b>${ans<7?` · sin responder: ${7-ans}`:''}</div>`;
+  if(sc===7)h+='<div style="margin-top:6px">🏆 <b>Dominas el flujo SSO completo.</b> Prueba otro protocolo o un escenario de ataque.</div>';
+  else if(pend.length)h+=`<div style="margin-top:6px">Para repasar:<br>${pend.map(x=>`<button class="chip" data-act="go" data-i="${x.i}" type="button">${x.i+1}. ${x.s.short}</button>`).join('')}</div>`;
+  return h;
+}
+function techText(){
+  const s=STEPS[state.cur],t=typeof s.tech==='function'?s.tech():s.tech;
+  return typeof t==='string'?t:t[state.proto];
+}
+
+/* ---------- Utilidades UI ---------- */
+function log(k,text){
+  const d=document.createElement('div');d.className='ln k-'+k;
+  const t=document.createElement('span');t.className='tm';t.textContent=new Date().toLocaleTimeString('es-PE',{hour12:false});
+  const m=document.createElement('span');m.textContent='  '+text;
+  d.append(t,m);const box=$('log');box.append(d);box.scrollTop=box.scrollHeight;
+  while(box.children.length>60)box.removeChild(box.firstChild);
+}
+let tt;
+function toast(msg,k='amber'){const t=$('toast');t.textContent=msg;t.className='show k-'+k;clearTimeout(tt);tt=setTimeout(()=>{t.className='';},3600);}
+
+let raf=0;
+function animatePacket(x1,x2,y,col){
+  const p=$('packet');cancelAnimationFrame(raf);
+  p.setAttribute('cy',y);p.setAttribute('fill',col);
+  if(reduce){p.setAttribute('opacity',0);return;}
+  const t0=performance.now(),D=800;
+  const f=t=>{
+    const u=Math.min(1,(t-t0)/D),e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+    p.setAttribute('cx',x1+(x2-x1)*e);p.setAttribute('opacity',u<1?1:0);
+    if(u<1)raf=requestAnimationFrame(f);
+  };
+  raf=requestAnimationFrame(f);
+}
+function arrowGeom(n){
+  const [f,t,label]=STEPS[n].arrow,x0=NODE_X[f],x1=NODE_X[t],dir=x1>x0?1:-1;
+  return {a:x0+dir*10,b:x1-dir*10,dir,y:dir>0?34:84,label,f,t};
+}
+function arrowColor(n){
+  const d=denyIndex();
+  if((n===3&&d===3)||(n===5&&d===5))return KEYS.red;
+  return KEYS[STEPS[n].k];
+}
+function renderFlow(upto){
+  const g=$('arrows');g.textContent='';
+  let cur=null;
+  for(let n=0;n<=upto;n++){
+    const q=arrowGeom(n),col=arrowColor(n),isCur=n===upto;
+    const grp=el('g',{opacity:isCur?1:0.28});
+    const ln=el('line',{x1:q.a,y1:q.y,x2:q.b,y2:q.y,stroke:col,'stroke-width':isCur?2:1.5});
+    if(isCur&&!reduce){ln.setAttribute('stroke-dasharray','6 4');ln.append(el('animate',{attributeName:'stroke-dashoffset',from:0,to:-20,dur:'0.6s',repeatCount:'indefinite'}));}
+    grp.append(ln,el('polygon',{points:`${q.b},${q.y} ${q.b-q.dir*9},${q.y-5} ${q.b-q.dir*9},${q.y+5}`,fill:col}));
+    if(isCur){
+      const tx=el('text',{x:(q.a+q.b)/2,y:q.y-8,'text-anchor':'middle','font-family':'Arial','font-size':12,fill:col});
+      tx.textContent=CIRC[n]+' '+q.label;grp.append(tx);cur={q,col};
+    }
+    g.append(grp);
+  }
+  if(cur){
+    animatePacket(cur.q.a,cur.q.b,cur.q.y,cur.col);
+    $('cap').textContent=`Paso ${upto+1}: ${ACTORS[cur.q.f].name} → ${ACTORS[cur.q.t].name} · ${cur.q.label}`;
+  }
+}
+function renderChips(){
+  $('protos').innerHTML=Object.entries(PROTOS).map(([k,l])=>`<button class="chip" data-proto="${k}" aria-pressed="${state.proto===k}" type="button">${l}</button>`).join('');
+  $('scns').innerHTML=Object.entries(SCN).map(([k,s])=>`<button class="chip k-${s.k}" data-scn="${k}" aria-pressed="${state.scn===k}" type="button">${s.label}</button>`).join('');
+}
+function renderStatus(){
+  $('status').innerHTML=`Checkpoints: <b>${score()}/7</b> · Intentos fallidos: <b>${state.attempts}/${MAX_ATTEMPTS}</b>${state.locked?' · <b style="color:#ff4d6a">cuenta bloqueada</b>':''}`;
+}
+function renderNav(){
+  const max=allowedMax(),d=denyIndex();
+  $('nav').innerHTML=STEPS.map((s,i)=>{
+    const c=['sn','k-'+s.k];
+    if(i===state.cur)c.push('cur');else if(state.visited[i]&&i!==d)c.push('done');
+    if(i===d)c.push('den');
+    if(i>max)c.push('lock');
+    const mark=i===d?'✗':i>max?'🔒':(state.visited[i]&&i!==state.cur)?'✓':i+1;
+    return `<button class="${c.join(' ')}" data-i="${i}" type="button" aria-current="${i===state.cur?'step':'false'}"><span class="n">${mark}</span>${s.short}</button>`;
+  }).join('');
+  $('prev').disabled=state.cur===0;
+  $('next').disabled=state.cur>=max;
+  $('next').classList.toggle('go',state.cur===1&&state.credsSubmitted&&state.cur<max);
+  $('bar').style.width=((state.cur+1)/7*100)+'%';
+  $('navhint').textContent=(state.cur>=max&&state.cur<LAST)?(state.credsSubmitted?blockMsg():'Autentica en el formulario para continuar.'):'';
+  renderStatus();
+}
+function setFb(k,html){
+  state.loginFb={k,html};
+  const f=$('loginfb');if(f)f.innerHTML=`<div class="fbline k-${k}">${html}</div>`;
+  const l=$('left');if(l)l.textContent=state.locked?'cuenta bloqueada':`intentos restantes: ${Math.max(0,MAX_ATTEMPTS-state.attempts)}`;
+}
+function renderCard(){
+  const i=state.cur,s=STEPS[i],c=$('card');
+  c.className='card k-'+s.k;
+  c.innerHTML=`<div class="step-tag">PASO ${i+1} / 7</div><div class="info-title">${s.title}</div>${s.banner?s.banner():''}<div class="info-body">${s.body()}</div>${s.extra?s.extra():''}<div class="tech-box"><div class="tech-h">▸ DETALLE TÉCNICO · ${PROTOS[state.proto]}</div><div class="tech-pre" id="tech">${esc(techText())}</div></div><div class="badges">${s.badges.map(b=>`<span class="badge">◈ ${b}</span>`).join('')}</div><div class="quiz" id="quiz"></div>`;
+  renderQuiz();
+  if(i===1){
+    if(state.loginFb)setFb(state.loginFb.k,state.loginFb.html);else setFb('cyan','Ingresa las credenciales de demostración o prueba una incorrecta para ver el rechazo.');
+  }
+  c.style.animation='none';void c.offsetHeight;c.style.animation='';
+}
+function renderQuiz(){
+  const i=state.cur,q=STEPS[i].quiz,a=state.quiz[i],box=$('quiz');
+  let h=`<div class="q-tag">◈ CHECKPOINT ${i+1}</div><div class="q-text">${q.q}</div>`;
+  q.o.forEach((t,j)=>{
+    let c='opt';if(a){if(j===q.a)c+=' ok';else if(j===a.pick)c+=' bad';}
+    h+=`<button class="${c}" data-q="${j}" type="button"${a?' disabled':''}>${String.fromCharCode(65+j)}. ${t}</button>`;
+  });
+  if(a)h+=`<div class="fb ${a.correct?'fb-ok':'fb-bad'}" role="status"><b>${a.correct?'✓ Correcto.':'✗ No exactamente — la respuesta correcta es la '+String.fromCharCode(65+q.a)+'.'}</b> ${q.why}</div>`;
+  box.innerHTML=h;
+}
+function render(){
+  const s=STEPS[state.cur];
+  document.querySelectorAll('.actor').forEach(a=>a.classList.toggle('on',s.actors.includes(a.dataset.a)));
+  Object.keys(NODE_X).forEach(k=>$('n-'+k).setAttribute('fill',s.actors.includes(k)?KEYS[ACTORS[k].k]:KEYS[ACTORS[k].k]+'33'));
+  renderFlow(state.cur);renderCard();renderNav();
+}
+
+/* ---------- Navegación ---------- */
+function goStep(i){
+  i=Math.max(0,Math.min(LAST,i));
+  if(i>allowedMax()){toast(blockMsg(),'red');return;}
+  state.cur=i;state.visited[i]=true;
+  log(STEPS[i].k,`Paso ${i+1} · ${STEPS[i].log()}`);
+  render();
+}
+const nextStep=()=>{if(state.cur<LAST)goStep(state.cur+1);};
+const prevStep=()=>{if(state.cur>0)goStep(state.cur-1);};
+
+function setProto(k){
+  state.proto=k;renderChips();render();
+  toast(`Protocolo: ${PROTOS[k]}. Los pasos 1, 5 y 6 cambian en el detalle técnico.`,'cyan');
+  log('cyan','Protocolo → '+PROTOS[k]);
+}
+function setScn(k){
+  state.scn=k;
+  if(state.cur>allowedMax())state.cur=allowedMax();
+  renderChips();render();
+  toast(`${SCN[k].label}: ${SCN[k].desc}`,SCN[k].k);
+  log(SCN[k].k,'Escenario → '+SCN[k].label);
+}
+function restart(){
+  Object.assign(state,{cur:0,user:'',credsSubmitted:false,credsValid:false,denyReason:null,attempts:0,locked:false,loginFb:null,iat:0,quiz:{},visited:{}});
+  $('log').textContent='';log('green','Simulación reiniciada');
+  goStep(0);
+}
+
+/* ---------- Login simulado ---------- */
+function submitLogin(){
+  const u=$('u').value.trim(),p=$('p').value;
+  if(!u||!p){setFb('amber','Completa usuario y contraseña.');return;}
+  state.user=u.slice(0,32);
+  const tech=$('tech');
+  if(state.locked){
+    state.credsSubmitted=true;state.credsValid=false;state.denyReason='locked';
+    setFb('red','🔒 <b>Cuenta bloqueada.</b> Aunque la contraseña fuera correcta, el directorio rechaza el intento. <button class="btn" data-act="unlock" type="button" style="padding:3px 10px;font-size:11px">DESBLOQUEAR (ADMIN SIMULADO)</button>');
+    log('red','sso · login rechazado: cuenta bloqueada');
+  }else if(u.toLowerCase()==='jose'&&p==='sso2026'){
+    state.credsSubmitted=true;state.credsValid=true;state.denyReason=null;state.attempts=0;state.iat=Math.floor(Date.now()/1000);
+    setFb('green','✓ <b>Credenciales enviadas al SSO por TLS.</b> Pulsa <b>SIGUIENTE ▸</b> para ver cómo las verifica el Auth Server.');
+    log('green','sso · credenciales recibidas, pendientes de verificación');
+    $('next').disabled=false;
+  }else{
+    state.attempts++;state.credsSubmitted=true;state.credsValid=false;state.denyReason='bad';
+    const left=MAX_ATTEMPTS-state.attempts;
+    if(left<=0){state.locked=true;setFb('red','🔒 <b>Credenciales incorrectas — cuenta bloqueada</b> tras '+MAX_ATTEMPTS+' intentos fallidos (política de lockout simulada). <button class="btn" data-act="unlock" type="button" style="padding:3px 10px;font-size:11px">DESBLOQUEAR (ADMIN SIMULADO)</button>');}
+    else setFb('red',`✗ <b>Credenciales incorrectas.</b> Intentos restantes: ${left}. Puedes avanzar a los pasos 3 y 4 para ver el DENY, o reintentar aquí.`);
+    log('red',`sso · intento fallido ${state.attempts}/${MAX_ATTEMPTS}`);
+  }
+  if(tech)tech.textContent=techText();
+  $('p').value='';renderNav();
+  if(state.credsValid)$('next').focus();
+}
+
+/* ---------- Quiz ---------- */
+function answer(j){
+  const i=state.cur;if(state.quiz[i])return;
+  const q=STEPS[i].quiz,ok=j===q.a;
+  state.quiz[i]={pick:j,correct:ok};
+  renderQuiz();renderStatus();
+  log(ok?'green':'amber',`Checkpoint ${i+1}: ${ok?'correcto':'incorrecto'}`);
+  if(i===LAST){const s=$('sum');if(s)s.innerHTML=summaryHtml();}
+}
+
+/* ---------- Eventos ---------- */
+$('card').addEventListener('click',e=>{
+  const q=e.target.closest('[data-q]');if(q){answer(+q.dataset.q);return;}
+  const a=e.target.closest('[data-act]');if(!a)return;
+  switch(a.dataset.act){
+    case 'fill':$('u').value='jose';$('p').value='sso2026';$('p').focus();break;
+    case 'retry':goStep(1);break;
+    case 'fixscn':setScn('ok');break;
+    case 'go':goStep(+a.dataset.i);break;
+    case 'unlock':
+      state.locked=false;state.attempts=0;state.credsSubmitted=false;state.credsValid=false;state.denyReason=null;
+      setFb('cyan','Cuenta desbloqueada por un administrador (simulado). Inténtalo de nuevo.');
+      log('cyan','admin · cuenta desbloqueada');renderNav();break;
+    case 'otherapp':{
+      const m={oidc:'redirect con state/nonce → el SSO reconoce su cookie de sesión → emite un nuevo code sin pedir contraseña → la otra app lo intercambia y valida el id_token',
+               saml:'AuthnRequest → el SSO reconoce su sesión → devuelve una aserción firmada para la otra app',
+               cas:'redirect a /cas/login → la cookie TGC autentica → nuevo Service Ticket para la otra app'};
+      $('app2').innerHTML=banner('green','✓ <b>Acceso a app2.empresa.com sin volver a escribir la contraseña.</b><br>Flujo: '+m[state.proto]+'.<br>Se repiten los pasos 1, 5 y 6; <b>se omiten 2, 3 y 4</b> porque la sesión del SSO ya existe.');
+      log('green','app2 → SSO · sesión reutilizada, credencial emitida sin login');break;}
+  }
+});
+$('card').addEventListener('submit',e=>{e.preventDefault();if(e.target.id==='login')submitLogin();});
+$('nav').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(b)goStep(+b.dataset.i);});
+$('protos').addEventListener('click',e=>{const b=e.target.closest('[data-proto]');if(b)setProto(b.dataset.proto);});
+$('scns').addEventListener('click',e=>{const b=e.target.closest('[data-scn]');if(b)setScn(b.dataset.scn);});
+$('actors').addEventListener('click',e=>{const b=e.target.closest('.actor');if(!b)return;const a=ACTORS[b.dataset.a];$('ahint').textContent=`${a.icon} ${a.name} — ${a.desc}`;});
+$('next').addEventListener('click',nextStep);
+$('prev').addEventListener('click',prevStep);
+$('restart').addEventListener('click',restart);
+$('clearlog').addEventListener('click',()=>{$('log').textContent='';});
+document.addEventListener('keydown',e=>{
+  if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
+  if(e.key==='ArrowRight')nextStep();else if(e.key==='ArrowLeft')prevStep();
+});
+
+/* ---------- Init ---------- */
+$('actors').innerHTML=Object.entries(ACTORS).map(([k,a])=>`<button class="actor k-${a.k}" data-a="${k}" type="button" title="${esc(a.desc)}"><span class="icon">${a.icon}</span><span class="name">${a.name}</span><span class="role">${a.role}</span></button>`).join('');
+Object.entries(NODE_X).forEach(([k,x])=>$('nodes').append(el('circle',{id:'n-'+k,cx:x,cy:59,r:6,stroke:KEYS[ACTORS[k].k],'stroke-width':1.5,fill:'none'})));
+renderChips();
+log('green','Simulador listo. Elige protocolo y escenario, y avanza paso a paso.');
+goStep(0);
+</script>
+</body>
+</html>
