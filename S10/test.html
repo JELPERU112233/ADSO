@@ -2,69 +2,326 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Autoevaluación AD DS · Neon Quiz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autoevaluación: Active Directory y DNS</title>
 <style>
 :root{
-  --bg:#000;
-  --ink:#f4f7ff;
-  --dim:#8d95b5;
-  --c0:#ff2e63; /* rojo - triángulo */
-  --c1:#19c3ff; /* cian - rombo */
-  --c2:#ffe600; /* amarillo - círculo */
-  --c3:#39ff14; /* verde - cuadrado */
-  --mag:#4d7cff;
+  --bg:#020816; --bg2:#06143a; --neon:#00d4ff; --neon2:#2f7bff; --neon3:#6a7dff; --neon4:#00ffe0;
+  --text:#e8f4ff; --muted:#8fb4dd; --bad:#ff4d8d;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);min-height:100%}
 body{
-  font-family:Arial,Helvetica,sans-serif;
-  background:var(--bg);
-  color:var(--ink);
-  min-height:100vh;
-  overflow-x:hidden;
+  background:
+    radial-gradient(ellipse at 20% 0%,rgba(47,123,255,.28),transparent 55%),
+    radial-gradient(ellipse at 90% 100%,rgba(0,212,255,.20),transparent 55%),
+    linear-gradient(180deg,var(--bg),var(--bg2));
+  background-attachment:fixed; min-height:100vh;
 }
-/* ---------- Fondo neón ---------- */
-#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
-#bg svg{width:100%;height:100%}
-.glow-a{position:fixed;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.22;z-index:0;pointer-events:none}
-.glow-a.m{background:var(--mag);top:-30vmax;left:-20vmax}
-.glow-a.c{background:var(--c1);bottom:-35vmax;right:-20vmax}
-@keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
-.float{animation:drift 7s ease-in-out infinite}
-.float:nth-child(2n){animation-duration:9s;animation-delay:-3s}
-.float:nth-child(3n){animation-duration:11s;animation-delay:-5s}
+.wrap{max-width:920px;margin:0 auto;padding:18px 16px 40px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:.12em;font-size:13px;color:var(--neon);text-shadow:0 0 8px var(--neon)}
+.pill{border:1px solid var(--neon);color:var(--neon);padding:6px 14px;border-radius:999px;font-size:14px;font-weight:700;
+  box-shadow:0 0 10px rgba(0,212,255,.55),inset 0 0 8px rgba(0,212,255,.25);text-shadow:0 0 6px var(--neon)}
+.pills{display:flex;gap:10px;flex-wrap:wrap}
+.bar{height:8px;border-radius:99px;background:rgba(47,123,255,.18);overflow:hidden;margin-bottom:18px;border:1px solid rgba(0,212,255,.3)}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--neon2),var(--neon));box-shadow:0 0 14px var(--neon);transition:width .4s}
+.card{border:1.5px solid var(--neon);border-radius:18px;padding:26px 22px;background:rgba(3,14,45,.72);
+  box-shadow:0 0 18px rgba(0,212,255,.45),0 0 60px rgba(47,123,255,.2),inset 0 0 22px rgba(0,212,255,.10)}
+h1{font-size:clamp(26px,5vw,42px);line-height:1.15;color:#fff;text-shadow:0 0 10px var(--neon),0 0 28px var(--neon2);margin-bottom:10px}
+h2{font-size:clamp(19px,3.4vw,27px);line-height:1.3;color:#fff;text-shadow:0 0 8px rgba(0,212,255,.8)}
+.sub{color:var(--muted);margin:8px 0 18px;line-height:1.5}
+ul.rules{margin:0 0 22px 20px;color:var(--muted);line-height:1.8}
+.btn{font-family:inherit;cursor:pointer;border:1.5px solid var(--neon);background:rgba(0,212,255,.08);color:var(--neon);
+  font-weight:700;font-size:16px;padding:13px 28px;border-radius:12px;letter-spacing:.06em;text-shadow:0 0 8px var(--neon);
+  box-shadow:0 0 14px rgba(0,212,255,.5),inset 0 0 12px rgba(0,212,255,.15);transition:.2s}
+.btn:hover:not(:disabled){background:var(--neon);color:#00172b;text-shadow:none;box-shadow:0 0 28px var(--neon)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.hidden{display:none!important}
+.qhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.tag{font-size:12px;letter-spacing:.1em;color:var(--neon4);text-shadow:0 0 6px var(--neon4)}
+.timer{font-size:22px;font-weight:700;color:var(--neon);text-shadow:0 0 10px var(--neon);min-width:54px;text-align:right}
+.timer.low{color:var(--bad);text-shadow:0 0 10px var(--bad)}
+.tbar{height:6px;border-radius:99px;background:rgba(47,123,255,.2);margin:6px 0 20px;overflow:hidden}
+.tbar>i{display:block;height:100%;width:100%;background:var(--neon);box-shadow:0 0 10px var(--neon);transform-origin:left;}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+@media(max-width:640px){.opts{grid-template-columns:1fr}}
+.opt{font-family:inherit;text-align:left;cursor:pointer;display:flex;gap:12px;align-items:flex-start;color:#fff;
+  font-size:15.5px;line-height:1.4;padding:15px 14px;border-radius:14px;border:1.5px solid var(--c);
+  background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(0,0,0,.2));
+  box-shadow:0 0 12px var(--cg),inset 0 0 14px var(--cg);transition:.18s}
+.opt:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 0 24px var(--c),inset 0 0 20px var(--cg)}
+.opt .sh{flex:0 0 34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;color:#00172b;background:var(--c);
+  box-shadow:0 0 12px var(--c);font-weight:700}
+.opt:nth-child(1){--c:#00d4ff;--cg:rgba(0,212,255,.30)}
+.opt:nth-child(2){--c:#2f7bff;--cg:rgba(47,123,255,.32)}
+.opt:nth-child(3){--c:#7a8bff;--cg:rgba(122,139,255,.30)}
+.opt:nth-child(4){--c:#00ffe0;--cg:rgba(0,255,224,.26)}
+.opt:disabled{cursor:default}
+.opt.dim{opacity:.35;filter:saturate(.5)}
+.opt.right{background:rgba(0,255,224,.16);border-color:#00ffe0;box-shadow:0 0 28px #00ffe0,inset 0 0 20px rgba(0,255,224,.4);opacity:1}
+.opt.wrong{background:rgba(255,77,141,.14);border-color:var(--bad);box-shadow:0 0 22px var(--bad),inset 0 0 16px rgba(255,77,141,.35);opacity:1}
+.opt.picked{border-style:solid;background:rgba(0,212,255,.18);box-shadow:0 0 26px var(--neon),inset 0 0 18px rgba(0,212,255,.35);opacity:1}
+.fb{margin-top:22px;border-radius:14px;padding:18px 18px;border:1.5px solid var(--neon);background:rgba(0,212,255,.07);
+  box-shadow:0 0 16px rgba(0,212,255,.4);animation:in .35s ease}
+.fb.ok{border-color:#00ffe0;box-shadow:0 0 20px rgba(0,255,224,.55)}
+.fb.ko{border-color:var(--bad);box-shadow:0 0 20px rgba(255,77,141,.5)}
+.fb h3{font-size:18px;margin-bottom:8px}
+.fb.ok h3{color:#00ffe0;text-shadow:0 0 8px #00ffe0}
+.fb.ko h3{color:var(--bad);text-shadow:0 0 8px var(--bad)}
+.fb.mc h3{color:var(--neon);text-shadow:0 0 8px var(--neon)}
+.fb p{line-height:1.6;color:var(--text);font-size:15px}
+.fb .ref{margin-top:10px;font-size:12.5px;color:var(--muted)}
+.fb .next{margin-top:16px;text-align:right}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.meta label.l{display:block;margin:20px 0 8px;color:var(--neon);font-weight:700;text-shadow:0 0 6px var(--neon)}
+input[type=range]{width:100%;accent-color:var(--neon);height:6px}
+.rv{display:flex;justify-content:space-between;color:var(--muted);font-size:12.5px;margin-top:4px}
+.conf{font-size:30px;font-weight:700;color:var(--neon);text-shadow:0 0 12px var(--neon);text-align:center}
+textarea{width:100%;min-height:96px;resize:vertical;font-family:inherit;font-size:15px;color:#fff;background:rgba(2,8,22,.8);
+  border:1.5px solid var(--neon2);border-radius:12px;padding:12px;box-shadow:0 0 12px rgba(47,123,255,.4)}
+textarea:focus{outline:none;border-color:var(--neon);box-shadow:0 0 18px var(--neon)}
+.score{text-align:center;margin:10px 0 18px}
+.big{font-size:clamp(54px,12vw,96px);font-weight:700;color:#fff;text-shadow:0 0 14px var(--neon),0 0 40px var(--neon2);line-height:1}
+.lvl{margin-top:8px;font-size:20px;color:var(--neon4);text-shadow:0 0 10px var(--neon4)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+@media(max-width:560px){.stats{grid-template-columns:1fr}}
+.st{border:1px solid var(--neon2);border-radius:12px;padding:12px;text-align:center;background:rgba(47,123,255,.08);box-shadow:0 0 10px rgba(47,123,255,.4)}
+.st b{display:block;font-size:24px;color:var(--neon);text-shadow:0 0 8px var(--neon)}
+.st span{font-size:12.5px;color:var(--muted)}
+.rev{list-style:none;margin:14px 0}
+.rev li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;margin-bottom:8px;font-size:14.5px;line-height:1.45;
+  border:1px solid rgba(0,212,255,.3);background:rgba(0,212,255,.05)}
+.rev li.k{border-color:rgba(255,77,141,.6);background:rgba(255,77,141,.07)}
+.rev .m{flex:0 0 22px;font-weight:700;color:#00ffe0}
+.rev li.k .m{color:var(--bad)}
+.rev small{color:var(--muted);display:block;margin-top:2px}
+.cal{border:1px dashed var(--neon);border-radius:12px;padding:14px;margin:14px 0;line-height:1.6;font-size:15px;box-shadow:0 0 12px rgba(0,212,255,.3)}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+footer{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">⚡ ADMINISTRACIÓN DE SISTEMAS OPERATIVOS · 1INF35</div>
+    <div class="pills"><div class="pill" id="pScore">0 pts</div><div class="pill" id="pStreak">🔥 0</div></div>
+  </header>
+  <div class="bar"><i id="prog"></i></div>
 
-#app{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:18px 16px 40px}
+  <!-- INICIO -->
+  <section class="card" id="start">
+    <h1>Autoevaluación: Active Directory y DNS</h1>
+    <p class="sub">Servicios de dominio del Directorio Activo (AD DS) · 10 preguntas con retroalimentación inmediata.</p>
+    <ul class="rules">
+      <li>9 preguntas de contenido y una final de <b>metacognición</b>.</li>
+      <li>Tienes 30 segundos por pregunta; responder más rápido otorga más puntos (500–1000).</li>
+      <li>Puedes responder con el mouse, el toque o las teclas 1–4.</li>
+      <li>Es una autoevaluación: tus respuestas no se guardan ni se envían.</li>
+    </ul>
+    <button class="btn" id="btnStart">▶ COMENZAR</button>
+  </section>
 
-/* ---------- Barra superior ---------- */
-.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.chip{
-  border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 14px;font-size:13px;
-  background:rgba(8,8,20,.7);box-shadow:0 0 12px rgba(25,195,255,.15) inset;white-space:nowrap
-}
-.chip b{font-size:16px;color:var(--c1);text-shadow:0 0 8px var(--c1)}
-.chip.score b{color:var(--c2);text-shadow:0 0 8px var(--c2)}
-.chip.streak b{color:var(--mag);text-shadow:0 0 8px var(--mag)}
-.mute{
-  background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--ink);border-radius:999px;
-  width:38px;height:34px;cursor:pointer;display:grid;place-items:center
-}
-.mute:hover{border-color:var(--c1);box-shadow:0 0 12px var(--c1)}
-.progress{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:18px}
-.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--mag),var(--c1));box-shadow:0 0 12px var(--c1);transition:width .4s}
+  <!-- PREGUNTA -->
+  <section class="card hidden" id="quiz">
+    <div class="qhead"><div class="tag" id="qTag"></div><div class="timer" id="qTimer">30</div></div>
+    <div class="tbar"><i id="tbar"></i></div>
+    <h2 id="qText"></h2>
+    <div class="opts" id="opts"></div>
+    <div id="fbBox"></div>
+  </section>
 
-/* ---------- Pantalla de inicio ---------- */
-.hero{text-align:center;padding:30px 8px 10px}
-.hero svg.logo{width:150px;height:150px;margin-bottom:6px}
-h1{
-  font-size:clamp(26px,5.2vw,44px);letter-spacing:1px;line-height:1.15;margin-bottom:10px;
-  color:#fff;text-shadow:0 0 6px #fff,0 0 18px var(--mag),0 0 38px var(--mag),0 0 70px var(--mag);
+  <!-- METACOGNICIÓN -->
+  <section class="card meta hidden" id="metaCard">
+    <div class="qhead"><div class="tag">PREGUNTA 10 · METACOGNICIÓN (no puntúa)</div></div>
+    <h2>Mira cómo aprendiste: ¿qué harás con lo que descubriste sobre tu propio desempeño?</h2>
+
+    <label class="l" for="conf">1. Antes de ver tu resultado: ¿qué porcentaje de las 9 preguntas crees haber acertado?</label>
+    <div class="conf" id="confV">50%</div>
+    <input type="range" id="conf" min="0" max="100" step="11.11" value="50" aria-label="Confianza estimada">
+    <div class="rv"><span>0%</span><span>100%</span></div>
+
+    <label class="l">2. ¿Qué estrategia usarás para consolidar lo aprendido?</label>
+    <div class="opts" id="metaOpts"></div>
+    <div id="metaFb"></div>
+
+    <label class="l" for="refl">3. En una frase: ¿qué concepto te costó más y qué harás esta semana para dominarlo? (opcional)</label>
+    <textarea id="refl" placeholder="Ej.: Me confundí entre dominio y Active Directory; revisaré las diapositivas 18–19 y lo explicaré con mis palabras."></textarea>
+    <div class="row"><button class="btn" id="btnFinish" disabled>VER MIS RESULTADOS ▶</button></div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section class="card hidden" id="end">
+    <h1>Resultados</h1>
+    <div class="score"><div class="big" id="eScore">0</div><div class="lvl" id="eLvl"></div></div>
+    <div class="stats">
+      <div class="st"><b id="eOk">0/9</b><span>Aciertos</span></div>
+      <div class="st"><b id="eStreak">0</b><span>Mejor racha</span></div>
+      <div class="st"><b id="ePct">0%</b><span>Precisión real</span></div>
+    </div>
+    <div class="cal" id="eCal"></div>
+    <h2 style="font-size:19px;margin-top:8px">Repaso por pregunta</h2>
+    <ul class="rev" id="eRev"></ul>
+    <div class="cal" id="eRefl" style="display:none"></div>
+    <div class="row"><button class="btn" id="btnAgain">↻ REINTENTAR</button><button class="btn" onclick="window.print()">🖨 IMPRIMIR / PDF</button></div>
+  </section>
+
+  <footer>Contenido basado en la sesión “Servicios de dominio del Directorio Activo (AD DS)” · PUCP · 1INF35</footer>
+</div>
+
+<script>
+const LIMIT = 30;
+const Q = [
+ { tag:"SERVICIOS DE AD", slides:"Diapositivas 7–8, 10",
+   q:"Una empresa necesita que sus usuarios accedan con inicio de sesión único (SSO) a Microsoft 365 y a proveedores externos. ¿Qué rol de Active Directory cubre este caso?",
+   o:["AD FS (Federation Services)","AD CS (Certificate Services)","AD RMS (Rights Management Services)","AD LDS (Lightweight Directory Services)"], c:0,
+   ok:"AD FS ofrece acceso federado a recursos entre organizaciones mediante una relación de confianza (federation trust).",
+   ko:"La respuesta correcta es AD FS: gestiona el acceso federado entre organizaciones. AD CS emite certificados (PKI), AD RMS protege contenido digital y AD LDS es un directorio LDAP independiente para aplicaciones." },
+ { tag:"DOMINIO VS. ACTIVE DIRECTORY", slides:"Diapositivas 18–19",
+   q:"¿Cuál afirmación distingue correctamente un dominio de Active Directory?",
+   o:["Dominio y Active Directory son sinónimos","El dominio es una estructura lógica (límite administrativo y de replicación) dentro de la infraestructura general de AD","Active Directory es un único servicio: AD DS","Un dominio necesita Azure o servicios en la nube para existir"], c:1,
+   ok:"El dominio agrupa objetos (usuarios, equipos, OUs), se identifica por su FQDN y es unidad de replicación. AD es la colección completa de servicios.",
+   ko:"El dominio es la unidad lógica de administración; AD es la infraestructura que lo gestiona (AD DS, CS, FS, RMS, LDS). Además, un dominio puede existir sin Azure ni nube." },
+ { tag:"PUERTOS TCP/IP", slides:"Diapositiva 21",
+   q:"Debes permitir en el firewall la autenticación Kerberos v5 hacia el controlador de dominio. ¿Qué puerto corresponde a Kerberos?",
+   o:["53","88","389","636"], c:1,
+   ok:"Kerberos usa el puerto 88. DNS usa 53, LDAP 389 y LDAPS 636.",
+   ko:"Kerberos usa el puerto 88. Los otros: 53 (DNS), 389 (LDAP) y 636 (LDAPS, LDAP cifrado)." },
+ { tag:"BASE DE DATOS DEL DIRECTORIO", slides:"Diapositivas 13, 17–18",
+   q:"¿Qué es NTDS.DIT?",
+   o:["El archivo donde se guardan los registros SRV del DNS","La base de datos de AD DS donde residen usuarios, equipos, grupos, OUs y schema, replicada entre los DCs del dominio","La carpeta de scripts de inicio de sesión","La caché de tickets Kerberos del usuario"], c:1,
+   ok:"NTDS.DIT es “el corazón de AD”: la base de datos que se replica entre los controladores de dominio.",
+   ko:"NTDS.DIT es la base de datos de AD DS. Los tickets Kerberos se consultan con klist y los registros SRV viven en la zona DNS." },
+ { tag:"DNS Y REGISTROS SRV", slides:"Diapositivas 22–23, 38",
+   q:"¿Para qué sirven los registros SRV en un dominio de Active Directory?",
+   o:["Asignan direcciones IP automáticamente a los clientes","Indican qué servidor ofrece un servicio específico y en qué puerto (p. ej., LDAP o Kerberos), permitiendo ubicar los DC","Cifran el tráfico entre controladores de dominio","Convierten direcciones IP en nombres (resolución inversa)"], c:1,
+   ok:"Sin registros SRV correctos el DC no puede ser localizado; por eso AD depende de DNS.",
+   ko:"Los SRV permiten a los clientes ubicar servicios de AD como LDAP y Kerberos. No asignan IP (DHCP), no cifran y no son resolución inversa." },
+ { tag:"ZONAS DNS INTEGRADAS EN AD", slides:"Diapositivas 24–25",
+   q:"¿Cuál es una ventaja de las zonas DNS integradas en Active Directory?",
+   o:["Solo el primer DC puede modificar la zona","Eliminan la necesidad de tener un servidor DNS","Permiten varios maestros: cualquier DC con DNS puede actualizar la zona, con actualizaciones dinámicas seguras","Requieren transferencias de zona manuales hacia servidores secundarios"], c:2,
+   ok:"La zona se almacena en AD DS y se replica automáticamente con la replicación de AD (multimaestro).",
+   ko:"En zonas integradas la replicación es multimaestro y automática, con actualizaciones dinámicas seguras. El esquema primario/secundario (Bind9) es el de zonas estándar." },
+ { tag:"FQDN", slides:"Diapositivas 26–27",
+   q:"Un equipo llamado “server” pertenece al dominio con nombre DNS “dominio.pe”. ¿Cuál es su FQDN?",
+   o:["dominio.pe.server","server@dominio.pe","server.dominio.pe","DOMINIO\\server"], c:2,
+   ok:"FQDN = Hostname + Nombre DNS del dominio → server.dominio.pe.",
+   ko:"FQDN = Hostname + Nombre DNS del dominio, es decir server.dominio.pe. “DOMINIO\\server” es una notación estilo NetBIOS/cuenta, no un FQDN." },
+ { tag:"RECURSIÓN E ITERACIÓN DNS", slides:"Diapositivas 31, 35–36",
+   q:"En una consulta iterativa, ¿qué hace el servidor DNS consultado si no conoce la respuesta final?",
+   o:["Inicia la búsqueda completa en nombre del cliente","Devuelve una referencia hacia otro servidor DNS más cercano al dominio buscado","Responde siempre que el nombre no existe","Envía al cliente toda la zona para que la analice"], c:1,
+   ok:"En la iteración el servidor responde con la mejor información que posee. La recursión (buscar hasta dar la respuesta definitiva) la hace el DNS local por el cliente.",
+   ko:"Iterar es responder con la mejor información disponible; si no hay respuesta final, se devuelve una referencia. Buscar hasta el final en nombre del cliente es recursión." },
+ { tag:"DIAGNÓSTICO", slides:"Diapositivas 23, 45, 47, 49",
+   q:"Un cliente muestra “No se pudo contactar con un controlador de dominio”. Según el flujo de diagnóstico del cierre de la sesión, ¿qué verificas primero?",
+   o:["Reinstalar el rol AD DS en el servidor","Ejecutar repadmin /replsummary antes que cualquier otra prueba","Conectividad y resolución DNS (ping y nslookup de registros SRV) antes de revisar AD DS","Restablecer la contraseña del usuario"], c:2,
+   ok:"El flujo sugerido es ping → nslookup SRV → dcdiag /test:DNS → repadmin /replsummary. El cliente necesita DNS para localizar al DC.",
+   ko:"Empieza por lo más básico: conectividad y DNS (ping, nslookup de SRV; también nltest /dsgetdc:). Luego dcdiag /test:DNS y repadmin /replsummary en el servidor." }
+];
+
+const META = [
+ { t:"Revisaré las diapositivas de los temas que fallé y repetiré esta autoevaluación.",
+   f:"Buena estrategia de recuperación: volver a la fuente y reevaluar cierra el ciclo. Para potenciarla, antes de repetir intenta predecir qué responderás y por qué." },
+ { t:"Practicaré en un laboratorio con un DC: nslookup, nltest, klist, dcdiag y repadmin.",
+   f:"Practicar con comandos reales convierte el conocimiento declarativo en habilidad. Anota qué esperabas ver y compáralo con la salida real: así detectas tus ideas erróneas." },
+ { t:"Explicaré con mis palabras la relación DNS–AD a un compañero (o en voz alta).",
+   f:"Explicar a otros revela lagunas que la lectura pasiva oculta. Si te trabas en algún punto, ahí está lo que debes reforzar primero." },
+ { t:"Aún no tengo claro dónde estuvo mi dificultad; consultaré al docente.",
+   f:"Reconocer lo que no sabes es metacognición valiosa. Lleva a la consulta ejemplos concretos de las preguntas donde dudaste, para recibir una retroalimentación precisa." }
+];
+
+const $ = id => document.getElementById(id);
+const SHAPES = ["▲","◆","●","■"];
+let i=0, score=0, streak=0, best=0, log=[], tInt=null, t0=0, locked=false, order=[], metaPick=-1, conf=50;
+
+function show(id){ ["start","quiz","metaCard","end"].forEach(s=>$(s).classList.toggle("hidden", s!==id)); window.scrollTo({top:0,behavior:"smooth"}); }
+function upd(){ $("pScore").textContent=score+" pts"; $("pStreak").textContent="🔥 "+streak; $("prog").style.width=(i/10*100)+"%"; }
+function shuffle(a){ const r=a.map((_,k)=>k); for(let k=r.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[r[k],r[j]]=[r[j],r[k]];} return r; }
+
+function start(){ i=0;score=0;streak=0;best=0;log=[];metaPick=-1;conf=50; $("refl").value=""; $("conf").value=50; $("confV").textContent="50%"; $("btnFinish").disabled=true; $("metaFb").innerHTML=""; upd(); renderQ(); show("quiz"); }
+
+function renderQ(){
+  const q=Q[i]; locked=false; order=shuffle(q.o);
+  $("qTag").textContent="PREGUNTA "+(i+1)+" DE 10 · "+q.tag;
+  $("qText").textContent=q.q; $("fbBox").innerHTML="";
+  const box=$("opts"); box.innerHTML="";
+  order.forEach((orig,pos)=>{
+    const b=document.createElement("button"); b.className="opt"; b.type="button";
+    b.innerHTML='<span class="sh">'+SHAPES[pos]+'</span><span>'+q.o[orig]+'</span>';
+    b.onclick=()=>answer(pos); box.appendChild(b);
+  });
+  upd(); startTimer();
 }
-@keyframes flick{0%,19%,21%,23%,25%,54%,56%,100%{opacity:1}20%,24%,55%{opacity:.55}}
-h1 .fl{animation:flick 5s infinite}
-.sub{color:var(--dim);font-size:15px;margin-bottom:22px}
-.rules{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 auto 26px;max-width:640px;text-align:left
+
+function startTimer(){
+  clearInterval(tInt); t0=Date.now();
+  const tb=$("tbar"), tm=$("qTimer"); tm.classList.remove("low"); tb.style.width="100%";
+  tInt=setInterval(()=>{
+    const el=(Date.now()-t0)/1000, left=Math.max(0,LIMIT-el);
+    tm.textContent=Math.ceil(left); tb.style.width=(left/LIMIT*100)+"%";
+    tm.classList.toggle("low", left<=8);
+    if(left<=0){ answer(-1); }
+  },100);
 }
-.rule{border:1px solid rgba(255,255,255,.14);border-radius:12px;pad
+
+function answer(pos){
+  if(locked) return; locked=true; clearInterval(tInt);
+  const q=Q[i], el=(Date.now()-t0)/1000, btns=[...$("opts").children];
+  const correctPos=order.indexOf(q.c), isOk = pos===correctPos;
+  let pts=0;
+  if(isOk){ pts=Math.round(1000*(1-(Math.min(el,LIMIT)/LIMIT)/2)); score+=pts; streak++; best=Math.max(best,streak); } else { streak=0; }
+  btns.forEach((b,k)=>{ b.disabled=true; if(k===correctPos) b.classList.add("right"); else if(k===pos) b.classList.add("wrong"); else b.classList.add("dim"); });
+  log.push({ok:isOk, timeout:pos===-1, pts});
+  upd();
+  const fb=document.createElement("div"); fb.className="fb "+(isOk?"ok":"ko");
+  const head = isOk ? "✔ ¡Correcto! +"+pts+" pts" : (pos===-1 ? "⏱ Se acabó el tiempo" : "✖ No es esa opción");
+  fb.innerHTML='<h3>'+head+'</h3><p>'+(isOk?q.ok:q.ko)+'</p><p class="ref">📖 Repasa: '+q.slides+'</p><div class="next"><button class="btn" id="btnNext">'+(i===8?'IR A METACOGNICIÓN ▶':'SIGUIENTE ▶')+'</button></div>';
+  $("fbBox").appendChild(fb);
+  $("btnNext").onclick=next; $("btnNext").focus();
+  fb.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function next(){ i++; upd(); if(i<=8){ renderQ(); } else { renderMeta(); } }
+
+function renderMeta(){
+  const box=$("metaOpts"); box.innerHTML="";
+  META.forEach((m,pos)=>{
+    const b=document.createElement("button"); b.className="opt"; b.type="button";
+    b.innerHTML='<span class="sh">'+SHAPES[pos]+'</span><span>'+m.t+'</span>';
+    b.onclick=()=>{ metaPick=pos; [...box.children].forEach((x,k)=>{x.classList.toggle("picked",k===pos);});
+      $("metaFb").innerHTML='<div class="fb mc"><h3>💡 Retroalimentación</h3><p>'+m.f+'</p></div>';
+      $("btnFinish").disabled=false; };
+    box.appendChild(b);
+  });
+  upd(); show("metaCard");
+}
+
+function finish(){
+  const ok=log.filter(l=>l.ok).length, pct=Math.round(ok/9*100);
+  $("prog").style.width="100%";
+  $("eScore").textContent=score; $("eOk").textContent=ok+"/9"; $("eStreak").textContent=best; $("ePct").textContent=pct+"%";
+  $("eLvl").textContent = pct>=89?"⚡ Nivel: Administrador experto" : pct>=67?"🔷 Nivel: Administrador sólido" : pct>=45?"🔹 Nivel: En desarrollo" : "🌱 Nivel: Reforzar fundamentos";
+  const diff=conf-pct; let msg;
+  if(Math.abs(diff)<=15) msg="Tu estimación fue <b>bien calibrada</b>: sabes bastante bien qué dominas y qué no.";
+  else if(diff>15) msg="Estimaste más de lo logrado (<b>sobreconfianza</b>). Revisa las preguntas falladas: ¿sentías seguridad sin comprobarla?";
+  else msg="Estimaste menos de lo logrado (<b>subconfianza</b>). Probablemente sabes más de lo que crees; confía más en tu razonamiento.";
+  $("eCal").innerHTML="🎯 <b>Calibración metacognitiva:</b> estimaste "+conf+"% y obtuviste "+pct+"%. "+msg;
+  const rev=$("eRev"); rev.innerHTML="";
+  Q.forEach((q,k)=>{ const l=log[k]; const li=document.createElement("li"); if(!l.ok) li.className="k";
+    li.innerHTML='<span class="m">'+(l.ok?"✔":"✖")+'</span><div>'+(k+1)+'. '+q.tag+(l.ok?'':'<small>📖 Repasa: '+q.slides+'</small>')+'</div>'; rev.appendChild(li); });
+  const r=$("refl").value.trim(), er=$("eRefl");
+  if(r||metaPick>=0){ er.style.display="block";
+    er.innerHTML='🧭 <b>Tu plan de mejora</b>'+(metaPick>=0?'<br>Estrategia: '+META[metaPick].t:'')+(r?'<br>Reflexión: “'+r.replace(/</g,"&lt;")+'”':''); }
+  else er.style.display="none";
+  show("end");
+}
+
+$("btnStart").onclick=start; $("btnAgain").onclick=start; $("btnFinish").onclick=finish;
+$("conf").oninput=e=>{ conf=Math.round(+e.target.value); $("confV").textContent=conf+"%"; };
+document.addEventListener("keydown",e=>{
+  if(!$("quiz").classList.contains("hidden") && !locked && "1234".includes(e.key)) answer(+e.key-1);
+  else if(!$("quiz").classList.contains("hidden") && locked && e.key==="Enter"){ const n=$("btnNext"); if(n) n.click(); }
+});
+</script>
+</body>
+</html>
