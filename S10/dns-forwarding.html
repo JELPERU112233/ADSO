@@ -1,1 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reenvío DNS (Forwarding) · Neón + RA + Autoconocimiento</title>
+<style>
+:root{--bg:#050d1a;--cy:#00d4ff;--mg:#ff2bd6;--gr:#00ff88;--am:#ffaa00;--rd:#ff4466;--vi:#cc44ff;--tx:#cfeaff;--mut:#6fa3c4;--pn:rgba(7,21,37,.88)}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0}
+body{background:radial-gradient(1000px 500px at 15% -10%,#0f2a66 0%,transparent 60%),radial-gradient(800px 500px at 100% 0%,#3a0f55 0%,transparent 55%),var(--bg);color:var(--tx);min-height:100vh}
+header{text-align:center;padding:16px 12px 2px}
+h1{margin:0;font-size:clamp(18px,3.4vw,30px);letter-spacing:3px;color:#fff;text-shadow:0 0 6px var(--cy),0 0 20px var(--cy),0 0 40px var(--mg)}
+h1 span{color:var(--mg);text-shadow:0 0 8px var(--mg)}
+.sub{margin:6px 0 0;font-size:12.5px;color:var(--mut)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:14px;padding:14px;max-width:1500px;margin:auto}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}}
+.left,.right{display:flex;flex-direction:column;gap:10px;min-width:0}
+.card{background:var(--pn);border:1px solid rgba(0,212,255,.35);border-radius:12px;padding:12px 14px;box-shadow:0 0 14px rgba(0,212,255,.15),inset 0 0 22px rgba(0,212,255,.04)}
+.card h2{margin:0 0 8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--cy);text-shadow:0 0 8px var(--cy)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.toolbar label{font-size:11px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+button{cursor:pointer;background:#071525;color:var(--cy);border:1px solid #1a4a6e;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:bold;transition:.15s}
+button:hover{background:#0d2540;border-color:var(--cy);box-shadow:0 0 10px rgba(0,212,255,.5)}
+button.on{background:#0a2a4a;border-color:var(--cy);color:#fff;box-shadow:0 0 12px var(--cy)}
+button.pri{border-color:var(--mg);color:#fff;box-shadow:0 0 10px rgba(255,43,214,.6)}
+button.pri:hover{background:var(--mg)}
+button:disabled{opacity:.35;cursor:not-allowed}
+.scs{display:flex;gap:6px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx);cursor:pointer;padding-bottom:7px}
+#stage{position:relative;aspect-ratio:680/400;border:1px solid var(--cy);border-radius:14px;overflow:hidden;background:#030a16;box-shadow:0 0 22px rgba(0,212,255,.45),inset 0 0 50px rgba(0,212,255,.1);perspective:1100px}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+#stage.ar #cam{display:block}
+#holo{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .15s ease-out}
+#holo svg{width:100%;height:100%;display:block}
+#stage.ar #holo{transform:rotateX(calc(34deg + var(--rx,0deg))) rotateZ(var(--rz,0deg)) scale(.9)}
+#stage.ar #holo svg{animation:floaty 4s ease-in-out infinite}
+@keyframes floaty{0%,100%{translate:0 0}50%{translate:0 -7px}}
+#stage.ar .floor{fill-opacity:.1}
+.scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,212,255,.045) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+.hud{position:absolute;left:12px;right:12px;top:8px;display:flex;justify-content:space-between;pointer-events:none;font-size:12px;color:#fff;text-shadow:0 0 8px var(--cy)}
+.hud b{color:var(--cy)}
+#arMsg{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(0,10,25,.8);border:1px solid var(--gr);color:var(--gr);padding:5px 12px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+#arMsg.show{opacity:1}
+.brk{position:absolute;width:26px;height:26px;border:2px solid var(--gr);opacity:0;pointer-events:none;filter:drop-shadow(0 0 5px var(--gr))}
+#stage.ar .brk{opacity:.8}
+.brk.a{left:10px;top:30px;border-right:0;border-bottom:0}.brk.b{right:10px;top:30px;border-left:0;border-bottom:0}
+.brk.c{left:10px;bottom:10px;border-right:0;border-top:0}.brk.d{right:10px;bottom:10px;border-left:0;border-top:0}
+.stepbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sbtn.active{background:#0a2a4a;border-color:var(--cy);color:#fff;box-shadow:0 0 10px var(--cy)}
+.sbtn.s-ok{border-color:var(--gr)}.sbtn.s-shaky{border-color:var(--am)}.sbtn.s-over{border-color:var(--rd)}.sbtn.s-weak{border-color:var(--mg)}
+.info-strip{font-size:12px;color:#8fc4e2;background:#030d1a;border:1px solid #0d2540;border-radius:8px;padding:8px 10px;min-height:38px;line-height:1.5}
+.info-strip b{color:var(--cy)}
+/* SVG */
+#ns text{font-family:Arial,Helvetica,sans-serif}
+.nnode{cursor:pointer;transition:opacity .35s}
+.nnode:hover>rect:first-of-type{filter:brightness(1.4)}
+#ns.focus .nnode:not(.act){opacity:.4}
+.nnode.act{filter:drop-shadow(0 0 7px rgba(255,255,255,.5))}
+.nnode.dead>rect:first-of-type{stroke:#ff4466!important}
+.arr{fill:none;stroke-width:2.2;stroke-linecap:round;opacity:0;transition:opacity .4s}
+.arr.old{opacity:.28}.arr.cur{opacity:1}.arr.dash{stroke-dasharray:6 4}
+.lab{font-size:10.5px;paint-order:stroke;stroke:#030a16;stroke-width:3px}
+.pulseRing{fill:none;stroke:#fff;stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:rp 1.6s ease-out infinite}
+@keyframes rp{from{transform:scale(1);opacity:.8}to{transform:scale(1.3);opacity:0}}
+.dpill{fill:#04122a;stroke:#1a4a6e;stroke-width:1;transition:.3s}
+.dpt{font-size:9px;fill:#6fa3c4}
+.dpill.miss{stroke:#ff4466;fill:#2a0a14}.dpill.hit{stroke:#00ff88;fill:#062a18}.dpill.use{stroke:#ff2bd6;fill:#2a0a2a;filter:url(#glow-c)}
+@keyframes neonPulse{0%,100%{opacity:1}50%{opacity:.7}}
+/* tarjetas */
+.stepno{font-size:11px;color:var(--mut);letter-spacing:1px;margin-bottom:4px}
+.stepno .tag{color:var(--mg);margin-left:6px}
+#stepCard h3{margin:0 0 8px;font-size:17px;color:#fff;text-shadow:0 0 8px var(--cy)}
+#stepCard p{font-size:13.5px;line-height:1.6;margin:0 0 10px}
+.watch,.concept,.fb{font-size:12.5px;line-height:1.55;border-radius:8px;padding:8px 10px;margin:8px 0}
+.watch{background:#04122a;border:1px solid #12385e}
+.watch ul{margin:4px 0 0;padding-left:18px}
+.concept{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.4);color:#b9ffd9}
+.fb.good{background:rgba(0,255,136,.1);border:1px solid var(--gr)}
+.fb.bad{background:rgba(255,68,102,.1);border:1px solid var(--rd)}
+.fb.skip{background:#04122a;border:1px solid #12385e}
+.codebox{font-family:Consolas,monospace;font-size:11.5px;background:#030d1a;border:1px solid #1a4a6e;border-radius:8px;padding:8px 10px;color:#7fc8ff;line-height:1.55;white-space:pre-wrap;margin:8px 0}
+.codebox *{font-family:Consolas,monospace}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.q p{font-size:14px!important}
+.conf{display:flex;gap:6px;margin:6px 0 8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--mut)}
+.conf button.sel{background:var(--mg);color:#fff;border-color:var(--mg)}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;font-weight:normal;line-height:1.4}
+.opt.good{background:rgba(0,255,136,.2);border-color:var(--gr)}.opt.bad{background:rgba(255,68,102,.2);border-color:var(--rd)}
+.warn{color:var(--am);font-size:12px;min-height:16px}
+#detail .body{font-size:13px;line-height:1.6;margin:0 0 8px}
+#detail pre{margin:0;white-space:pre-wrap;background:#030d1a;border:1px solid #1a4a6e;border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55;color:#7fc8ff;font-family:Consolas,monospace}
+#detail pre strong{color:#00ffcc}
+#detail h3{margin:0 0 6px;color:var(--cy);font-size:15px;text-shadow:0 0 8px var(--cy)}
+.kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.kc{border:1px solid #1a4a6e;border-radius:8px;padding:6px;text-align:center;font-size:11px;cursor:pointer;background:#04122a}
+.kc b{display:block;font-size:16px}
+.kc.ok{border-color:var(--gr);color:var(--gr)}.kc.shaky{border-color:var(--am);color:var(--am)}.kc.over{border-color:var(--rd);color:var(--rd)}.kc.weak{border-color:var(--mg);color:var(--mg)}
+.meter{height:10px;border-radius:6px;background:#02060f;border:1px solid var(--cy);overflow:hidden;margin:4px 0 8px}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg),var(--cy),var(--gr));transition:width .4s}
+.ktxt{font-size:12.5px;line-height:1.55;color:#b9d9ee}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.bd{font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid #28507a;color:#4d7a9c}
+.bd.got{color:#fff;border-color:var(--gr);box-shadow:0 0 10px var(--gr)}
+details{margin-top:8px;font-size:12.5px}
+summary{cursor:pointer;color:var(--cy);font-weight:bold}
+#ordBox{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+#ordBox button{font-weight:normal;text-align:left}
+#dec .case{font-size:13.5px;line-height:1.55;margin:0 0 6px}
+#dec .st{font-size:11.5px;color:var(--mut);margin-top:6px}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.shake{animation:shake .25s}
+footer{max-width:1500px;margin:0 auto;padding:4px 14px 26px;font-size:11.5px;line-height:1.55;color:#6f93b8}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>REENVÍO <span>DNS</span> · FORWARDING</h1>
+  <p class="sub">Del DNS local al reenviador: simulador SVG con modo RA · aprende prediciendo y mide tu propio conocimiento</p>
+</header>
 
+<div class="layout">
+  <div class="left">
+    <div class="card toolbar">
+      <label>Escenario
+        <span class="scs" id="scs"></span>
+      </label>
+      <label class="chk" id="fbWrap" style="display:none"><input type="checkbox" id="fb" checked> Usar root hints si el reenviador no responde</label>
+      <label class="chk"><input type="checkbox" id="pred" checked> Modo autoconocimiento (predecir antes de ver)</label>
+      <button id="bPlay">▶ Reproducir</button>
+      <button id="bAR" class="pri">🥽 Modo RA</button>
+    </div>
+
+    <div id="stage">
+      <video id="cam" playsinline muted></video>
+      <div id="holo">
+      <svg id="ns" viewBox="0 0 680 400" role="img">
+        <title>Reenvío DNS: cliente, DNS local con AD DS, reenviador, DNS del socio y jerarquía pública</title>
+        <desc>Diagrama interactivo del orden de decisión de un servidor DNS local: caché, zonas, reenviadores condicionales, reenviadores y root hints.</desc>
+        <defs>
+          <filter id="glow-b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-c" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-p" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <pattern id="gridp" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#0b2a4a" stroke-width=".5"/></pattern>
+        </defs>
+        <rect class="floor" width="680" height="400" fill="#030a16"/>
+        <rect width="680" height="400" fill="url(#gridp)" opacity=".7"/>
+
+        <rect x="10" y="30" width="382" height="352" rx="12" fill="none" stroke="#0d3a5c" stroke-dasharray="7 4"/>
+        <text x="22" y="22" font-size="11" fill="#2a7aa8">Red local · AD DS · corp.empresa.pe</text>
+        <rect x="404" y="30" width="268" height="352" rx="12" fill="none" stroke="#3a1a5c" stroke-dasharray="7 4"/>
+        <text x="416" y="22" font-size="11" fill="#7a4aa8">Internet</text>
+
+        <!-- Cliente -->
+        <g class="nnode" id="n-client" data-comp="client">
+          <rect x="48" y="222" width="84" height="50" rx="8" fill="#030d1a" stroke="#00ffcc" stroke-width="1.5" filter="url(#glow-c)"/>
+          <rect x="62" y="230" width="56" height="28" rx="3" fill="none" stroke="#00aa77"/><rect x="80" y="260" width="20" height="4" rx="1" fill="#00aa77"/>
+          <text x="90" y="288" font-size="10" fill="#00ffcc" text-anchor="middle">Computer1</text>
+          <text x="90" y="300" font-size="9" fill="#2a8a70" text-anchor="middle">10.40.10.5</text>
+        </g>
+        <!-- DNS local -->
+        <g class="nnode" id="n-dns" data-comp="dns">
+          <rect x="240" y="170" width="120" height="134" rx="9" fill="#03140e" stroke="#00ccff" stroke-width="1.5" filter="url(#glow-b)"/>
+          <text x="300" y="187" font-size="9.5" fill="#00ccff" text-anchor="middle" font-weight="bold">DNS local · AD DS</text>
+          <g id="pills"></g>
+          <text x="300" y="320" font-size="10" fill="#00ccff" text-anchor="middle">DNS local (DC)</text>
+          <text x="300" y="332" font-size="9" fill="#2a8ac0" text-anchor="middle">10.40.10.2</text>
+        </g>
+        <!-- Reenviador -->
+        <g class="nnode" id="n-fwd" data-comp="fwd">
+          <text x="480" y="42" font-size="10" fill="#ffaa00" text-anchor="middle" font-weight="bold">Reenviador</text>
+          <text x="480" y="54" font-size="9" fill="#cc8800" text-anchor="middle">198.51.100.53</text>
+          <rect x="440" y="60" width="80" height="50" rx="8" fill="#1a1008" stroke="#ffaa00" stroke-width="1.5" filter="url(#glow-c)"/>
+          <rect x="450" y="68" width="60" height="6" rx="2" fill="none" stroke="#996600"/><rect x="450" y="79" width="60" height="6" rx="2" fill="none" stroke="#996600"/><rect x="450" y="90" width="60" height="6" rx="2" fill="none" stroke="#996600"/>
+          <circle cx="503" cy="71" r="1.8" fill="#ffaa00"/><circle cx="503" cy="82" r="1.8" fill="#ffaa00"/><circle cx="503" cy="93" r="1.8" fill="#ffaa00"/>
+        </g>
+        <!-- DNS del socio -->
+        <g class="nnode" id="n-partner" data-comp="partner">
+          <rect x="440" y="300" width="80" height="52" rx="8" fill="#1a0a18" stroke="#ff2bd6" stroke-width="1.5" filter="url(#glow-c)"/>
+          <rect x="450" y="309" width="60" height="6" rx="2" fill="none" stroke="#992a80"/><rect x="450" y="320" width="60" height="6" rx="2" fill="none" stroke="#992a80"/><rect x="450" y="331" width="60" height="6" rx="2" fill="none" stroke="#992a80"/>
+          <text x="480" y="368" font-size="10" fill="#ff2bd6" text-anchor="middle" font-weight="bold">DNS del socio</text>
+          <text x="480" y="379" font-size="9" fill="#a02a8a" text-anchor="middle">203.0.113.53 · socio.com</text>
+        </g>
+        <!-- Jerarquía -->
+        <g class="nnode" id="n-root" data-comp="root">
+          <rect x="580" y="28" width="88" height="34" rx="7" fill="#12081a" stroke="#cc44ff" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text x="624" y="43" font-size="10" fill="#cc44ff" text-anchor="middle" font-weight="bold">Raíz (.)</text>
+          <text x="624" y="55" font-size="8.5" fill="#8a2fb0" text-anchor="middle">servidores raíz</text>
+        </g>
+        <g class="nnode" id="n-tld" data-comp="tld">
+          <rect x="580" y="98" width="88" height="34" rx="7" fill="#12081a" stroke="#cc44ff" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text x="624" y="113" font-size="10" fill="#cc44ff" text-anchor="middle" font-weight="bold">TLD .com</text>
+          <text x="624" y="125" font-size="8.5" fill="#8a2fb0" text-anchor="middle">registro del TLD</text>
+        </g>
+        <g class="nnode" id="n-auth" data-comp="auth">
+          <rect x="580" y="168" width="88" height="34" rx="7" fill="#12081a" stroke="#cc44ff" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text x="624" y="183" font-size="10" fill="#cc44ff" text-anchor="middle" font-weight="bold">Autoritativo</text>
+          <text x="624" y="195" font-size="8.5" fill="#8a2fb0" text-anchor="middle">ejemplo.com</text>
+        </g>
+        <text x="624" y="222" font-size="9" fill="#6a3a90" text-anchor="middle">Jerarquía DNS pública</text>
+
+        <g id="arrowsL"></g>
+        <g id="labelsL"></g>
+        <g id="ringsL"></g>
+        <circle id="pkt" cx="0" cy="0" r="5.5" fill="#00ffcc" opacity="0" filter="url(#glow-p)"/>
+      </svg>
+      </div>
+      <div class="scan"></div>
+      <i class="brk a"></i><i class="brk b"></i><i class="brk c"></i><i class="brk d"></i>
+      <div class="hud"><span>Paso <b id="hStep">0</b>/<b id="hTot">0</b></span><span id="hMode"></span></div>
+      <div id="arMsg"></div>
+    </div>
+
+    <div class="stepbar" id="stepbar"></div>
+    <div class="info-strip" id="info"></div>
+  </div>
+
+  <aside class="right">
+    <div class="card" id="stepCard"></div>
+    <div class="card" id="detail"><h2>Componente</h2><p class="body">Haz clic en cualquier elemento del diagrama (cliente, DNS local, reenviador, DNS del socio, raíz, TLD, autoritativo) para ver su función y comandos de ejemplo.</p></div>
+    <div class="card" id="dec"><h2>🎯 Reto de decisión</h2><div id="decBody"></div></div>
+    <div class="card" id="know"></div>
+  </aside>
+</div>
+
+<footer>
+  <b>Sobre los datos:</b> el orden de decisión del DNS local (caché → zonas propias → reenviadores condicionales → reenviadores → root hints), los flags (RD, RA, AA) y los comandos de ejemplo (PowerShell de DnsServer y directivas de BIND) provienen de conocimiento general de DNS (RFC 1034/1035) y de mi entrenamiento; no se consultaron fuentes en línea al generar este archivo, así que conviene verificarlos en la documentación de tu versión. Los valores «≈3 s» de tiempo de espera de reenvío y «1200 s» de TTL de registros dinámicos son valores por defecto típicos que recuerdo, no garantizados. Todas las IP son ficticias: 10.40.10.x (red privada, RFC 1918) y 198.51.100.x / 203.0.113.x (rangos reservados para documentación, RFC 5737). Los nombres (ejemplo.com, socio.com, corp.empresa.pe) son ilustrativos. La RA es simulada (cámara + holograma inclinable), sin marcadores ni WebXR.
+</footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const defs=$('#ns defs');
+
+/* ---------- datos del laboratorio ---------- */
+const LOC='10.40.10.2',CLI='10.40.10.5',FWD='198.51.100.53',SOC='203.0.113.53';
+const N1='www.ejemplo.com',A1='203.0.113.80';
+const N2='www.socio.com',A2='203.0.113.120';
+const N3='srv-app.corp.empresa.pe',A3='10.40.10.25';
+
+/* ---------- flechas ---------- */
+const ARR={
+ c_q:{d:'M134 240 L238 240',c:'#00ffcc'},
+ c_r:{d:'M238 264 L134 264',c:'#00ff88',dash:1},
+ c_x:{d:'M238 264 L134 264',c:'#ff4466',dash:1},
+ f_q:{d:'M360 190 L438 86',c:'#ffaa00'},
+ f_r:{d:'M440 100 L362 204',c:'#00ff88',dash:1},
+ p_q:{d:'M360 276 L438 316',c:'#ff2bd6'},
+ p_r:{d:'M440 336 L362 290',c:'#00ff88',dash:1},
+ fr_root:{d:'M520 70 L578 45',c:'#cc44ff',rt:1},
+ fr_tld:{d:'M520 84 L578 115',c:'#cc44ff',rt:1},
+ fr_auth:{d:'M520 100 L578 185',c:'#cc44ff',rt:1},
+ h_root:{d:'M360 214 L578 52',c:'#ffaa00',rt:1},
+ h_tld:{d:'M360 224 L578 122',c:'#ffaa00',rt:1},
+ h_auth:{d:'M360 234 L578 192',c:'#ffaa00',rt:1}
+};
+function marker(c){
+  const id='m'+c.slice(1);
+  if(!document.getElementById(id)){
+    const m=el('marker',{id,viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},defs);
+    el('path',{d:'M2 1L8 5L2 9',fill:'none',stroke:c,'stroke-width':1.8,'stroke-linecap':'round','stroke-linejoin':'round'},m);
+  }
+  return 'url(#'+id+')';
+}
+const arrEl={};
+for(const k in ARR)arrEl[k]=el('path',{d:ARR[k].d,class:'arr'+(ARR[k].dash?' dash':''),stroke:ARR[k].c,'marker-end':marker(ARR[k].c)},$('#arrowsL'));
+
+/* ---------- casillas de decisión dentro del DNS local ---------- */
+const PILLS=[['cache','① Caché'],['zone','② Zonas AD'],['cond','③ Reenvío condicional'],['fwd','④ Reenviador'],['root','⑤ Root hints']];
+const pillEl={};
+PILLS.forEach(([k,t],i)=>{
+  const y=196+i*20;
+  const g=el('g',{},$('#pills'));
+  pillEl[k]=el('rect',{x:250,y,width:100,height:16,rx:4,class:'dpill'},g);
+  const tx=el('text',{x:300,y:y+11.5,'text-anchor':'middle',class:'dpt'},g);tx.textContent=t;
+});
+function setParts(p){PILLS.forEach(([k])=>{pillEl[k].setAttribute('class','dpill'+(p&&p[k]?' '+p[k]:''))})}
+
+/* ---------- escenarios ---------- */
+let sc='fwd',rootFB=true;
+const SCN=[['fwd','Reenviador'],['cond','Condicional'],['zone','Zona AD local'],['down','Reenviador caído'],['cache','Caché']];
+const OPT_ORDER_Q=(ask,opts,ok,why)=>({ask,opts,ok,why});
+
+function build(id){
+  const S=[];
+  const intro=(title,text,watch,concept)=>S.push({short:'Inicio',title,text,watch,concept,act:[],arrows:[],labels:[],parts:{}});
+  const cli=(N,extra)=>({short:'Cliente→DNS',title:'Computer1 pregunta a su DNS local',act:['client','dns'],arrows:['c_q'],parts:{},
+    labels:[{t:`¿IP de ${N}?  RD=1`,x:48,y:212,c:'#00ffcc'}],
+    text:`El cliente DNS de Computer1 revisa su caché y el archivo hosts y no encuentra <b>${N}</b>. Envía la consulta al servidor DNS configurado (${LOC}) con el flag <b>RD</b> (<i>Recursion Desired</i>): pide la respuesta <b>final</b>, no una pista.`,
+    watch:['La flecha cian lleva la pregunta al DNS local.','El cliente hace UNA sola pregunta y delega todo el trabajo.'],
+    concept:'Cliente → servidor DNS = consulta recursiva (RD=1).',
+    code:`;; Computer1 (${CLI}) → ${LOC}\n;; opcode: QUERY   flags: rd\n;; QUESTION:\n${N}.   IN  A`,
+    q:OPT_ORDER_Q(`Computer1 pide ${N} con el flag RD activado. ¿Qué le está pidiendo al DNS local?`,['Una respuesta final: que el servidor haga la resolución','Una referencia hacia el siguiente servidor','Solo lo que ya tenga en caché'],0,'RD significa «Recursion Desired»: el cliente quiere la respuesta completa y el servidor se encarga de conseguirla.'),...extra});
+  const back=(N,A,o={})=>({short:'Respuesta→Cliente',title:o.title||'El DNS local responde a Computer1',act:['dns','client'],arrows:[o.fail?'c_x':'c_r'],parts:{},
+    labels:[{t:o.fail?'SERVFAIL':`${N} → ${A}`,x:238,y:290,c:o.fail?'#ff4466':'#00ff88',a:'end'}],
+    text:o.text||`El DNS local entrega la IP final a Computer1 con los flags <b>qr rd ra</b>. <b>RA</b> (<i>Recursion Available</i>) indica que el servidor ofrece recursión. Computer1 guarda el resultado en su caché y abre la conexión.`,
+    watch:['Flecha punteada: viaja la respuesta de vuelta al cliente.',o.fail?'El cliente recibe un error, no una IP.':'El cliente nunca supo cuántos servidores participaron.'],
+    concept:o.concept||'RA = el servidor puede hacer recursión para los clientes.',
+    code:o.code||`;; ${LOC} → Computer1\n;; flags: qr rd ra   rcode: NOERROR\n;; ANSWER:\n${N}.  300  IN  A  ${A}\n\n;; Computer1 abre TCP → ${A}:443`,
+    q:o.q||OPT_ORDER_Q('¿Qué indica el flag RA en la respuesta al cliente?',['El servidor ofrece recursión (Recursion Available)','La respuesta es autoritativa','El cliente debe reintentar'],0,'RA lo pone el servidor que acepta hacer recursión. El flag de respuesta autoritativa es AA.')});
+
+  if(id==='fwd'){
+    intro('Reenvío estándar: delegar la recursión',`Computer1 quiere abrir <b>${N1}</b>. El DNS local de la empresa (un controlador de dominio con AD DS) tiene configurado un <b>reenviador</b> (${FWD}, p. ej. el DNS de tu ISP). <b>Reenviar</b> es pedirle a otro servidor recursivo que resuelva por ti y quedarte con su respuesta final.`,
+      ['Las cinco casillas dentro del DNS local son el orden en que decide.','Esta vez raíz, TLD y autoritativo los consulta el reenviador, no el DNS local.'],'Reenviar ≠ iterar: el DNS local pide la respuesta final (RD=1) a otro servidor.');
+    S.push(cli(N1,{}));
+    S.push({short:'DNS decide',title:'El DNS local busca primero en lo que ya sabe',act:['dns'],arrows:[],parts:{cache:'miss',zone:'miss',cond:'miss'},
+      labels:[{t:'① caché ✖  ② zonas ✖  ③ reglas ✖',x:300,y:164,c:'#ff8899',a:'middle'}],
+      text:`Antes de reenviar nada, el DNS local revisa: <b>① su caché</b> (vacía), <b>② las zonas que administra</b> (${N1} no pertenece a corp.empresa.pe) y <b>③ los reenviadores condicionales</b> (ninguna regla coincide). Solo entonces pasa al siguiente nivel: el reenviador global.`,
+      watch:['Las casillas ①②③ se ponen en rojo: ninguna sirve.','La casilla ④ será la siguiente.'],concept:'Orden típico de decisión: caché → zonas → reenvío condicional → reenviador → root hints.',
+      code:`; ① caché: sin entrada para ${N1}\n; ② zona corp.empresa.pe: el nombre no le pertenece\n; ③ reenviador condicional: ninguna regla coincide\n; → usar reenviador global (${FWD})`,
+      q:OPT_ORDER_Q('Antes de reenviar la consulta a nadie, ¿qué hace el DNS local?',['Reenvía siempre al reenviador sin mirar nada','Revisa su caché, sus zonas y sus reglas propias','Pregunta directamente a la raíz'],1,'Un servidor DNS responde primero con lo que ya sabe; reenviar cuesta tiempo y tráfico.')});
+    S.push({short:'Reenvía',title:'El DNS local reenvía al reenviador con RD=1',act:['dns','fwd'],arrows:['f_q'],parts:{fwd:'use'},
+      labels:[{t:'reenvía · RD=1',x:404,y:158,c:'#ffaa00'}],
+      text:`El DNS local envía la consulta a <b>${FWD}</b> pidiendo <b>recursión completa</b> (RD=1). No resuelve él mismo: delega. El reenviador es un resolvedor recursivo, normalmente de tu ISP o un DNS público, con su propia caché.`,
+      watch:['La flecha ámbar sale de la casilla ④ hacia el reenviador.','Solo este servidor necesita salida a Internet.'],concept:'Con reenviador, solo el reenviador sale a Internet: menos reglas de firewall y caché compartida.',
+      code:`;; ${LOC} → ${FWD}   (reenviador)\n;; flags: rd   ← el DNS local pide recursión completa\n;; QUESTION:\n${N1}.   IN  A`,
+      q:OPT_ORDER_Q('El DNS local tiene un reenviador. ¿Qué hace con la consulta sin respuesta local?',['La resuelve él mismo desde la raíz','La envía al reenviador pidiendo recursión (RD=1)','La descarta'],1,'Reenviar significa delegar la resolución completa en otro servidor recursivo.')});
+    S.push({short:'Reenviador resuelve',title:'El reenviador hace la recursión por ti',act:['fwd','root','tld','auth'],arrows:['fr_root','fr_tld','fr_auth'],parts:{},
+      labels:[{t:'consultas iterativas del reenviador',x:540,y:236,c:'#cc44ff',a:'middle'}],
+      text:`El reenviador mira primero su propia caché; si no tiene la respuesta, resuelve <b>de forma iterativa</b>: ① pregunta a la <b>raíz</b> (le responde con una referencia al TLD), ② pregunta al <b>TLD</b> (referencia al autoritativo) y ③ pregunta al <b>autoritativo</b>, que responde con la IP.`,
+      watch:['Cada flecha violeta va y vuelve: pregunta y referencia/respuesta.','Aquí ocurre lo que vimos en el simulador de root hints.'],concept:'Dentro del reenviador la resolución es iterativa: raíz → TLD → autoritativo.',
+      code:`;; Reenviador (flags normalmente sin rd hacia autoritativos)\n① raíz        → referencia: servidores del TLD .com\n② TLD .com    → referencia: NS autoritativos de ejemplo.com\n③ autoritativo → ${N1}. 300 IN A ${A1}   (aa)`,
+      q:OPT_ORDER_Q('Dentro del reenviador, ¿cómo se obtiene la IP?',['Con consultas iterativas: raíz → TLD → autoritativo','Preguntando a Computer1','Con un archivo hosts'],0,'El reenviador actúa como cualquier resolvedor recursivo: sigue las referencias hasta el servidor autoritativo.')});
+    S.push({short:'Respuesta+caché',title:'La respuesta vuelve y se guarda en caché',act:['fwd','dns'],arrows:['f_r'],parts:{cache:'use'},
+      labels:[{t:`${N1} → ${A1}  (TTL 300 s)`,x:300,y:350,c:'#00ff88',a:'middle'}],
+      text:`El reenviador devuelve la respuesta final (<b>qr rd ra</b>). El DNS local la <b>guarda en caché durante el TTL</b> (300 s): si otro equipo pregunta lo mismo, se responderá sin volver a reenviar.`,
+      watch:['La casilla ① Caché se ilumina: se está guardando la respuesta.','Flecha punteada verde: respuesta de vuelta.'],concept:'La caché del DNS local ahorra reenvíos hasta que expira el TTL.',
+      code:`;; ${FWD} → ${LOC}\n;; flags: qr rd ra   rcode: NOERROR\n;; ANSWER:\n${N1}.  300  IN  A  ${A1}\n\n; caché del DNS local: válida 300 s`,
+      q:OPT_ORDER_Q('El DNS local recibe la respuesta del reenviador. ¿Qué hace con ella?',['La entrega al cliente y la guarda en caché durante el TTL','La descarta tras entregarla','La reenvía a la raíz'],0,'La respuesta se cachea el tiempo del TTL, así las siguientes consultas iguales son inmediatas.')});
+    S.push(back(N1,A1));
+  }
+  if(id==='cond'){
+    intro('Reenviador condicional: un destino por dominio',`Tu empresa colabora con un socio y necesita resolver <b>${N2}</b> a través del DNS del socio (${SOC}), accesible por una VPN. Un <b>reenviador condicional</b> dice: «las consultas de <b>socio.com</b> van a este servidor», sin pasar por el reenviador global.`,
+      ['Fíjate en que ahora se usa la casilla ③ y no la ④.','El reenviador global y la jerarquía pública no participan.'],'La regla condicional gana al reenviador global para los nombres de ese dominio.');
+    S.push(cli(N2,{}));
+    S.push({short:'Coincide regla',title:'El DNS local encuentra una regla condicional',act:['dns'],arrows:[],parts:{cache:'miss',zone:'miss',cond:'use'},
+      labels:[{t:'regla: socio.com → 203.0.113.53',x:300,y:164,c:'#ff2bd6',a:'middle'}],
+      text:`Caché vacía y ${N2} no está en las zonas locales, pero el sufijo <b>socio.com</b> coincide con un <b>reenviador condicional</b>. Esa regla tiene prioridad sobre el reenviador global para ese dominio.`,
+      watch:['La casilla ③ se ilumina en magenta: es la elegida.'],concept:'Reenvío condicional = «para este dominio, pregunta a este servidor».',
+      code:`; ① caché: sin entrada\n; ② zonas: no pertenece a corp.empresa.pe\n; ③ reenviador condicional: socio.com → ${SOC}  ✔\n# Add-DnsServerConditionalForwarderZone -Name "socio.com" -MasterServers ${SOC}`,
+      q:OPT_ORDER_Q('Existe un reenviador condicional para socio.com y también un reenviador global. ¿Cuál se usa para www.socio.com?',['El reenviador global','El condicional: es la regla específica para ese dominio','Ninguno: va directo a la raíz'],1,'Las reglas condicionales se evalúan antes que los reenviadores globales y solo aplican al dominio indicado.')});
+    S.push({short:'Reenvía al socio',title:'Reenvío directo al DNS del socio',act:['dns','partner'],arrows:['p_q'],parts:{cond:'use'},
+      labels:[{t:'reenvía · RD=1',x:380,y:318,c:'#ff2bd6',a:'end'}],
+      text:`El DNS local envía la consulta a <b>${SOC}</b> con RD=1. No hay raíz, TLD ni reenviador global en el camino: el DNS del socio es autoritativo de su zona y puede contestar directamente.`,
+      watch:['Una sola flecha magenta: el camino más corto.'],concept:'El reenvío condicional evita saltos y permite resolver zonas privadas del socio.',
+      code:`;; ${LOC} → ${SOC}\n;; flags: rd\n;; QUESTION:\n${N2}.   IN  A`,
+      q:OPT_ORDER_Q('¿Por qué no hace falta consultar raíz ni TLD en este caso?',['Porque la regla indica directamente el servidor que responde por socio.com','Porque la raíz está caída','Porque el cliente ya conoce la IP'],0,'La regla condicional ya señala quién responde por ese dominio; no hace falta recorrer la jerarquía.')});
+    S.push({short:'Socio responde',title:'El DNS del socio responde con autoridad',act:['partner','dns'],arrows:['p_r'],parts:{cond:'hit',cache:'use'},
+      labels:[{t:`${N2} → ${A2}  aa`,x:380,y:352,c:'#00ff88',a:'end'}],
+      text:`El DNS del socio es <b>autoritativo</b> de socio.com y responde con el flag <b>aa</b> (<i>Authoritative Answer</i>). El DNS local entrega y <b>guarda en caché</b> la respuesta durante su TTL.`,
+      watch:['Flecha punteada verde: respuesta autoritativa.','Casilla ① Caché iluminada: se guarda.'],concept:'AA = la respuesta viene de un servidor que es autoridad de esa zona.',
+      code:`;; ${SOC} → ${LOC}\n;; flags: qr aa rd   rcode: NOERROR\n;; ANSWER:\n${N2}.  300  IN  A  ${A2}`,
+      q:OPT_ORDER_Q('El DNS del socio es autoritativo para su zona. ¿Qué flag de la respuesta lo indica?',['aa (Authoritative Answer)','rd (Recursion Desired)','tc (Truncated)'],0,'AA lo activa el servidor que es autoridad de la zona consultada.')});
+    S.push(back(N2,A2));
+  }
+  if(id==='zone'){
+    intro('Zona AD local: no hace falta reenviar',`Computer1 pide <b>${N3}</b>, un nombre interno de la zona <b>corp.empresa.pe</b>, alojada en el propio DNS local como <b>zona integrada en AD DS</b> (se replica entre controladores de dominio). Aquí el DNS local es la <b>autoridad</b>: no reenvía nada.`,
+      ['Solo se activa la casilla ② Zonas AD.','Ni reenviador ni Internet participan.'],'Si el DNS local es autoritativo de la zona, responde él mismo.');
+    S.push(cli(N3,{}));
+    S.push({short:'Zona responde',title:'El DNS local responde desde su zona (autoritativo)',act:['dns'],arrows:[],parts:{cache:'miss',zone:'hit'},
+      labels:[{t:`${N3} → ${A3}  aa`,x:300,y:164,c:'#00ff88',a:'middle'}],
+      text:`Caché sin entrada, pero el nombre pertenece a una zona que el servidor aloja. Busca en ella el registro A y responde con <b>aa</b>. Los registros dinámicos suelen tener un TTL de 1200 s (valor típico en Windows; verifica el tuyo).`,
+      watch:['Casilla ② en verde: acierto en la zona.','No se envía ninguna flecha hacia fuera.'],concept:'Zona local autoritativa = respuesta inmediata y sin tráfico externo.',
+      code:`; ① caché: sin entrada\n; ② zona corp.empresa.pe (AD-integrada): ✔ encontrado\n;; ANSWER:\n${N3}.  1200  IN  A  ${A3}   (aa)`,
+      q:OPT_ORDER_Q(`¿Hace falta salir a Internet o a un reenviador para resolver ${N3}?`,['Sí, siempre al reenviador','No: el DNS local es autoritativo de esa zona','Sí, a la raíz primero'],1,'Cuando el servidor aloja la zona, responde directamente con autoridad.')});
+    S.push(back(N3,A3,{text:`El DNS local responde a Computer1 con <b>qr aa rd ra</b>: respuesta autoritativa y con recursión disponible. Todo ocurrió dentro de la red local.`,
+      code:`;; ${LOC} → Computer1\n;; flags: qr aa rd ra   rcode: NOERROR\n;; ANSWER:\n${N3}.  1200  IN  A  ${A3}`,
+      q:OPT_ORDER_Q('¿Qué flag distingue esta respuesta de una obtenida mediante un reenviador?',['aa (respuesta autoritativa)','rd','tc'],0,'Cuando responde el propio servidor de la zona, activa AA; si la obtiene de otro, normalmente no lo hace.')}));
+  }
+  if(id==='down'){
+    intro('Reenviador caído: ¿hay plan B?',`El reenviador (${FWD}) <b>no responde</b>. ¿Qué hace el DNS local? Depende de una opción: <b>«Usar root hints si no hay reenviadores disponibles»</b> (en BIND: <i>forward first</i> frente a <i>forward only</i>). Cambia la casilla de arriba y compara.`,
+      ['Cambia la casilla y reinicia: el desenlace cambia.','El cliente solo ve éxito o error.'],'Forward first = plan B con root hints. Forward only = sin plan B.');
+    S.push(cli(N1,{}));
+    S.push({short:'DNS decide',title:'Caché, zonas y reglas no sirven',act:['dns'],arrows:[],parts:{cache:'miss',zone:'miss',cond:'miss',fwd:'use'},
+      labels:[{t:'→ reenviador global',x:300,y:164,c:'#ffaa00',a:'middle'}],
+      text:`Igual que en el reenvío estándar: nada en caché, nada en zonas, ninguna regla condicional. Toca usar el reenviador global (${FWD}).`,
+      watch:['Casillas ①②③ en rojo; ④ activa.'],concept:'El reenviador global es el último recurso antes de las root hints.',
+      code:`; ① caché ✖  ② zonas ✖  ③ reglas ✖\n; → ④ reenviador ${FWD}`,
+      q:OPT_ORDER_Q('Si no hay caché, zona ni regla condicional, ¿cuál es el siguiente paso del DNS local?',['Probar el reenviador global','Rendirse y devolver error','Preguntar a Computer1'],0,'El reenviador global es el siguiente nivel de la cadena de decisión.')});
+    S.push({short:'Timeout',title:'El reenviador no responde (timeout)',act:['dns','fwd'],arrows:['f_q'],fail:1,parts:{fwd:'miss'},
+      labels:[{t:'✖ sin respuesta (timeout)',x:404,y:158,c:'#ff4466'}],
+      text:`El DNS local envía la consulta, pero el reenviador <b>no contesta</b>. Espera hasta agotar el tiempo de espera de reenvío (por defecto unos 3 s en Windows; configurable con <i>-Timeout</i>) y declara fallido ese reenviador.`,
+      watch:['El reenviador se vuelve rojo.','Es un retraso perceptible para el usuario.'],concept:'Un reenviador caído añade latencia antes de pasar al plan B.',
+      code:`;; ${LOC} → ${FWD}\n;; QUESTION: ${N1}. IN A\n;; ... sin respuesta\n;; tiempo de espera agotado (≈3 s, valor por defecto típico)`,
+      q:OPT_ORDER_Q('El reenviador no responde. ¿Qué ocurre justo después de agotarse el tiempo de espera?',['Se prueba el siguiente reenviador o el plan B configurado','El cliente recibe la IP de todos modos','El DNS local se apaga'],0,'Se intenta otro reenviador si lo hay; si no, depende de la opción de root hints.')});
+    if(rootFB){
+      S.push({short:'Root hints',title:'Plan B: el DNS local resuelve con root hints',act:['dns','root','tld','auth'],arrows:['h_root','h_tld','h_auth'],fail:1,parts:{fwd:'miss',root:'use'},
+        labels:[{t:'recursión propia desde la raíz',x:430,y:262,c:'#ffaa00',a:'middle'}],
+        text:`Con «usar root hints» <b>activado</b>, el DNS local deja de delegar y <b>resuelve él mismo</b> de forma iterativa: pregunta a la raíz, luego al TLD y luego al autoritativo, igual que en el simulador anterior.`,
+        watch:['Ahora las flechas ámbar salen del DNS local, no del reenviador.','Casilla ⑤ activa.'],concept:'Root hints = red de seguridad cuando no hay reenviadores disponibles.',
+        code:`; ⑤ root hints → iteración propia\n① raíz        → referencia al TLD .com\n② TLD .com    → referencia al autoritativo\n③ autoritativo → ${N1}. 300 IN A ${A1}  (aa)\n# Set-DnsServerForwarder -IPAddress ${FWD} -UseRootHint $true`,
+        q:OPT_ORDER_Q('Con «usar root hints» activado y el reenviador caído, ¿qué hace el DNS local?',['Resuelve él mismo desde la raíz','Devuelve error inmediatamente','Espera a que vuelva el reenviador'],0,'Esa opción permite recurrir a la resolución iterativa propia como plan B.')});
+      S.push({short:'Respuesta+caché',title:'Resuelto por su cuenta y guardado en caché',act:['dns'],arrows:[],fail:1,parts:{root:'hit',cache:'use'},
+        labels:[{t:`${N1} → ${A1}  (TTL 300 s)`,x:300,y:350,c:'#00ff88',a:'middle'}],
+        text:`El DNS local obtiene la IP del autoritativo, la guarda en caché (300 s) y se la entregará a Computer1. El cliente no nota el fallo del reenviador, salvo por la demora del timeout.`,
+        watch:['Casilla ① iluminada: se cachea la respuesta.'],concept:'La caché reduce el impacto de futuros fallos del reenviador durante el TTL.',
+        code:`;; resultado propio: ${N1}. 300 IN A ${A1}\n; caché del DNS local: válida 300 s`,
+        q:OPT_ORDER_Q('Mientras la respuesta siga en caché y el reenviador siga caído, ¿qué pasará con la misma consulta?',['Se responde desde caché sin tocar al reenviador','Se vuelve a esperar el timeout','Falla siempre'],0,'Una entrada vigente en caché se sirve directamente.')});
+      S.push(back(N1,A1,{text:`El DNS local entrega la IP a Computer1 (<b>qr rd ra</b>). Para el usuario todo funcionó, con una espera adicional por el timeout.`}));
+    }else{
+      S.push({short:'Sin plan B',title:'«Forward only»: no hay root hints',act:['dns'],arrows:[],fail:1,parts:{fwd:'miss',root:'miss'},
+        labels:[{t:'sin plan B → SERVFAIL',x:300,y:164,c:'#ff4466',a:'middle'}],
+        text:`Con «usar root hints» <b>desactivado</b> (<i>forward only</i>), el DNS local solo puede usar reenviadores. Como el único no responde, no tiene a dónde ir y producirá un error <b>SERVFAIL</b>.`,
+        watch:['Casilla ⑤ en rojo: deshabilitada.','El fallo se propaga al cliente.'],concept:'Forward only es más restrictivo (control de salida) pero depende por completo del reenviador.',
+        code:`; ④ reenviador ${FWD}: sin respuesta\n; ⑤ root hints: deshabilitadas\n; → rcode: SERVFAIL\n# Set-DnsServerForwarder -IPAddress ${FWD} -UseRootHint $false`,
+        q:OPT_ORDER_Q('Con «usar root hints» desactivado y el único reenviador caído, ¿qué recibe el cliente?',['Un error (SERVFAIL)','La IP correcta de todos modos','Una respuesta desde la raíz'],0,'Sin reenviadores operativos ni root hints, el servidor no puede resolver nombres externos.')});
+      S.push(back(N1,A1,{fail:1,title:'El DNS local devuelve SERVFAIL a Computer1',text:`El DNS local responde a Computer1 con <b>rcode SERVFAIL</b>: no pudo completar la resolución. Para el usuario, el sitio «no existe» hasta que el reenviador vuelva o se habiliten las root hints.`,
+        code:`;; ${LOC} → Computer1\n;; flags: qr rd ra   rcode: SERVFAIL\n;; QUESTION: ${N1}. IN A\n;; (sin sección ANSWER)`,concept:'SERVFAIL = «no pude resolverlo», no «el nombre no existe» (eso sería NXDOMAIN).',
+        q:OPT_ORDER_Q('¿Qué significa SERVFAIL?',['El servidor no pudo completar la resolución','El nombre no existe (NXDOMAIN)','La respuesta vino de caché'],0,'NXDOMAIN indica que el nombre no existe; SERVFAIL indica un fallo del servidor al resolver.')}));
+    }
+  }
+  if(id==='cache'){
+    intro('Caché: la misma pregunta, ahora sin reenviar',`Hace unos instantes Computer1 u otro equipo resolvió <b>${N1}</b> y el DNS local guardó la respuesta (TTL 300 s). Ahora llega <b>otra consulta igual</b> dentro de ese plazo.`,
+      ['Solo participan el cliente y el DNS local.','El reenviador y la jerarquía quedan en reposo.'],'TTL: tiempo que una respuesta puede reutilizarse sin consultar de nuevo.');
+    S.push(cli(N1,{}));
+    S.push({short:'Caché HIT',title:'El DNS local responde desde su caché',act:['dns'],arrows:[],parts:{cache:'hit'},
+      labels:[{t:'caché HIT · TTL restante 214 s',x:300,y:164,c:'#00ff88',a:'middle'}],
+      text:`La casilla ① <b>Caché</b> tiene la respuesta y su TTL aún no vence (quedan 214 s en este ejemplo). No hay que consultar zonas, reenviadores ni root hints.`,
+      watch:['Solo la casilla ① se ilumina.','El TTL que ve el cliente irá disminuyendo.'],concept:'Caché vigente = respuesta inmediata y sin tráfico externo.',
+      code:`; ① caché: ${N1}. 214 IN A ${A1}  ✔ (HIT)\n; no se consulta al reenviador ${FWD}`,
+      q:OPT_ORDER_Q('La respuesta sigue en caché y su TTL no ha vencido. ¿Qué hace el DNS local?',['La entrega directamente sin reenviar','Reenvía igualmente para comprobar','La borra y vuelve a preguntar'],0,'Mientras el TTL sea mayor que 0, la entrada de caché es válida y se sirve directamente.')});
+    S.push(back(N1,A1,{text:`El DNS local responde con el TTL <b>restante</b> (214 s), no con el original: el cliente sabrá durante cuánto puede reutilizarla. Todo se resolvió sin salir de la red local.`,
+      code:`;; ${LOC} → Computer1\n;; flags: qr rd ra   rcode: NOERROR\n;; ANSWER:\n${N1}.  214  IN  A  ${A1}`,concept:'El TTL de una respuesta cacheada se descuenta con el paso del tiempo.',
+      q:OPT_ORDER_Q('Una respuesta cacheada se entrega al cliente. ¿Qué TTL lleva?',['El TTL restante, ya descontado','Siempre el TTL original','Siempre 0'],0,'Los servidores devuelven el tiempo que le queda a la entrada, para que el cliente no la guarde más de lo permitido.')}));
+  }
+  return S;
+}
+
+/* ---------- componentes (clic) ---------- */
+const COMP={
+client:{t:'🖥  Computer1 — Cliente DNS',b:'Genera la consulta. Su cliente DNS (resolver stub) revisa su caché local y el archivo hosts; si no lo conoce, pide la respuesta final (RD=1) al servidor DNS configurado. No sabe nada de reenviadores ni de la jerarquía.',
+ e:`<strong>Pruébalo:</strong>\nResolve-DnsName ${N1} -Server ${LOC}\nipconfig /displaydns\nipconfig /flushdns`},
+dns:{t:'⚙  DNS local (controlador de dominio con AD DS)',b:'Es un servidor DNS recursivo que además aloja zonas integradas en AD. Ante una consulta decide en este orden: ① caché, ② zonas que administra, ③ reenviadores condicionales, ④ reenviadores globales y ⑤ root hints (si están habilitadas). Cada casilla del diagrama representa una de esas opciones.',
+ e:`<strong>PowerShell (módulo DnsServer):</strong>\nGet-DnsServerForwarder\nSet-DnsServerForwarder -IPAddress ${FWD} -UseRootHint $true -Timeout 3\nGet-DnsServerZone\nClear-DnsServerCache\n\n<strong>BIND (equivalente):</strong>\nforwarders { ${FWD}; };\nforward first;   // plan B con raíz\n// forward only;  // sin plan B`},
+fwd:{t:'📡  Reenviador (forwarder)',b:'Otro servidor DNS recursivo al que el DNS local delega la resolución de nombres externos, típicamente el del ISP o un DNS público. Tiene su propia caché y hace la resolución iterativa (raíz → TLD → autoritativo) en nombre del DNS local. Ventajas: caché compartida, menos tráfico saliente y control centralizado. Riesgos: dependencia, posible punto único de fallo y confianza en un tercero.',
+ e:`<strong>Ejemplo:</strong>\nDNS local → ${FWD}\n;; flags: rd\n${N1}. IN A\n\n<strong>Respuesta:</strong>\n;; flags: qr rd ra\n${N1}. 300 IN A ${A1}`},
+partner:{t:'🤝  DNS del socio — reenviador condicional',b:'Un reenviador condicional envía las consultas de un dominio concreto (socio.com) a servidores específicos, por ejemplo por VPN. Se usa para zonas privadas de socios o para dominios que no deben resolverse por el camino público.',
+ e:`<strong>PowerShell:</strong>\nAdd-DnsServerConditionalForwarderZone -Name "socio.com" -MasterServers ${SOC}\nGet-DnsServerZone | ? ZoneType -eq Forwarder\n\n<strong>BIND:</strong>\nzone "socio.com" { type forward; forwarders { ${SOC}; }; };`},
+root:{t:'🌐  Servidores raíz (.)',b:'Cima de la jerarquía: no resuelven el nombre final, responden con una referencia al TLD correspondiente. Hay 13 identidades (A–M) y cientos de instancias anycast. En el reenvío, normalmente solo los consulta el reenviador; el DNS local los usa si recurre a las root hints.',
+ e:'<strong>Prueba:</strong> dig +trace www.ejemplo.com\n\nLas IP de los servidores raíz deben verificarse en iana.org/domains/root/servers.'},
+tld:{t:'📂  Servidor TLD (.com)',b:'Gestiona los dominios de primer nivel. No guarda la IP final; devuelve los servidores autoritativos (NS) del dominio consultado.',
+ e:'<strong>Ejemplo:</strong>\n;; AUTHORITY SECTION:\nejemplo.com. 86400 IN NS ns1.ejemplo.com.'},
+auth:{t:'✅  Servidor autoritativo (ejemplo.com)',b:'Tiene la respuesta definitiva del dominio y la entrega con el flag aa. Quien resuelve guarda la respuesta en caché durante el TTL.',
+ e:`<strong>Ejemplo ilustrativo:</strong>\n;; flags: qr aa\n${N1}. 300 IN A ${A1}`}
+};
+const visited=new Set();
+function showComp(key){
+  const c=COMP[key];if(!c)return;visited.add(key);
+  $('#detail').innerHTML=`<h2>Componente</h2><h3>${c.t}</h3><p class="body">${c.b}</p><pre>${c.e}</pre>`;
+  $('#info').innerHTML=`<b>${c.t}</b> — ${c.b.split('. ')[0]}.`;
+  renderKnow();
+}
+document.querySelectorAll('.nnode').forEach(g=>{
+  const t=el('title',{},g);t.textContent='Clic para ver su función';
+  g.addEventListener('click',()=>showComp(g.dataset.comp));
+});
+
+/* ---------- estado ---------- */
+let steps=[],cur=-1,pending=-1,res={},dres=[],playing=null,animToken=0,predictOn=true;
+const skey=()=>(sc==='down'?'down'+(rootFB?1:0):sc);
+const rk=i=>skey()+':'+i;
+function statusOf(r){
+  if(!r||r.skipped)return null;
+  if(r.ok&&r.conf===3)return['ok','✔','Dominado'];
+  if(r.ok)return['shaky','◐','Acierto con dudas'];
+  if(r.conf===3)return['over','⚠','Sobreconfianza'];
+  return['weak','✖','A reforzar'];
+}
+function buildBar(){
+  const b=$('#stepbar');b.innerHTML='';
+  steps.forEach((s,i)=>{
+    const x=document.createElement('button');x.className='sbtn';x.id='b'+i;x.textContent=i+'·'+s.short;
+    x.onclick=()=>{stopPlay();go(i)};b.appendChild(x);
+  });
+  $('#hTot').textContent=steps.length-1;
+}
+function paintBar(){
+  steps.forEach((s,i)=>{
+    const b=$('#b'+i);if(!b)return;
+    b.classList.toggle('active',i===(pending>=0?pending:cur));
+    ['ok','shaky','over','weak'].forEach(c=>b.classList.remove('s-'+c));
+    const st=statusOf(res[rk(i)]);if(st)b.classList.add('s-'+st[0]);
+  });
+}
+function clearArrows(){for(const k in arrEl)arrEl[k].setAttribute('class','arr'+(ARR[k].dash?' dash':''))}
+function setActive(list){
+  document.querySelectorAll('.nnode').forEach(n=>n.classList.toggle('act',list.includes(n.dataset.comp)));
+  $('#ns').classList.toggle('focus',list.length>0);
+  const R=$('#ringsL');R.innerHTML='';
+  list.forEach(k=>{const g=$('#n-'+k);if(!g)return;const b=g.getBBox();
+    el('rect',{x:b.x-3,y:b.y-3,width:b.width+6,height:b.height+6,rx:10,class:'pulseRing'},R)});
+}
+function setLabels(arr){
+  const L=$('#labelsL');L.innerHTML='';
+  arr.forEach(o=>{const t=el('text',{x:o.x,y:o.y,class:'lab',fill:o.c,'text-anchor':o.a||'start'},L);t.textContent=o.t});
+}
+function playSeq(ids,done){
+  const token=++animToken,pkt=$('#pkt');let i=0;
+  (function next(){
+    if(token!==animToken)return;
+    if(i>=ids.length){pkt.setAttribute('opacity','0');done&&done();return}
+    const id=ids[i++],A=ARR[id],p=arrEl[id],L=p.getTotalLength(),s=performance.now(),dur=A.rt?650:850;
+    p.classList.remove('old');p.classList.add('cur');
+    pkt.setAttribute('fill',A.c);pkt.setAttribute('opacity','1');
+    (function f(now){
+      if(token!==animToken)return;
+      let k=Math.min(1,(now-s)/(A.rt?dur*2:dur)),pos;
+      if(A.rt){pos=k<.5?k*2:2-k*2;pkt.setAttribute('fill',k<.5?A.c:'#00ff88')}else pos=k;
+      const q=p.getPointAtLength(L*pos);pkt.setAttribute('cx',q.x);pkt.setAttribute('cy',q.y);
+      if(k<1)requestAnimationFrame(f);else{p.classList.remove('cur');p.classList.add('old');next()}
+    })(s);
+  })();
+}
+function drawStep(n,animate){
+  const s=steps[n];
+  clearArrows();
+  const prev=new Set();
+  for(let i=1;i<n;i++)steps[i].arrows.forEach(id=>prev.add(id));
+  prev.forEach(id=>arrEl[id].classList.add('old'));
+  const fresh=s.arrows.filter(id=>!prev.has(id));
+  if(animate)playSeq(fresh);else fresh.forEach(id=>arrEl[id].classList.add('old'));
+  setActive(s.act);setLabels(s.labels);setParts(s.parts);
+  $('#n-fwd').classList.toggle('dead',steps.slice(0,n+1).some(x=>x.fail));
+  $('#hStep').textContent=n;
+  const sn=SCN.find(x=>x[0]===sc)[1];
+  $('#hMode').innerHTML='Escenario <b>'+sn+(sc==='down'?(rootFB?' · con root hints':' · forward only'):'')+'</b>';
+  $('#info').innerHTML=`<b>${s.title}.</b> ${s.text.replace(/<[^>]+>/g,'')}`.slice(0,250)+'…';
+}
+function renderStepCard(n,fb){
+  const s=steps[n];
+  let fbh='';
+  if(fb&&s.q){
+    fbh=fb.skipped?`<div class="fb skip">⏭ Omitiste la predicción de este paso.</div>`
+     :fb.ok?`<div class="fb good"><b>✔ Predicción correcta</b> (confianza: ${['','adivinando','con dudas','segura'][fb.conf]}). ${s.q.why}</div>`
+     :`<div class="fb bad"><b>✖ No era esa opción.</b> ${s.q.why}</div>`;
+  }
+  const N=steps.length-1;
+  $('#stepCard').innerHTML=`<div class="stepno">PASO ${n} / ${N}<span class="tag">${SCN.find(x=>x[0]===sc)[1]}</span></div>
+   <h3>${s.title}</h3>${fbh}<p>${s.text}</p>
+   ${s.code?`<div class="codebox">${s.code.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`:''}
+   <div class="watch"><b>👀 Observa</b><ul>${s.watch.map(w=>`<li>${w}</li>`).join('')}</ul></div>
+   <div class="concept">💡 <b>Concepto clave:</b> ${s.concept}</div>
+   <div class="nav"><button id="pv" ${n===0?'disabled':''}>◀ Anterior</button><button id="nx" class="pri" ${n===N?'disabled':''}>Siguiente ▶</button><button id="rp">↻ Repetir animación</button></div>`;
+  $('#pv').onclick=()=>{stopPlay();go(n-1,true)};
+  $('#nx').onclick=()=>{stopPlay();go(n+1)};
+  $('#rp').onclick=()=>drawStep(n,true);
+}
+function reveal(n,fb){
+  cur=n;pending=-1;
+  drawStep(n,true);renderStepCard(n,fb||res[rk(n)]);
+  paintBar();renderKnow();
+}
+function go(n,skip){
+  n=clamp(n,0,steps.length-1);
+  if(n>0&&predictOn&&steps[n].q&&!res[rk(n)]&&!skip&&!playing){showQuestion(n);return}
+  reveal(n);
+}
+function confBlock(){return `<div class="conf"><span>① ¿Qué tan seguro estás?</span><button data-c="3">Seguro</button><button data-c="2">Con dudas</button><button data-c="1">Adivinando</button></div>`}
+function showQuestion(n){
+  pending=n;paintBar();
+  const s=steps[n];let conf=0;
+  $('#stepCard').innerHTML=`<div class="q"><div class="stepno">PASO ${n} / ${steps.length-1} · 🔮 PREDICE ANTES DE VER</div>
+   <h3>${s.title}</h3><p>${s.q.ask}</p>${confBlock()}<div id="opts"></div><div class="warn" id="warn"></div>
+   <div class="nav"><button id="skip">Saltar y ver directamente</button></div></div>`;
+  document.querySelectorAll('#stepCard .conf button').forEach(b=>b.onclick=()=>{conf=+b.dataset.c;document.querySelectorAll('#stepCard .conf button').forEach(x=>x.classList.toggle('sel',x===b));$('#warn').textContent=''});
+  s.q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';b.textContent='② '+String.fromCharCode(65+i)+') '+o;
+    b.onclick=()=>{
+      if(!conf){$('#warn').textContent='Primero elige tu nivel de confianza (así medimos tu autoconocimiento).';return}
+      res[rk(n)]={ok:i===s.q.ok,conf};reveal(n,res[rk(n)]);
+    };
+    $('#opts').appendChild(b);
+  });
+  $('#skip').onclick=()=>{res[rk(n)]={skipped:true};reveal(n,res[rk(n)])};
+}
+
+/* ---------- reproducción automática ---------- */
+function stopPlay(){if(playing){clearTimeout(playing.t);playing=null;$('#bPlay').textContent='▶ Reproducir';$('#bPlay').classList.remove('on')}}
+function play(){
+  if(playing){stopPlay();return}
+  playing={t:null};$('#bPlay').textContent='⏸ Detener';$('#bPlay').classList.add('on');
+  let i=0;
+  (function step(){
+    if(!playing)return;
+    if(i>=steps.length){stopPlay();return}
+    reveal(i++);
+    playing.t=setTimeout(step,i===1?2800:5400);
+  })();
+}
+
+/* ---------- escenarios ---------- */
+function setScenario(id){
+  stopPlay();sc=id;steps=build(id);cur=-1;pending=-1;
+  document.querySelectorAll('#scs button').forEach(b=>b.classList.toggle('on',b.dataset.id===id));
+  $('#fbWrap').style.display=id==='down'?'flex':'none';
+  buildBar();go(0);
+}
+SCN.forEach(([id,name])=>{
+  const b=document.createElement('button');b.textContent=name;b.dataset.id=id;
+  b.onclick=()=>setScenario(id);$('#scs').appendChild(b);
+});
+$('#fb').onchange=e=>{rootFB=e.target.checked;if(sc==='down')setScenario('down')};
+$('#pred').onchange=e=>{predictOn=e.target.checked};
+$('#bPlay').onclick=play;
+
+/* ---------- reto de decisión ---------- */
+const DEC=[
+ {s:`Computer1 pide <b>${N3}</b>. El DNS local aloja la zona <b>corp.empresa.pe</b> (AD-integrada).`,a:'zone',why:'Si el DNS local es autoritativo de la zona, responde él mismo (aa) sin reenviar.'},
+ {s:`Computer1 pide <b>${N2}</b>. Existe un reenviador condicional <b>socio.com → ${SOC}</b> y además un reenviador global.`,a:'cond',why:'La regla condicional es más específica y tiene prioridad sobre el reenviador global para ese dominio.'},
+ {s:`Computer1 pide <b>${N1}</b>. Caché vacía, sin reglas condicionales, reenviador global operativo.`,a:'fwd',why:'No hay respuesta local ni regla específica: se delega la recursión en el reenviador global.'},
+ {s:`Computer1 pide <b>${N1}</b>, que se consultó hace 60 s (TTL 300 s).`,a:'cache',why:'La entrada de caché sigue vigente (TTL no vencido), así que se responde directamente.'},
+ {s:`<b>${N1}</b>, caché vacía, el reenviador no responde y «usar root hints» está <b>activado</b>.`,a:'root',why:'Sin reenviador operativo, el plan B habilitado es resolver con root hints.'},
+ {s:`<b>${N1}</b>, caché vacía, el reenviador no responde y «usar root hints» está <b>desactivado</b> (forward only).`,a:'fail',why:'Sin reenviador operativo ni root hints, el servidor no puede resolver y devuelve SERVFAIL.'}
+];
+const DOPT=[['cache','Responde desde su caché'],['zone','Responde desde su zona local'],['cond','Reenvía al reenviador condicional'],['fwd','Reenvía al reenviador global'],['root','Resuelve con root hints'],['fail','Devuelve SERVFAIL']];
+let decCur=-1;
+function nextDec(){let n;do{n=Math.floor(Math.random()*DEC.length)}while(n===decCur&&DEC.length>1);decCur=n;renderDec()}
+function renderDec(fb){
+  const c=DEC[decCur],ok=dres.filter(r=>r.ok).length;let conf=0;
+  $('#decBody').innerHTML=`<p class="case">${c.s}</p><div class="ktxt">¿Qué hace el DNS local?</div>${fb?'':confBlock()}<div id="dopts"></div><div class="warn" id="dwarn"></div><div id="dfb"></div>
+   <div class="st">Decisiones acertadas: <b>${ok}/${dres.length}</b></div>`;
+  if(!fb)document.querySelectorAll('#decBody .conf button').forEach(b=>b.onclick=()=>{conf=+b.dataset.c;document.querySelectorAll('#decBody .conf button').forEach(x=>x.classList.toggle('sel',x===b));$('#dwarn').textContent=''});
+  DOPT.forEach(([k,t])=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=t;
+    if(fb){b.disabled=true;if(k===c.a)b.classList.add('good');else if(k===fb.pick)b.classList.add('bad')}
+    else b.onclick=()=>{
+      if(!conf){$('#dwarn').textContent='Primero elige tu nivel de confianza.';return}
+      const r={ok:k===c.a,conf};dres.push(r);renderDec({pick:k,ok:r.ok});renderKnow();
+    };
+    $('#dopts').appendChild(b);
+  });
+  if(fb){
+    $('#dfb').innerHTML=`<div class="fb ${fb.ok?'good':'bad'}"><b>${fb.ok?'✔ Correcto.':'✖ No exactamente.'}</b> ${c.why}</div><div class="nav"><button id="dn" class="pri">Siguiente caso ▶</button></div>`;
+    $('#dn').onclick=nextDec;
+  }
+}
+
+/* ---------- mapa de conocimiento ---------- */
+const badgeDefs=[['👁 Explorador',()=>visited.size>=7,'Abre los 7 componentes'],['🔮 Predictor',()=>answered().length>=10,'Responde 10 predicciones'],['🧠 Calibrado',()=>calibScore()>=.75&&answered().length>=6,'Calibración ≥ 75 %'],['🎯 Estratega',()=>dres.filter(r=>r.ok).length>=4,'4 decisiones acertadas'],['📐 Ordenador',()=>ordWon,'Ordena la secuencia']];
+let ordWon=false,ordOpen=false,ordShuf=[],ordSeq=[];
+function answered(){return[...Object.values(res).filter(r=>!r.skipped),...dres]}
+function calibScore(){
+  const a=answered();if(!a.length)return 0;
+  return a.reduce((s,r)=>s+(r.ok?[0,.2,.6,1][r.conf]:[0,.8,.4,0][r.conf]),0)/a.length;
+}
+function renderKnow(){
+  const a=answered(),ok=a.filter(r=>r.ok).length,cs=Math.round(calibScore()*100);
+  const over=a.filter(r=>!r.ok&&r.conf===3).length,weak=a.filter(r=>!r.ok).length,shaky=a.filter(r=>r.ok&&r.conf<3).length;
+  let txt='Responde las predicciones y los retos: aquí verás cómo se compara lo que <b>crees</b> saber con lo que <b>realmente</b> sabes.';
+  if(a.length){
+    txt=`Aciertos: <b>${ok}/${a.length}</b> · Calibración: <b>${cs}%</b>. `;
+    if(over)txt+=`⚠ <b>Sobreconfianza</b> en ${over} respuesta(s): estabas seguro y fallaste; son las más valiosas para repasar. `;
+    else if(weak)txt+='Fallaste algunas, pero con dudas: buena autoevaluación. ';
+    if(shaky)txt+=`◐ ${shaky} acierto(s) frágil(es): refuérzalos antes de darlos por sabidos. `;
+    if(!over&&!weak&&!shaky)txt+='Tu confianza coincide con tu conocimiento. ¡Muy bien calibrado!';
+  }
+  const cells=steps.map((s,i)=>i===0?'':`<div class="kc ${(statusOf(res[rk(i)])||[''])[0]}" data-n="${i}" title="Clic para repasar este paso"><b>${(statusOf(res[rk(i)])||['','·'])[1]}</b>Paso ${i}<br>${(statusOf(res[rk(i)])||['','','Pendiente'])[2]}</div>`).join('');
+  const bd=badgeDefs.map(([n,f,h])=>`<span class="bd ${f()?'got':''}" title="${h}">${n}</span>`).join('');
+  const hasWeak=weak+shaky>0;
+  $('#know').innerHTML=`<h2>🧭 Mi autoconocimiento</h2><div class="ktxt" style="margin-bottom:6px">Pasos del escenario actual:</div><div class="kgrid">${cells}</div>
+   <div class="meter"><i style="width:${cs}%"></i></div><div class="ktxt">${txt}</div>
+   <div class="badges">${bd}</div>
+   <div class="nav">${hasWeak?'<button id="rev" class="pri">Repasar pasos débiles</button>':''}<button id="rst">Reiniciar todo</button></div>
+   <details id="ord"${ordOpen?' open':''}><summary>📐 Reto: ordena el reenvío estándar</summary><div class="ktxt" id="ordMsg"></div><div id="ordBox"></div></details>`;
+  document.querySelectorAll('.kc').forEach(c=>c.onclick=()=>{stopPlay();const n=+c.dataset.n;delete res[rk(n)];go(n)});
+  const rev=$('#rev');if(rev)rev.onclick=()=>{
+    stopPlay();
+    const w=steps.map((s,i)=>i).filter(i=>{const st=statusOf(res[rk(i)]);return st&&(st[0]!=='ok')});
+    if(!w.length){go(0);return}
+    w.forEach(i=>delete res[rk(i)]);go(w[0]);
+  };
+  $('#rst').onclick=resetAll;
+  $('#ord').ontoggle=e=>{ordOpen=e.target.open};
+  renderOrder();
+}
+function initOrder(){ordShuf=[1,2,3,4,5,6].sort(()=>Math.random()-.5);ordSeq=[]}
+function renderOrder(){
+  const box=$('#ordBox');if(!box)return;box.innerHTML='';
+  const m=$('#ordMsg'),F=build('fwd');
+  m.textContent=ordWon?'🏅 ¡Orden correcto! Dominas la secuencia del reenvío.':`Haz clic en los pasos en el orden en que ocurren (${ordSeq.length}/6).`;
+  ordShuf.forEach(n=>{
+    const b=document.createElement('button');b.textContent=F[n].title;b.disabled=ordSeq.includes(n);
+    b.onclick=()=>{
+      if(n===ordSeq.length+1){ordSeq.push(n);if(ordSeq.length===6){ordWon=true;renderKnow();return}}
+      else{box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),300);m.textContent='❌ Ese no va ahora. Se reinicia; piensa: ¿qué consulta primero el DNS local antes de reenviar?';ordSeq=[];setTimeout(renderOrder,900);return}
+      renderOrder();
+    };
+    box.appendChild(b);
+  });
+}
+function resetAll(){
+  stopPlay();res={};dres=[];visited.clear();ordWon=false;initOrder();nextDec();
+  setScenario('fwd');
+}
+
+/* ---------- Modo RA (simulado: cámara + holograma inclinable) ---------- */
+let ar=false,stream=null;const stage=$('#stage'),arMsg=$('#arMsg');
+function setTilt(rx,rz){stage.style.setProperty('--rx',rx.toFixed(1)+'deg');stage.style.setProperty('--rz',rz.toFixed(1)+'deg')}
+function msg(t,ms=2200){arMsg.textContent=t;arMsg.classList.add('show');setTimeout(()=>arMsg.classList.remove('show'),ms)}
+stage.addEventListener('pointermove',e=>{
+  if(!ar)return;const r=stage.getBoundingClientRect();
+  setTilt(((e.clientY-r.top)/r.height-.5)*-22,((e.clientX-r.left)/r.width-.5)*26);
+});
+function onOri(e){if(!ar||e.gamma==null)return;setTilt(clamp((e.beta-55)/3,-14,14),clamp(e.gamma/3,-16,16))}
+$('#bAR').onclick=async()=>{
+  const b=$('#bAR');
+  if(!ar){
+    ar=true;stage.classList.add('ar');b.classList.add('on');b.textContent='🥽 Salir de RA';msg('Detectando superficie…',1500);
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      $('#cam').srcObject=stream;await $('#cam').play();
+      setTimeout(()=>msg('Holograma anclado · mueve el ratón o el móvil para inclinarlo',3200),1600);
+    }catch(err){
+      setTimeout(()=>msg('Sin cámara ('+((err&&err.name)||'error')+'): holograma 3D sin fondo de cámara',3600),1600);
+    }
+    try{
+      if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function'){
+        const r=await DeviceOrientationEvent.requestPermission();if(r==='granted')window.addEventListener('deviceorientation',onOri);
+      }else window.addEventListener('deviceorientation',onOri);
+    }catch(e){}
+  }else{
+    ar=false;stage.classList.remove('ar');b.classList.remove('on');b.textContent='🥽 Modo RA';
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+    $('#cam').srcObject=null;setTilt(0,0);
+  }
+};
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;
+  const c=pending>=0?pending:Math.max(cur,0);
+  if(e.key==='ArrowRight'){stopPlay();go(c+1)}
+  if(e.key==='ArrowLeft'){stopPlay();go(c-1,true)}
+});
+
+/* ---------- inicio ---------- */
+initOrder();nextDec();setScenario('fwd');
+})();
+</script>
+</body>
+</html>
