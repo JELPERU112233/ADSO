@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Propagación DNS Global · Neón + RA</title>
+<style>
+:root{--bg:#050816;--cy:#00f0ff;--mg:#ff2bd6;--gr:#39ff88;--am:#ffb800;--rd:#ff3355;--tx:#d8f6ff;--pn:rgba(8,16,40,.82)}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0}
+body{background:radial-gradient(1200px 600px at 20% -10%,#12195a 0%,transparent 60%),radial-gradient(900px 500px at 100% 10%,#3a0a54 0%,transparent 55%),var(--bg);color:var(--tx);min-height:100vh}
+header{text-align:center;padding:18px 12px 4px}
+h1{margin:0;font-size:clamp(20px,4vw,36px);letter-spacing:4px;color:#fff;text-shadow:0 0 6px var(--cy),0 0 18px var(--cy),0 0 38px var(--mg);animation:flick 6s infinite}
+h1 span{color:var(--mg);text-shadow:0 0 6px var(--mg),0 0 20px var(--mg)}
+.sub{margin:6px 0 0;font-size:13px;color:#8fb4d6}
+@keyframes flick{0%,92%,100%{opacity:1}93%{opacity:.75}94%{opacity:1}96%{opacity:.8}}
+.grid{display:grid;grid-template-columns:400px 1fr;gap:14px;padding:14px;max-width:1500px;margin:auto}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{background:var(--pn);border:1px solid rgba(0,240,255,.35);border-radius:12px;padding:12px 14px;box-shadow:0 0 14px rgba(0,240,255,.18),inset 0 0 24px rgba(0,240,255,.05)}
+.panel h2{margin:0 0 8px;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--cy);text-shadow:0 0 8px var(--cy)}
+label{display:block;font-size:12px;color:#9cc3e6;margin-bottom:6px}
+input[type=text],select{width:100%;margin-top:3px;background:#07102b;color:var(--tx);border:1px solid #1d4a73;border-radius:8px;padding:7px 8px;font-size:14px;outline:none}
+input[type=text]:focus,select:focus{border-color:var(--cy);box-shadow:0 0 10px var(--cy)}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.chk{display:flex;gap:8px;align-items:center;cursor:pointer;margin:4px 0 8px}
+.vals{font-size:12px;color:#9cc3e6;margin-bottom:10px;word-break:break-all}
+.vals b{color:var(--rd)} .vals b#vNew{color:var(--gr)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{cursor:pointer;background:#07102b;color:var(--cy);border:1px solid var(--cy);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:bold;transition:.2s;box-shadow:0 0 8px rgba(0,240,255,.4)}
+button:hover{background:var(--cy);color:#001018;box-shadow:0 0 18px var(--cy)}
+button.neon{color:#fff;border-color:var(--mg);box-shadow:0 0 10px var(--mg),inset 0 0 10px rgba(255,43,214,.4)}
+button.neon:hover{background:var(--mg);color:#fff;box-shadow:0 0 24px var(--mg)}
+button.on{background:var(--gr);color:#00220f;border-color:var(--gr);box-shadow:0 0 16px var(--gr)}
+.hl{outline:2px solid var(--mg);box-shadow:0 0 18px var(--mg)!important;animation:hlp 1s infinite alternate}
+@keyframes hlp{to{box-shadow:0 0 30px var(--mg)}}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid #28507a;color:#6f93b8}
+.chip.act{color:#fff;border-color:var(--mg);box-shadow:0 0 10px var(--mg);text-shadow:0 0 6px var(--mg)}
+.chip.ok{color:var(--gr);border-color:var(--gr)}
+#exBody{font-size:13.5px;line-height:1.5;min-height:120px}
+#exBody code{background:#0a1f45;padding:1px 5px;border-radius:4px;color:var(--cy)}
+#exBody .opt{display:block;width:100%;text-align:left;margin:6px 0}
+#exBody .opt.good{background:var(--gr);color:#00220f;border-color:var(--gr)}
+#exBody .opt.bad{background:var(--rd);color:#fff;border-color:var(--rd)}
+#list .rows{max-height:290px;overflow:auto}
+.row{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid #12305a;cursor:pointer;font-size:13px}
+.row:hover,.row.sel{background:rgba(0,240,255,.1)}
+.row .cc{font-size:11px;font-weight:bold;text-align:center;border:1px solid var(--cy);border-radius:4px;padding:2px 0;color:var(--cy)}
+.row small{display:block;color:#7fa3c8;font-size:11px}
+.row .val{font-size:12px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-sync0{color:var(--cy)} .v-old{color:var(--rd)} .v-query{color:var(--am)} .v-new{color:var(--gr)}
+#log .lines{height:130px;overflow:auto;font-family:Consolas,monospace;font-size:11.5px;line-height:1.5;color:#9fe;background:#02060f;border-radius:8px;padding:6px 8px}
+#log .lines *{font-family:Consolas,monospace}
+.lines .g{color:var(--gr)} .lines .a{color:var(--am)} .lines .r{color:var(--rd)} .lines .m{color:var(--mg)}
+/* escenario */
+#stage{position:relative;aspect-ratio:1000/520;border:1px solid var(--cy);border-radius:14px;overflow:hidden;background:#030616;box-shadow:0 0 22px rgba(0,240,255,.5),inset 0 0 50px rgba(0,240,255,.12);perspective:1100px}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+#stage.ar #cam{display:block}
+#holo{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .15s ease-out}
+#holo svg{width:100%;height:100%;display:block}
+#stage.ar #holo{transform:rotateX(calc(40deg + var(--rx,0deg))) rotateZ(var(--rz,0deg)) scale(.9)}
+#stage.ar #holo svg{animation:floaty 4s ease-in-out infinite}
+@keyframes floaty{0%,100%{translate:0 0}50%{translate:0 -8px}}
+#stage.ar .bgrect{fill-opacity:.12}
+.scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,240,255,.05) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+.hud{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;pointer-events:none;font-size:13px;color:#fff;text-shadow:0 0 8px var(--cy)}
+.hud b{color:var(--cy)}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.prog{flex:1;min-width:200px;height:14px;border-radius:8px;border:1px solid var(--cy);background:#02060f;overflow:hidden;box-shadow:0 0 10px rgba(0,240,255,.4)}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg),var(--cy),var(--gr));box-shadow:0 0 14px var(--gr);transition:width .3s}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#9cc3e6}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;background:var(--c);box-shadow:0 0 8px var(--c)}
+#detail{font-size:13.5px;line-height:1.55}
+#detail h3{margin:0 0 4px;color:#fff;text-shadow:0 0 8px var(--cy)}
+#detail .hint{color:#8fb4d6;font-size:12px}
+footer{max-width:1500px;margin:0 auto;padding:6px 14px 24px;font-size:11.5px;color:#7fa3c8;line-height:1.5}
+/* SVG */
+.land{stroke:#00f0ff;stroke-width:2.4;stroke-linecap:round;opacity:.75;filter:url(#glowS)}
+.grat{stroke:#1a3b6e;stroke-width:.5;fill:none}
+.node{cursor:pointer;--c:var(--cy)}
+.node[data-s=old]{--c:var(--rd)} .node[data-s=query]{--c:var(--am)} .node[data-s=new]{--c:var(--gr)}
+.node .core{fill:var(--c)}
+.node .ring{fill:none;stroke:var(--c);stroke-width:1.4;transform-box:fill-box;transform-origin:center;animation:pulse 2s infinite}
+.node[data-s=new] .ring{animation:none;opacity:.3}
+.node .beam{stroke:var(--c);stroke-width:1.6;stroke-linecap:round}
+.node .hit{fill:transparent;stroke:none}
+.node.sel .hit{stroke:#fff;stroke-dasharray:3 3;stroke-width:1}
+.node .lbl{font-size:11px;fill:#fff;opacity:0;pointer-events:none;paint-order:stroke;stroke:#020617;stroke-width:3px}
+.node:hover .lbl,.node.sel .lbl{opacity:1}
+@keyframes pulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
+.arc{fill:none;stroke-width:2;stroke-linecap:round}
+.arc.q{stroke:var(--am);filter:url(#glow)} .arc.r{stroke:var(--gr);filter:url(#glow)}
+.dot{fill:#fff;filter:url(#glow)}
+.wave{fill:none;stroke:var(--cy);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:wv 2s ease-out forwards}
+@keyframes wv{from{transform:scale(.2);opacity:1}to{transform:scale(14);opacity:0}}
+#origin .spin{transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#origin text{font-size:11px;fill:var(--cy);paint-order:stroke;stroke:#020617;stroke-width:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>PROPAGACIÓN <span>DNS</span> GLOBAL</h1>
+  <p class="sub">Simulador interactivo · holograma neón · modo RA · modelo didáctico (no son mediciones reales)</p>
+</header>
+
+<main class="grid">
+  <section class="col">
+    <div class="panel" id="controls">
+      <h2>① Configura el experimento</h2>
+      <label>Dominio
+        <input type="text" id="dom" value="ejemplo.com" maxlength="60" autocomplete="off">
+      </label>
+      <div class="row3">
+        <label>Registro
+          <select id="rtype"><option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>NS</option><option>TXT</option></select>
+        </label>
+        <label>TTL
+          <select id="ttl"><option value="60">60 s</option><option value="300">5 min</option><option value="3600" selected>1 hora</option><option value="14400">4 horas</option><option value="86400">24 horas</option></select>
+        </label>
+        <label>Velocidad
+          <select id="spd"><option value="0" selected>Auto (~15 s)</option><option value="1">×1 (tiempo real)</option><option value="10">×10</option><option value="60">×60</option><option value="300">×300</option><option value="1000">×1000</option><option value="3600">×3600</option></select>
+        </label>
+      </div>
+      <label class="chk" id="extWrap"><input type="checkbox" id="ext"> Algunos resolvers ignoran el TTL (política del ISP)</label>
+      <div class="vals">Valor antiguo: <b id="vOld"></b><br>Valor nuevo: <b id="vNew"></b></div>
+      <div class="btns">
+        <button id="bGo" class="neon">⚡ Cambiar registro</button>
+        <button id="bReset">↺ Reiniciar</button>
+        <button id="bTour">🧭 Tour guiado</button>
+        <button id="bQuiz">❓ Quiz</button>
+      </div>
+    </div>
+
+    <div class="panel" id="explain">
+      <h2>② Qué está pasando</h2>
+      <div class="chips" id="chips">
+        <span class="chip">1 Cambio autoritativo</span>
+        <span class="chip">2 Cachés obsoletas</span>
+        <span class="chip">3 TTL expira → consulta</span>
+        <span class="chip">4 Convergencia</span>
+      </div>
+      <div id="exBody"></div>
+    </div>
+
+    <div class="panel" id="list">
+      <h2>③ Resolvers (clic para inspeccionar)</h2>
+      <div class="rows" id="rows"></div>
+    </div>
+
+    <div class="panel" id="log">
+      <h2>④ Consola de eventos</h2>
+      <div class="lines" id="lines"></div>
+    </div>
+  </section>
+
+  <section class="col">
+    <div id="stage">
+      <video id="cam" playsinline muted></video>
+      <div id="holo">
+        <svg id="map" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="glowS" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <radialGradient id="bg" cx="50%" cy="50%" r="75%"><stop offset="0" stop-color="#0b1a46"/><stop offset="1" stop-color="#030616"/></radialGradient>
+          </defs>
+          <rect class="bgrect" width="1000" height="520" fill="url(#bg)"/>
+          <g id="grat"></g>
+          <path id="land" class="land" d=""/>
+          <g id="arcs"></g>
+          <g id="origin"></g>
+          <g id="nodes"></g>
+        </svg>
+      </div>
+      <div class="scan"></div>
+      <div class="hud"><span>T+ <b id="clock">0s</b></span><span id="spdTag"></span><span><b id="cnt">0</b> / <b id="tot">0</b> actualizados</span></div>
+    </div>
+    <div class="bar">
+      <div class="prog"><i id="pbar"></i></div>
+      <button id="bAR">🥽 Modo RA</button>
+    </div>
+    <div class="legend">
+      <span style="--c:var(--cy)">Caché consistente</span>
+      <span style="--c:var(--rd)">Valor antiguo (obsoleto)</span>
+      <span style="--c:var(--am)">Consultando</span>
+      <span style="--c:var(--gr)">Valor nuevo</span>
+      <span style="--c:var(--cy)">◇ Servidor autoritativo (clic en el mapa para moverlo)</span>
+    </div>
+    <div class="panel" id="detail"><h3>Inspector de resolver</h3><p class="hint">Haz clic en un punto del mapa o en la lista para ver su caché y vaciarla (flush).</p></div>
+  </section>
+</main>
+
+<footer>
+  <b>Sobre los datos:</b> los 12 primeros resolvers (Fráncfort, Zizers, Sassuolo, Cullinan, Tuymazy, Rawalpindi, Ariyalur, Kota Kinabalu, Singapur, Pekín, Seúl, Tokio) y sus proveedores provienen de la captura que compartiste; los otros 9 (incluidos Lima, Bogotá y Santiago) son puntos ilustrativos. Las coordenadas son aproximadas (conocimiento general, no medidas). Las direcciones de ejemplo usan rangos reservados para documentación (RFC 5737 / RFC 3849). El mapa es un esquema simplificado generado por código. Modelo didáctico: el TTL restante de cada caché se reparte al azar y la consulta se dibuja como un salto directo, aunque en la práctica es raíz → TLD → autoritativo. No sustituye una consulta DNS real.
+</footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const W=1000,H=520;
+const proj=(lo,la)=>[(lo+180)/360*W,(80-la)/138*H];
+
+/* ---------- mapa de puntos (continentes simplificados) ---------- */
+const LAND=[
+[[-168,66],[-162,70],[-140,70],[-125,70],[-95,72],[-80,73],[-65,62],[-56,52],[-66,44],[-70,41],[-76,35],[-81,31],[-80,25],[-83,29],[-90,29],[-97,26],[-97,21],[-92,18],[-87,21],[-88,16],[-83,10],[-78,8],[-85,10],[-92,14],[-97,16],[-105,20],[-106,23],[-110,24],[-114,31],[-117,33],[-121,35],[-124,40],[-124,48],[-130,54],[-140,60],[-150,60],[-158,57],[-165,60]],
+[[-73,78],[-60,82],[-30,83],[-20,75],[-22,70],[-40,65],[-50,62],[-55,68],[-68,76]],
+[[-78,8],[-72,12],[-62,10],[-52,5],[-50,0],[-35,-6],[-39,-14],[-41,-22],[-48,-26],[-53,-34],[-58,-38],[-65,-42],[-68,-50],[-70,-55],[-74,-50],[-73,-40],[-71,-30],[-70,-18],[-76,-14],[-81,-5],[-80,0],[-77,4]],
+[[-10,36],[-9,43],[-2,44],[-4,48],[2,51],[8,54],[10,57],[6,62],[14,68],[24,71],[40,68],[60,70],[80,73],[100,77],[115,73],[140,72],[160,70],[180,68],[180,65],[170,60],[160,55],[156,51],[142,53],[140,48],[135,43],[130,42],[127,38],[126,35],[122,40],[121,32],[118,25],[110,20],[108,15],[106,10],[100,13],[100,5],[104,1],[98,8],[98,16],[92,21],[88,22],[80,15],[77,8],[73,18],[69,22],[66,25],[58,25],[56,27],[50,30],[48,29],[51,25],[56,24],[59,22],[52,16],[43,13],[39,21],[35,28],[34,31],[36,36],[30,36],[27,37],[26,40],[28,41],[24,40],[24,37],[22,37],[19,41],[16,38],[18,40],[12,42],[8,44],[3,43],[-1,38],[-6,36]],
+[[-17,21],[-10,30],[-6,36],[10,37],[11,33],[20,31],[32,31],[34,28],[38,20],[43,12],[51,12],[48,5],[40,-3],[40,-15],[35,-24],[32,-29],[27,-34],[19,-35],[15,-27],[12,-17],[13,-8],[9,-1],[9,4],[-4,5],[-13,8],[-17,14]],
+[[114,-22],[122,-18],[130,-12],[136,-12],[142,-11],[146,-19],[153,-26],[150,-37],[141,-38],[135,-34],[130,-32],[115,-34],[113,-26]],
+[[95,5],[106,-6],[104,-6],[95,2]],
+[[109,1],[117,7],[119,1],[116,-4],[110,-3]],
+[[130,31],[135,34],[140,36],[142,40],[140,43],[145,44],[141,45],[139,40],[132,35]],
+[[-5,50],[1,51],[0,55],[-3,58],[-6,56]],
+[[44,-25],[47,-25],[50,-15],[49,-12],[44,-17]],
+[[172,-34],[178,-38],[174,-41],[168,-46],[172,-41]]
+];
+function inside(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if(((yi>pt[1])!==(yj>pt[1]))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi))c=!c}return c}
+(function(){
+  let d='';
+  for(let lo=-178;lo<=180;lo+=2.8)for(let la=80;la>=-58;la-=2.8){
+    if(LAND.some(p=>inside([lo,la],p))){const[x,y]=proj(lo,la);d+=`M${x.toFixed(1)} ${y.toFixed(1)}h.1`}
+  }
+  $('#land').setAttribute('d',d);
+  const g=$('#grat');
+  for(let lo=-180;lo<=180;lo+=30){const[x]=proj(lo,0);el('path',{d:`M${x} 0V${H}`,class:'grat'},g)}
+  for(let la=60;la>=-30;la-=30){const[,y]=proj(0,la);el('path',{d:`M0 ${y}H${W}`,class:'grat'},g)}
+})();
+
+/* ---------- datos de resolvers ---------- */
+const DATA=[
+['DE','Fráncfort, Alemania','DNS.Watch',8.68,50.11,'captura'],
+['CH','Zizers, Suiza','Oskar Emmenegger',9.6,46.93,'captura'],
+['IT','Sassuolo, Italia','Telecom Italia',10.79,44.55,'captura'],
+['ZA','Cullinan, Sudáfrica','Liquid',28.52,-25.68,'captura'],
+['RU','Tuymazy, Rusia','MTU Kristall JSC',53.7,54.6,'captura'],
+['PK','Rawalpindi, Pakistán','CMPak',73.04,33.6,'captura'],
+['IN','Ariyalur, India','Railwire',79.08,11.14,'captura'],
+['MY','Kota Kinabalu, Malasia','TPMNet',116.07,5.98,'captura'],
+['SG','Singapur','Tefincom',103.82,1.35,'captura'],
+['CN','Pekín, China','CERNET',116.4,39.9,'captura'],
+['KR','Seúl, Corea del Sur','KT',126.98,37.57,'captura'],
+['JP','Tokio, Japón','NMT',139.69,35.69,'captura'],
+['US','Seattle, EE. UU.','Resolver de ejemplo',-122.33,47.61,'ilustrativo'],
+['US','Los Ángeles, EE. UU.','Resolver de ejemplo',-118.24,34.05,'ilustrativo'],
+['US','Nueva York, EE. UU.','Resolver de ejemplo',-74.0,40.71,'ilustrativo'],
+['MX','Ciudad de México','Resolver de ejemplo',-99.13,19.43,'ilustrativo'],
+['AR','Buenos Aires, Argentina','Resolver de ejemplo',-58.38,-34.6,'ilustrativo'],
+['AU','Sídney, Australia','Resolver de ejemplo',151.2,-33.87,'ilustrativo'],
+['PE','Lima, Perú','Resolver de ejemplo',-77.04,-12.05,'ilustrativo'],
+['CO','Bogotá, Colombia','Resolver de ejemplo',-74.07,4.71,'ilustrativo'],
+['CL','Santiago, Chile','Resolver de ejemplo',-70.67,-33.45,'ilustrativo']
+];
+const REC={
+ A:['203.0.113.10','198.51.100.25'],
+ AAAA:['2001:db8::10','2001:db8::25'],
+ CNAME:['viejo.hosting.example.','nuevo.hosting.example.'],
+ MX:['10 mail-a.example.','10 mail-b.example.'],
+ NS:['ns1.proveedor-a.example.','ns1.proveedor-b.example.'],
+ TXT:['"v=spf1 include:a.example ~all"','"v=spf1 include:b.example ~all"']
+};
+
+/* ---------- estado ---------- */
+let t=0,speed=1,running=false,started=false,done=false,last=performance.now();
+let sel=-1,mode='auto',phase=-1,ox=0,oy=0;
+[ox,oy]=proj(-77.49,39.04);
+const nodes=[];const anims=[];
+const arcsG=$('#arcs'),nodesG=$('#nodes'),originG=$('#origin');
+const fmt=s=>{s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+'h ':'')+((m||h)?m+'m ':'')+ss+'s'};
+const old=()=>REC[$('#rtype').value][0], nw=()=>REC[$('#rtype').value][1];
+const dom=()=>($('#dom').value.trim()||'ejemplo.com');
+
+/* ---------- construir nodos ---------- */
+DATA.forEach((d,i)=>{
+  const[x,y]=proj(d[3],d[4]);
+  const g=el('g',{class:'node','data-s':'sync0',filter:'url(#glow)'},nodesG);
+  el('circle',{class:'ring',cx:x,cy:y,r:7},g);
+  const beam=el('line',{class:'beam',x1:x,y1:y,x2:x,y2:y-7},g);
+  el('circle',{class:'core',cx:x,cy:y,r:4},g);
+  el('circle',{class:'hit',cx:x,cy:y,r:13},g);
+  const lbl=el('text',{class:'lbl',x:x+9,y:y-8},g);lbl.textContent=d[1].split(',')[0];
+  g.addEventListener('click',e=>{e.stopPropagation();select(i)});
+  nodes.push({i,cc:d[0],name:d[1],prov:d[2],src:d[5],x,y,g,beam,state:'sync0',expire:0,ext:Math.random()<.28,doneAt:null});
+  const row=document.createElement('div');row.className='row';
+  row.innerHTML=`<span class="cc">${d[0]}</span><span>${esc(d[1])}<small>${esc(d[2])}</small></span><span class="val"></span>`;
+  row.addEventListener('click',()=>select(i));
+  $('#rows').appendChild(row);nodes[i].row=row;
+});
+$('#tot').textContent=nodes.length;
+
+function drawOrigin(){
+  originG.innerHTML='';
+  originG.setAttribute('transform',`translate(${ox} ${oy})`);
+  originG.setAttribute('filter','url(#glow)');
+  el('circle',{r:13,fill:'none',stroke:'#00f0ff','stroke-width':1,'stroke-dasharray':'4 4',class:'spin'},originG);
+  el('path',{d:'M0 -8L8 0L0 8L-8 0Z',fill:'#00f0ff',opacity:.9},originG);
+  el('circle',{r:2.5,fill:'#fff'},originG);
+  const tx=el('text',{x:12,y:-12},originG);tx.textContent='NS autoritativo';
+}
+drawOrigin();
+
+/* ---------- UI helpers ---------- */
+function log(msg,cls=''){
+  const d=document.createElement('div');if(cls)d.className=cls;
+  d.textContent=`[${started?'T+'+fmt(t):'--'}] ${msg}`;
+  const L=$('#lines');L.appendChild(d);L.scrollTop=L.scrollHeight;
+}
+function valText(n){
+  if(n.state==='sync0')return['v-sync0','✓ '+old()];
+  if(n.state==='old')return['v-old','✖ '+old()];
+  if(n.state==='query')return['v-query','… consultando'];
+  return['v-new','✔ '+nw()];
+}
+function setState(n,s){
+  n.state=s;n.g.dataset.s=s;
+  n.beam.setAttribute('y2',n.y-(s==='new'?24:7));
+  const[c,tx]=valText(n);const v=n.row.querySelector('.val');v.className='val '+c;v.textContent=tx;
+}
+function counts(){const c={sync0:0,old:0,query:0,new:0};nodes.forEach(n=>c[n.state]++);return c}
+function updateAllRows(){nodes.forEach(n=>setState(n,n.state))}
+function updVals(){$('#vOld').textContent=old();$('#vNew').textContent=nw();updateAllRows();renderExplain(true)}
+
+/* ---------- simulación ---------- */
+function reset(silent){
+  started=done=running=false;t=0;anims.length=0;arcsG.innerHTML='';
+  nodes.forEach(n=>{n.doneAt=null;n.ext=Math.random()<.28;setState(n,'sync0')});
+  $('#clock').textContent='0s';$('#pbar').style.width='0';$('#cnt').textContent='0';$('#spdTag').textContent='';
+  $('#bGo').disabled=false;
+  if(!silent)log('Simulación reiniciada. Todas las cachés coinciden.','m');
+  phase=-1;renderExplain(true);renderDetail();
+}
+function start(){
+  if(started&&!done){note('Ya hay una propagación en curso.');return}
+  if(done)reset(true);
+  const ttl=+$('#ttl').value,useExt=$('#ext').checked;
+  started=true;done=false;running=true;t=0;
+  nodes.forEach(n=>{
+    n.expire=(useExt&&n.ext)?ttl*(1.5+Math.random()*1.5):Math.random()*ttl;
+    setState(n,'old');
+  });
+  const maxE=Math.max(...nodes.map(n=>n.expire));
+  const s=+$('#spd').value;speed=s||Math.max(1,maxE/14);
+  $('#spdTag').innerHTML='Velocidad <b>×'+(speed<10?speed.toFixed(1):Math.round(speed))+'</b>';
+  const w=el('circle',{cx:ox,cy:oy,r:12,class:'wave'},arcsG);setTimeout(()=>w.remove(),2100);
+  log(`Zona actualizada en el NS autoritativo: ${dom()} ${$('#rtype').value} → ${nw()} (TTL ${fmt(ttl)})`,'m');
+  log('Las cachés de los resolvers siguen sirviendo el valor antiguo.','r');
+  renderDetail();
+}
+function query(n){
+  setState(n,'query');
+  log(`${n.name} (${n.prov}): TTL expirado → consulta al autoritativo`,'a');
+  arc(n,()=>{
+    setState(n,'new');n.doneAt=t;
+    log(`${n.name}: caché actualizada → ${nw()}`,'g');
+  });
+}
+function arc(n,cb){
+  const x1=n.x,y1=n.y,x2=ox,y2=oy;
+  const mx=(x1+x2)/2,my=(y1+y2)/2-Math.hypot(x2-x1,y2-y1)*.25-10;
+  const p=el('path',{d:`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`,class:'arc q'},arcsG);
+  const L=p.getTotalLength();p.style.strokeDasharray=L;p.style.strokeDashoffset=L;
+  const dot=el('circle',{r:3.5,class:'dot'},arcsG);
+  anims.push({s:performance.now(),dur:1000,
+    upd(k){p.style.strokeDashoffset=L*(1-k);const q=p.getPointAtLength(L*k);dot.setAttribute('cx',q.x);dot.setAttribute('cy',q.y)},
+    end(){
+      p.setAttribute('class','arc r');
+      anims.push({s:performance.now(),dur:900,
+        upd(k){p.style.opacity=1-k;const q=p.getPointAtLength(L*(1-k));dot.setAttribute('cx',q.x);dot.setAttribute('cy',q.y)},
+        end(){p.remove();dot.remove();cb()}});
+    }});
+}
+function tick(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(running){
+    t+=dt*speed;
+    for(const n of nodes)if(n.state==='old'&&t>=n.expire)query(n);
+    const c=counts();
+    if(c.new===nodes.length){
+      running=false;done=true;
+      log(`Convergencia global tras ${fmt(t)} de tiempo simulado.`,'g');
+    }
+  }
+  for(const a of anims.slice()){
+    const k=Math.min(1,(now-a.s)/a.dur);a.upd(k);
+    if(k>=1){anims.splice(anims.indexOf(a),1);a.end()}
+  }
+  const c=counts();
+  $('#clock').textContent=fmt(t);
+  $('#cnt').textContent=c.new;
+  $('#pbar').style.width=(c.new/nodes.length*100)+'%';
+  const ph=!started?0:done?3:(c.query+c.new>0?2:1);
+  if(ph!==phase){phase=ph;renderExplain(true)}
+  liveDetail();
+  requestAnimationFrame(tick);
+}
+
+/* ---------- explicación / tour / quiz ---------- */
+const PH=[
+ ()=>`Antes del cambio, <b>todos los resolvers</b> guardan en caché el mismo valor (cian) para <code>${esc(dom())}</code> (<code>${$('#rtype').value}</code>). Vas a modificar ese registro en el <b>servidor autoritativo</b> (◇). Pregunta clave: <i>¿cuánto tardará el mundo en enterarse?</i> Elige TTL y pulsa <b>⚡ Cambiar registro</b>.`,
+ ()=>`El autoritativo ya responde con el valor nuevo, pero DNS <b>no empuja</b> cambios: cada resolver sigue sirviendo su copia (rojo) hasta que su <b>TTL</b> restante llegue a 0. Cada uno tiene un tiempo restante distinto porque cachearon en momentos diferentes. Haz clic en un nodo rojo para ver su cuenta atrás.`,
+ ()=>`Cuando el TTL de un resolver expira, descarta la copia y <b>vuelve a preguntar</b> (ámbar). En la práctica consulta raíz → TLD → autoritativo; aquí se dibuja un salto directo. Al recibir la respuesta guarda el valor nuevo (verde) con un TTL nuevo. Prueba el <b>flush</b> en un nodo rojo para forzarlo.`,
+ ()=>`<b>Convergencia total</b> en ${fmt(t)} simulados. Para resolvers que respetan el TTL, el máximo es el propio TTL (${fmt(+$('#ttl').value)}). Si activaste «ignoran el TTL», verás rezagados. Buena práctica: <b>bajar el TTL con antelación</b> a una migración y subirlo después. Repite con TTL de 60 s y compara.`
+];
+const TOUR=[
+ {t:'Los resolvers',h:'#map',x:'Cada punto es un <b>resolver recursivo</b> (como los de la captura: Fráncfort, Seúl, Tokio…). Cada uno tiene su <b>propia caché</b>. Pasa el cursor para ver su nombre.'},
+ {t:'El autoritativo',h:'#origin',x:'El rombo cian es el <b>servidor autoritativo</b>: la fuente de verdad de la zona. <b>Haz clic en el mapa</b> para moverlo y observa cómo cambian las distancias de los arcos.'},
+ {t:'El TTL',h:'#ttl',x:'<b>TTL</b> (Time To Live) = segundos que un resolver puede reutilizar una respuesta. TTL bajo → cambios rápidos pero más consultas; TTL alto → menos carga pero cambios lentos.'},
+ {t:'Lanzar el cambio',h:'#bGo',x:'Pulso el botón por ti: el autoritativo ya tiene el valor nuevo. Observa cómo los nodos pasan a <b style="color:#ff3355">rojo</b> (caché obsoleta).',a:'go'},
+ {t:'Consulta y actualización',h:'#rows',x:'Los nodos en <b style="color:#ffb800">ámbar</b> están consultando; al responder se vuelven <b style="color:#39ff88">verdes</b> y emiten un haz. La lista muestra el valor que sirve cada uno.'},
+ {t:'Resolvers rebeldes',h:'#extWrap',x:'Algunos ISP imponen un TTL mínimo y <b>ignoran</b> el que defines. Activa esta casilla y reinicia: aparecerán rezagados que tardan más que tu TTL.'},
+ {t:'Flush',h:'#detail',x:'Selecciona un nodo rojo y usa <b>Vaciar caché</b>: fuerza la consulta de <i>ese</i> resolver, sin afectar a los demás.'},
+ {t:'Realidad aumentada',h:'#bAR',x:'<b>🥽 Modo RA</b> superpone el holograma sobre tu cámara y lo inclina con el ratón o el giroscopio del móvil. Es RA simulada (sin marcadores ni WebXR).'}
+];
+let tourI=0;
+const QZ=[
+ {q:'Cambias la IP de un dominio cuyo TTL es 1 hora. ¿Cuál es el tiempo máximo esperable para que un resolver que respeta el TTL sirva el valor nuevo?',o:['Inmediato: DNS empuja los cambios','Hasta 1 hora','Siempre 48 horas'],a:1,e:'El TTL acota la vida de la caché: un resolver cooperativo consulta de nuevo, como máximo, al expirar. (Las «48 horas» son una cifra popular, no una regla.)'},
+ {q:'Vas a migrar un servidor mañana. ¿Qué haces hoy?',o:['Subir el TTL a 24 h','Bajar el TTL, con antelación suficiente (≥ al TTL antiguo)','Nada: el TTL no influye'],a:1,e:'Hay que bajar el TTL antes y esperar a que expiren las copias con el TTL antiguo; así, el día del cambio la propagación es rápida.'},
+ {q:'Haces flush de la caché en un solo resolver. ¿Qué efecto tiene en el resto?',o:['Todos se actualizan','Ninguno: cada resolver tiene su propia caché','Se modifica el autoritativo'],a:1,e:'El flush solo afecta a la caché de ese resolver; los demás siguen con su TTL.'}
+];
+let qI=0,qScore=0,qAns=false;
+
+function chips(){
+  const ps=$('#chips').children;
+  [...ps].forEach((c,i)=>{c.className='chip'+(i<phase?' ok':'')+(i===phase?' act':'')});
+  if(done)ps[3].className='chip ok';
+}
+function clearHL(){document.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl'))}
+function renderExplain(force){
+  chips();const b=$('#exBody');
+  if(mode==='auto'){clearHL();b.innerHTML=PH[Math.max(0,phase)]();return}
+  if(mode==='tour'){
+    const s=TOUR[tourI];clearHL();
+    const h=document.querySelector(s.h);if(h&&s.h!=='#map')h.classList.add('hl');
+    b.innerHTML=`<b style="color:#ff2bd6">Tour ${tourI+1}/${TOUR.length} · ${s.t}</b><p>${s.x}</p>
+      <div class="btns"><button id="tPrev">◀</button><button id="tNext">${tourI===TOUR.length-1?'Terminar':'Siguiente ▶'}</button><button id="tExit">Salir</button></div>`;
+    $('#tPrev').onclick=()=>{if(tourI>0){tourI--;renderExplain()}};
+    $('#tNext').onclick=()=>{
+      if(tourI===TOUR.length-1){mode='auto';renderExplain();return}
+      tourI++;if(TOUR[tourI].a==='go')start();renderExplain();
+    };
+    $('#tExit').onclick=()=>{mode='auto';renderExplain()};
+    return;
+  }
+  if(mode==='quiz'){
+    clearHL();
+    if(qI>=QZ.length){
+      b.innerHTML=`<b style="color:#39ff88">Resultado: ${qScore}/${QZ.length}</b><p>${qScore===QZ.length?'¡Dominas la propagación DNS!':'Repite el simulador con otro TTL y vuelve a intentarlo.'}</p><div class="btns"><button id="qAgain">Reintentar</button><button id="qExit">Cerrar</button></div>`;
+      $('#qAgain').onclick=()=>{qI=0;qScore=0;renderExplain()};
+      $('#qExit').onclick=()=>{mode='auto';renderExplain()};return;
+    }
+    const q=QZ[qI];qAns=false;
+    b.innerHTML=`<b style="color:#ff2bd6">Pregunta ${qI+1}/${QZ.length}</b><p>${q.q}</p><div id="qo"></div><div id="qe"></div>`;
+    q.o.forEach((o,k)=>{
+      const bt=document.createElement('button');bt.className='opt';bt.textContent=o;
+      bt.onclick=()=>{
+        if(qAns)return;qAns=true;
+        const ok=k===q.a;if(ok)qScore++;
+        bt.classList.add(ok?'good':'bad');
+        [...$('#qo').children][q.a].classList.add('good');
+        $('#qe').innerHTML=`<p>${ok?'✔ Correcto.':'✖ No exactamente.'} ${q.e}</p><button id="qn">${qI===QZ.length-1?'Ver resultado':'Siguiente ▶'}</button>`;
+        $('#qn').onclick=()=>{qI++;renderExplain()};
+      };
+      $('#qo').appendChild(bt);
+    });
+  }
+}
+
+/* ---------- inspector ---------- */
+function select(i){
+  sel=i;nodes.forEach(n=>{n.g.classList.toggle('sel',n.i===i);n.row.classList.toggle('sel',n.i===i)});
+  nodes[i].row.scrollIntoView({block:'nearest'});renderDetail();
+}
+function renderDetail(){
+  const d=$('#detail');
+  if(sel<0){d.innerHTML='<h3>Inspector de resolver</h3><p class="hint">Haz clic en un punto del mapa o en la lista para ver su caché y vaciarla (flush).</p>';return}
+  const n=nodes[sel];
+  d.innerHTML=`<h3>${esc(n.name)}</h3>
+   <p class="hint">${esc(n.prov)} · origen del dato: ${n.src==='captura'?'captura de pantalla':'punto ilustrativo'}${(started&&$('#ext').checked&&n.ext)?' · <b style="color:#ff2bd6">ignora el TTL (simulado)</b>':''}</p>
+   <p>Estado: <b id="dS"></b><br>Valor en caché: <b id="dV"></b><br>TTL restante: <b id="dT"></b></p>
+   <button id="dF">🧹 Vaciar caché (flush)</button>
+   <p class="hint">El flush fuerza una nueva consulta solo en este resolver; el resto del mundo no cambia.</p>`;
+  $('#dF').onclick=()=>{
+    if(!started){note('Primero pulsa «Cambiar registro»: aún no hay nada obsoleto que vaciar.');return}
+    if(n.state==='old'){n.expire=t;log(`Flush manual en ${n.name}`,'m')}
+    else note('Este resolver ya consultó o está consultando.');
+  };
+  liveDetail();
+}
+const ST={sync0:'Consistente',old:'Obsoleto (valor antiguo)',query:'Consultando…',new:'Actualizado'};
+function liveDetail(){
+  if(sel<0||!$('#dS'))return;const n=nodes[sel];
+  $('#dS').textContent=ST[n.state];
+  $('#dV').textContent=(n.state==='new')?nw():(n.state==='query'?'—':old());
+  $('#dT').textContent=n.state==='old'?fmt(Math.max(0,n.expire-t)):(n.state==='new'?'TTL nuevo reiniciado':'—');
+}
+function note(m){log(m,'m')}
+
+/* ---------- eventos ---------- */
+$('#bGo').onclick=start;
+$('#bReset').onclick=()=>reset();
+$('#bTour').onclick=()=>{mode=mode==='tour'?'auto':'tour';tourI=0;renderExplain()};
+$('#bQuiz').onclick=()=>{mode=mode==='quiz'?'auto':'quiz';qI=0;qScore=0;renderExplain()};
+$('#rtype').onchange=updVals;
+$('#dom').oninput=()=>renderExplain();
+$('#ttl').onchange=()=>{if(started)reset(true);renderExplain()};
+$('#ext').onchange=()=>{if(started)reset(true)};
+$('#map').addEventListener('click',e=>{
+  if(running){note('Reinicia o espera al final para mover el servidor autoritativo.');return}
+  const svg=$('#map'),pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  const m=svg.getScreenCTM();if(!m)return;
+  const p=pt.matrixTransform(m.inverse());
+  if(p.x<0||p.x>W||p.y<0||p.y>H)return;
+  ox=p.x;oy=p.y;drawOrigin();log('Servidor autoritativo reubicado.','m');
+});
+
+/* ---------- Modo RA (simulado: cámara + holograma inclinable) ---------- */
+let ar=false,stream=null;
+const stage=$('#stage');
+function setTilt(rx,rz){stage.style.setProperty('--rx',rx.toFixed(1)+'deg');stage.style.setProperty('--rz',rz.toFixed(1)+'deg')}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+stage.addEventListener('pointermove',e=>{
+  if(!ar)return;const r=stage.getBoundingClientRect();
+  setTilt(((e.clientY-r.top)/r.height-.5)*-24,((e.clientX-r.left)/r.width-.5)*28);
+});
+function onOri(e){if(!ar||e.gamma==null)return;setTilt(clamp((e.beta-55)/3,-14,14),clamp(e.gamma/3,-16,16))}
+$('#bAR').onclick=async()=>{
+  const b=$('#bAR');
+  if(!ar){
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      $('#cam').srcObject=stream;await $('#cam').play();
+      log('Modo RA: cámara activa. Mueve el ratón o el móvil para inclinar el holograma.','g');
+    }catch(err){
+      log('No se pudo abrir la cámara ('+(err&&err.name||'error')+'). Se activa el holograma 3D sin cámara.','a');
+    }
+    try{
+      if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function'){
+        const r=await DeviceOrientationEvent.requestPermission();if(r==='granted')window.addEventListener('deviceorientation',onOri);
+      }else window.addEventListener('deviceorientation',onOri);
+    }catch(e){}
+    ar=true;stage.classList.add('ar');b.classList.add('on');b.textContent='🥽 Salir de RA';
+  }else{
+    ar=false;stage.classList.remove('ar');b.classList.remove('on');b.textContent='🥽 Modo RA';
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+    $('#cam').srcObject=null;setTilt(0,0);
+  }
+};
+
+/* ---------- inicio ---------- */
+updVals();reset(true);
+log('Listo. Elige TTL y pulsa «Cambiar registro», o inicia el tour guiado.','m');
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
