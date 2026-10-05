@@ -1,190 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Autoevaluación AD DS · Neon Quiz</title>
 <style>
+:root{
+  --bg:#000;
+  --ink:#f4f7ff;
+  --dim:#8d95b5;
+  --c0:#ff2e63; /* rojo - triángulo */
+  --c1:#19c3ff; /* cian - rombo */
+  --c2:#ffe600; /* amarillo - círculo */
+  --c3:#39ff14; /* verde - cuadrado */
+  --mag:#4d7cff;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-sans)}
-#qz{padding:1rem 0}
-.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding:0.75rem 1rem;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary)}
-.hdr-left{font-size:13px;color:var(--color-text-secondary)}
-.hdr-num{font-size:18px;font-weight:500;color:var(--color-text-primary)}
-.hdr-score{font-size:13px;color:var(--color-text-secondary);text-align:right}
-.hdr-pts{font-size:18px;font-weight:500;color:var(--color-text-primary);text-align:right}
-.timer-wrap{margin-bottom:0.75rem}
-.timer-bar-bg{height:8px;background:var(--color-border-tertiary);border-radius:4px;overflow:hidden}
-.timer-bar{height:8px;border-radius:4px;background:#185FA5;transition:width 0.25s linear}
-.timer-lbl{font-size:12px;color:var(--color-text-secondary);text-align:right;margin-top:4px}
-.q-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem 1.25rem 1rem;margin-bottom:1rem}
-.q-text{font-size:15px;font-weight:500;color:var(--color-text-primary);line-height:1.5;margin-bottom:1rem}
-.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.opt{padding:12px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:13px;color:var(--color-text-primary);line-height:1.4;text-align:left;transition:border-color 0.15s,background 0.15s}
-.opt:hover:not(:disabled){border-color:var(--color-border-primary);background:var(--color-background-primary)}
-.opt.correct{background:#EAF3DE;border-color:#3B6D11;color:#27500A}
-.opt.wrong{background:#FCEBEB;border-color:#A32D2D;color:#791F1F}
-.opt.reveal{background:#E6F1FB;border-color:#185FA5;color:#0C447C}
-.opt:disabled{cursor:default}
-.feedback{margin-top:0.75rem;padding:0.75rem 1rem;border-radius:var(--border-radius-md);font-size:13px;line-height:1.5;display:none}
-.feedback.show{display:block}
-.feedback.ok{background:#EAF3DE;color:#27500A;border:0.5px solid #3B6D11}
-.feedback.ko{background:#FCEBEB;color:#791F1F;border:0.5px solid #A32D2D}
-.feedback.timeout{background:#FAEEDA;color:#633806;border:0.5px solid #854F0B}
-.next-btn{margin-top:1rem;width:100%}
-.result-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.5rem;text-align:center}
-.result-title{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:0.5rem}
-.result-sub{font-size:14px;color:var(--color-text-secondary);margin-bottom:1.5rem}
-.result-score{font-size:48px;font-weight:500;color:var(--color-text-primary);margin-bottom:0.25rem}
-.result-max{font-size:14px;color:var(--color-text-secondary);margin-bottom:1.5rem}
-.result-grade{font-size:16px;font-weight:500;margin-bottom:1.5rem;padding:0.5rem 1rem;border-radius:var(--border-radius-md);display:inline-block}
-.grade-a{background:#EAF3DE;color:#27500A}
-.grade-b{background:#E6F1FB;color:#0C447C}
-.grade-c{background:#FAEEDA;color:#633806}
-.grade-d{background:#FCEBEB;color:#791F1F}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.5rem}
-.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem;text-align:center}
-.stat-n{font-size:22px;font-weight:500;color:var(--color-text-primary)}
-.stat-l{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
-.badge{font-size:11px;padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:0.5rem}
-.badge-tag{background:var(--color-background-info);color:var(--color-text-info)}
+html,body{height:100%}
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+/* ---------- Fondo neón ---------- */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+#bg svg{width:100%;height:100%}
+.glow-a{position:fixed;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.22;z-index:0;pointer-events:none}
+.glow-a.m{background:var(--mag);top:-30vmax;left:-20vmax}
+.glow-a.c{background:var(--c1);bottom:-35vmax;right:-20vmax}
+@keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.float{animation:drift 7s ease-in-out infinite}
+.float:nth-child(2n){animation-duration:9s;animation-delay:-3s}
+.float:nth-child(3n){animation-duration:11s;animation-delay:-5s}
+
+#app{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:18px 16px 40px}
+
+/* ---------- Barra superior ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.chip{
+  border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 14px;font-size:13px;
+  background:rgba(8,8,20,.7);box-shadow:0 0 12px rgba(25,195,255,.15) inset;white-space:nowrap
+}
+.chip b{font-size:16px;color:var(--c1);text-shadow:0 0 8px var(--c1)}
+.chip.score b{color:var(--c2);text-shadow:0 0 8px var(--c2)}
+.chip.streak b{color:var(--mag);text-shadow:0 0 8px var(--mag)}
+.mute{
+  background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--ink);border-radius:999px;
+  width:38px;height:34px;cursor:pointer;display:grid;place-items:center
+}
+.mute:hover{border-color:var(--c1);box-shadow:0 0 12px var(--c1)}
+.progress{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:18px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--mag),var(--c1));box-shadow:0 0 12px var(--c1);transition:width .4s}
+
+/* ---------- Pantalla de inicio ---------- */
+.hero{text-align:center;padding:30px 8px 10px}
+.hero svg.logo{width:150px;height:150px;margin-bottom:6px}
+h1{
+  font-size:clamp(26px,5.2vw,44px);letter-spacing:1px;line-height:1.15;margin-bottom:10px;
+  color:#fff;text-shadow:0 0 6px #fff,0 0 18px var(--mag),0 0 38px var(--mag),0 0 70px var(--mag);
+}
+@keyframes flick{0%,19%,21%,23%,25%,54%,56%,100%{opacity:1}20%,24%,55%{opacity:.55}}
+h1 .fl{animation:flick 5s infinite}
+.sub{color:var(--dim);font-size:15px;margin-bottom:22px}
+.rules{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 auto 26px;max-width:640px;text-align:left
+}
+.rule{border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px;background:rgba(10,10,24,.65);font-size:13px;line-height:1.45;color:#cfd5ee}
+.rule b{display:block;color:var(--c1);margin-bottom:3px;text-shadow:0 0 6px var(--c1)}
+
+.btn{
+  font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;letter-spacing:.5px;cursor:pointer;
+  color:#fff;background:rgba(0,0,0,.6);border:2px solid var(--mag);border-radius:12px;padding:14px 30px;
+  box-shadow:0 0 12px var(--mag),0 0 26px rgba(77,124,255,.45),inset 0 0 12px rgba(77,124,255,.3);
+  text-shadow:0 0 8px var(--mag);transition:transform .12s,box-shadow .2s
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 0 18px var(--mag),0 0 44px rgba(77,124,255,.6),inset 0 0 18px rgba(77,124,255,.4)}
+.btn:active{transform:translateY(0)}
+.btn.cy{border-color:var(--c1);box-shadow:0 0 12px var(--c1),0 0 26px rgba(25,195,255,.4),inset 0 0 12px rgba(25,195,255,.25);text-shadow:0 0 8px var(--c1)}
+.btn.cy:hover{box-shadow:0 0 18px var(--c1),0 0 44px rgba(25,195,255,.55),inset 0 0 18px rgba(25,195,255,.35)}
+.btn.sm{padding:10px 20px;font-size:14px}
+.btn:focus-visible,.ans:focus-visible,.mute:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+/* ---------- Pregunta ---------- */
+.qhead{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+.timer{position:relative;width:92px;height:92px;flex:0 0 92px}
+.timer svg{width:100%;height:100%;transform:rotate(-90deg)}
+.timer .num{
+  position:absolute;inset:0;display:grid;place-items:center;font-size:30px;font-weight:bold;
+  color:var(--c1);text-shadow:0 0 10px var(--c1)
+}
+.qbox{
+  flex:1;border:2px solid var(--c1);border-radius:16px;padding:16px 18px;background:rgba(6,10,24,.78);
+  box-shadow:0 0 14px rgba(25,195,255,.5),inset 0 0 22px rgba(25,195,255,.12)
+}
+.tag{display:inline-block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mag);text-shadow:0 0 8px var(--mag);margin-bottom:6px;font-weight:bold}
+.qtext{font-size:clamp(16px,2.6vw,21px);line-height:1.45;font-weight:bold}
+
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ans{
+  --c:#fff;position:relative;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;
+  font-family:Arial,Helvetica,sans-serif;font-size:clamp(13px,2vw,16px);line-height:1.4;color:var(--ink);
+  background:rgba(4,4,12,.82);border:2px solid var(--c);border-radius:14px;padding:14px 14px;min-height:92px;
+  box-shadow:0 0 10px var(--c),inset 0 0 16px color-mix(in srgb,var(--c) 25%,transparent);
+  transition:transform .12s,box-shadow .2s,opacity .25s,background .25s
+}
+.ans:hover:not(:disabled){transform:translateY(-2px) scale(1.01);box-shadow:0 0 20px var(--c),0 0 40px color-mix(in srgb,var(--c) 55%,transparent),inset 0 0 22px color-mix(in srgb,var(--c) 35%,transparent)}
+.ans .shape{flex:0 0 38px;width:38px;height:38px;filter:drop-shadow(0 0 6px var(--c))}
+.ans .shape *{fill:var(--c)}
+.ans .key{position:absolute;top:6px;right:10px;font-size:11px;color:var(--dim)}
+.ans:disabled{cursor:default}
+.ans.dim{opacity:.28;box-shadow:none}
+.ans.right{
+  --c:#39ff14 !important;background:rgba(57,255,20,.14);opacity:1;
+  box-shadow:0 0 20px #39ff14,0 0 50px rgba(57,255,20,.6),inset 0 0 26px rgba(57,255,20,.35)
+}
+.ans.wrong{--c:#ff2e63 !important;background:rgba(255,46,99,.14);opacity:1;animation:shake .45s;box-shadow:0 0 20px #ff2e63,0 0 44px rgba(255,46,99,.55)}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* ---------- Retroalimentación ---------- */
+.fb{
+  margin-top:16px;border-radius:16px;padding:16px 18px;display:none;border:2px solid;background:rgba(5,5,14,.88)
+}
+.fb.show{display:block;animation:pop .3s ease-out}
+@keyframes pop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.fb.ok{border-color:#39ff14;box-shadow:0 0 18px rgba(57,255,20,.6),inset 0 0 22px rgba(57,255,20,.12)}
+.fb.ko{border-color:#ff2e63;box-shadow:0 0 18px rgba(255,46,99,.6),inset 0 0 22px rgba(255,46,99,.12)}
+.fb.to{border-color:#ffe600;box-shadow:0 0 18px rgba(255,230,0,.55),inset 0 0 22px rgba(255,230,0,.1)}
+.fb-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.fb-top svg{width:44px;height:44px;flex:0 0 44px}
+.fb-title{font-size:20px;font-weight:bold}
+.fb.ok .fb-title{color:#39ff14;text-shadow:0 0 10px #39ff14}
+.fb.ko .fb-title{color:#ff2e63;text-shadow:0 0 10px #ff2e63}
+.fb.to .fb-title{color:#ffe600;text-shadow:0 0 10px #ffe600}
+.fb-pts{margin-left:auto;font-size:14px;color:var(--dim);text-align:right}
+.fb-pts b{display:block;font-size:22px;color:var(--c2);text-shadow:0 0 8px var(--c2)}
+.fb-correct{font-size:14px;margin-bottom:8px;color:#cfd5ee}
+.fb-correct span{color:#39ff14;font-weight:bold}
+.fb-exp{font-size:14px;line-height:1.6;color:#dfe4f7}
+.fb-actions{margin-top:14px;text-align:right}
+
+/* ---------- Resultados ---------- */
+.res{text-align:center}
+.res h2{font-size:clamp(22px,4vw,32px);margin:6px 0 4px;text-shadow:0 0 8px var(--c1),0 0 24px var(--c1)}
+.res .sub{margin-bottom:12px}
+.ring-wrap{position:relative;width:200px;height:200px;margin:8px auto}
+.ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-wrap .mid{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring-wrap .mid b{font-size:44px;text-shadow:0 0 12px currentColor}
+.ring-wrap .mid span{font-size:12px;color:var(--dim)}
+.badge{display:inline-block;font-weight:bold;font-size:17px;padding:8px 20px;border-radius:999px;border:2px solid;margin:8px 0 18px}
+.grid3{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat{border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:12px 6px;background:rgba(8,8,20,.75)}
+.stat b{display:block;font-size:24px;color:var(--c1);text-shadow:0 0 8px var(--c1)}
+.stat span{font-size:12px;color:var(--dim)}
+.panel{text-align:left;border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:16px;margin-bottom:18px;background:rgba(8,8,20,.78)}
+.panel h3{font-size:15px;margin-bottom:12px;color:var(--mag);text-shadow:0 0 8px var(--mag);letter-spacing:.5px}
+.topic{display:grid;grid-template-columns:120px 1fr 52px;gap:10px;align-items:center;margin-bottom:9px;font-size:13px}
+.bar{height:10px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px}
+.rev{border-left:3px solid #ff2e63;padding:8px 12px;margin-bottom:12px;background:rgba(255,46,99,.06);border-radius:0 10px 10px 0}
+.rev p{font-size:13.5px;line-height:1.55}
+.rev .q{font-weight:bold;margin-bottom:4px}
+.rev .a{color:#39ff14;margin-bottom:4px}
+.rev .e{color:#cfd5ee}
+.btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.note{margin-top:22px;font-size:11.5px;color:var(--dim);line-height:1.5;text-align:center}
+
+@media (max-width:620px){
+  .answers{grid-template-columns:1fr}
+  .ans{min-height:70px}
+  .rules{grid-template-columns:1fr}
+  .grid3{grid-template-columns:repeat(2,1fr)}
+  .timer{width:70px;height:70px;flex-basis:70px}
+  .timer .num{font-size:22px}
+  .topic{grid-template-columns:90px 1fr 46px}
+  .ans .key{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
 </style>
-<div id="qz">
-<div id="quiz-area"></div>
+</head>
+<body>
+
+<!-- Fondo: cuadrícula neón + figuras flotantes -->
+<div id="bg" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1200 800">
+    <defs>
+      <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+        <path d="M60 0H0V60" fill="none" stroke="#4d7cff" stroke-opacity=".10" stroke-width="1"/>
+      </pattern>
+      <filter id="gl" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <rect width="1200" height="800" fill="url(#grid)"/>
+    <g filter="url(#gl)" fill="none" stroke-width="2.5" stroke-opacity=".55">
+      <polygon class="float" points="90,170 130,240 50,240" stroke="#ff2e63"/>
+      <polygon class="float" points="1090,120 1130,160 1090,200 1050,160" stroke="#19c3ff"/>
+      <circle class="float" cx="1110" cy="640" r="30" stroke="#ffe600"/>
+      <rect class="float" x="70" y="600" width="56" height="56" stroke="#39ff14"/>
+      <circle class="float" cx="600" cy="60" r="14" stroke="#4d7cff"/>
+      <polygon class="float" points="300,740 330,790 270,790" stroke="#19c3ff"/>
+      <rect class="float" x="880" y="720" width="38" height="38" stroke="#ff2e63" transform="rotate(20 899 739)"/>
+    </g>
+  </svg>
 </div>
+<div class="glow-a m" aria-hidden="true"></div>
+<div class="glow-a c" aria-hidden="true"></div>
+
+<main id="app"></main>
+
 <script>
-const QS=[
-{q:"¿Cuál es la función principal del servicio DNS en Active Directory?",opts:["Autenticar usuarios mediante tickets cifrados","Localizar Domain Controllers, el KDC y el Global Catalog mediante registros SRV","Gestionar la replicación de objetos LDAP entre DCs","Cifrar las comunicaciones entre cliente y servidor"],ans:1,fb_ok:"Correcto. DNS es el pilar de localización de AD: sin él, los clientes no pueden encontrar los DCs, el KDC de Kerberos ni el Global Catalog. La zona _msdcs almacena los registros SRV críticos para este descubrimiento.",fb_ko:"Incorrecto. DNS en AD actúa como directorio de localización de servicios, no como protocolo de autenticación ni de replicación. Su función crítica es publicar registros SRV en la zona _msdcs para que los clientes encuentren los DCs.",tag:"DNS"},
-{q:"¿Qué significa el acrónimo LDAP y cuál es su origen?",opts:["Local Directory Access Protocol — creado por Microsoft para Windows Server","Lightweight Directory Access Protocol — versión simplificada del protocolo DAP definido en X.500","Linked Data Access Protocol — protocolo de red basado en TCP/IP","Layer Directory Authentication Protocol — parte del stack OSI"],ans:1,fb_ok:"Correcto. LDAP (Lightweight Directory Access Protocol) nació como una versión ligera del protocolo DAP del estándar X.500 (ISO/IEC 9594), reduciendo su complejidad para operar sobre TCP/IP sin requerir el stack OSI completo.",fb_ko:"Incorrecto. LDAP significa Lightweight Directory Access Protocol y es una simplificación del protocolo DAP definido en el estándar X.500 de la ISO, pensado para funcionar sobre TCP/IP.",tag:"LDAP"},
-{q:"¿Qué puertos usa LDAP por defecto para comunicaciones no cifradas y cifradas (LDAPS)?",opts:["Puerto 88 TCP/UDP para ambos casos","Puerto 389 TCP para no cifrado · Puerto 636 TCP para LDAPS","Puerto 53 UDP para consultas · Puerto 443 TCP para LDAPS","Puerto 445 SMB para no cifrado · Puerto 389 para LDAPS"],ans:1,fb_ok:"Correcto. El cliente LDAP se conecta al Directory System Agent (DSA) del DC usando el puerto TCP 389 para comunicaciones estándar y el puerto TCP 636 para LDAPS (LDAP sobre SSL/TLS).",fb_ko:"Incorrecto. LDAP usa TCP 389 (no cifrado) y TCP 636 (LDAPS con SSL/TLS). El puerto 88 es de Kerberos, el 53 es de DNS y el 445 corresponde a SMB.",tag:"LDAP"},
-{q:"¿Qué es el AS-Service dentro del KDC de Kerberos?",opts:["Application Server: el servidor al que el usuario quiere acceder","Authentication Service: el componente que valida la identidad del usuario y emite el TGT","Active Session Manager: gestiona las sesiones activas de usuarios en el DC","Access Selector: determina qué recursos puede ver el usuario en AD"],ans:1,fb_ok:"Correcto. AS (Authentication Service) es uno de los dos servicios internos del KDC. Recibe el AS_REQ, verifica las credenciales contra la AD Database usando la clave derivada del password del usuario, genera el TGT cifrado con la KDC Master Key y emite la Session Key 1.",fb_ko:"Incorrecto. AS significa Authentication Service, el primer punto de contacto en Kerberos. Es el componente del KDC que verifica la identidad del usuario y emite el TGT (Ticket Granting Ticket) junto con la Session Key 1.",tag:"Kerberos"},
-{q:"¿Cuál es la diferencia fundamental entre una OU (Unidad Organizativa) y un objeto leaf como 'usuario' en AD?",opts:["No hay diferencia: ambos son objetos iguales del esquema LDAP","La OU es un contenedor que puede albergar otros objetos y sobre el que se aplican GPOs; el objeto leaf (usuario/equipo) es una entidad concreta sin capacidad de contener otros objetos","Las OUs solo existen en el Forest raíz; los usuarios se crean en cada dominio hijo","El usuario puede contener grupos; la OU solo puede contener otros OUs"],ans:1,fb_ok:"Correcto. Esta distinción es fundamental: las OUs son contenedores (clase organizationalUnit) que estructuran el directorio y reciben GPOs. Los objetos leaf como user y computer son instancias del esquema que representan entidades reales y viven dentro de las OUs.",fb_ko:"Incorrecto. La diferencia es esencial: la OU es un contenedor (clase organizationalUnit) que puede albergar objetos y sub-OUs, y es el destino de las GPOs. Los objetos leaf como usuario o equipo son entidades concretas que no pueden contener otros objetos.",tag:"Estructura AD"},
-{q:"¿Cuál es el rol de la cuenta 'krbtgt' en Active Directory?",opts:["Es la cuenta del administrador principal del dominio con acceso total a todos los recursos","Es la cuenta especial cuya clave se usa como KDC Master Key para cifrar todos los TGTs del dominio","Es el usuario de servicio que gestiona la replicación entre Domain Controllers","Es la cuenta por defecto del servicio DNS integrado en Active Directory"],ans:1,fb_ko:"Incorrecto. La cuenta krbtgt es una cuenta especial de clase user que existe desde la creación del dominio. Su hash de password es la KDC Master Key con la que el AS-Service cifra todos los TGTs. Por eso un ataque Golden Ticket apunta exactamente a esta cuenta.",fb_ok:"Correcto. La cuenta krbtgt nunca inicia sesión interactivamente: existe exclusivamente para derivar la clave maestra del KDC. Todos los TGTs del dominio se cifran con su hash. Comprometer esta cuenta permite crear TGTs arbitrarios (Golden Ticket attack).",tag:"Kerberos"},
-{q:"En el proceso Kerberos, ¿cuál es el orden correcto de los mensajes hasta acceder a un recurso compartido?",opts:["TGS_REQ → AS_REQ → AP_REQ → AS_REP → TGS_REP → AP_REP","AS_REQ → AS_REP → TGS_REQ → TGS_REP → AP_REQ → AP_REP","AS_REP → TGT → AP_REQ → TGS_REQ → TGS_REP → acceso","DNS_QUERY → LDAP_BIND → AS_REQ → TGS_REQ → AP_REQ"],ans:1,fb_ok:"Correcto. El flujo completo es: (1) AS_REQ al KDC, (2) AS_REP con TGT + SK1, (3) TGS_REQ al KDC con el TGT, (4) TGS_REP con Service Ticket + SK2, (5) AP_REQ al servidor destino, (6) AP_REP opcional para autenticación mutua.",fb_ko:"Incorrecto. El orden correcto es AS_REQ → AS_REP (obtener TGT) → TGS_REQ → TGS_REP (obtener Service Ticket) → AP_REQ → AP_REP (acceder al recurso). Primero se autentica ante el AS, luego se solicita el ticket de servicio al TGS.",tag:"Kerberos"},
-{q:"¿Qué representa el Distinguished Name (DN) 'CN=Juan Perez,OU=Ventas,DC=empresa,DC=com' en LDAP?",opts:["Un registro DNS SRV que apunta al Domain Controller del dominio empresa.com","La ruta jerárquica única de un objeto llamado Juan Perez, dentro de la OU Ventas, en el dominio empresa.com","El nombre de una GPO aplicada a la OU Ventas del bosque empresa.com","El identificador SID del usuario Juan Perez en la base de datos SAM local"],ans:1,fb_ok:"Correcto. El DN (Distinguished Name) es el identificador único y absoluto de cada objeto en el directorio LDAP. Cada componente describe un nivel de la jerarquía: CN = Common Name (nombre del objeto), OU = Unidad Organizativa, DC = Domain Component (parte del nombre DNS).",fb_ko:"Incorrecto. El DN (Distinguished Name) es la ruta jerárquica única de un objeto en LDAP. CN es el nombre del objeto, OU es la Unidad Organizativa que lo contiene, y DC son los componentes del nombre de dominio DNS. Juntos ubican el objeto de forma unívoca en el árbol.",tag:"LDAP"},
-{q:"¿Qué es el Global Catalog (GC) en Active Directory y para qué sirve?",opts:["Es la base de datos NTDS.dit que almacena todos los objetos del dominio local con todos sus atributos completos","Es un DC especial que contiene información completa de los objetos de su dominio e información parcial de todos los objetos del bosque, usado para búsquedas multi-dominio","Es el servidor que gestiona los roles FSMO de Schema Master y RID Master del bosque","Es el catálogo de políticas GPO disponibles en todos los dominios del árbol"],ans:1,fb_ok:"Correcto. El GC es fundamental en entornos multi-dominio: permite localizar objetos en dominios distintos al propio sin necesitar conocer el dominio específico del objeto. También almacena en caché membresías de grupos Universal, críticas para la autorización.",fb_ko:"Incorrecto. El Global Catalog contiene los objetos completos del dominio local más un subconjunto de atributos de todos los objetos del bosque. Es esencial para búsquedas cross-domain y para resolver membresías de grupos Universal durante el inicio de sesión.",tag:"Estructura AD"},
-{q:"¿Cuál es el puerto que utiliza el protocolo Kerberos v5 en Windows Server?",opts:["Puerto TCP/UDP 389 para autenticación con pre-auth","Puerto TCP/UDP 88 para toda la comunicación Kerberos","Puerto TCP 636 exclusivamente para tickets cifrados","Puerto UDP 53 para la resolución de nombres del KDC"],ans:1,fb_ok:"Correcto. Kerberos v5 (RFC 4120), implementado por Windows Server desde Windows 2000, utiliza el puerto TCP/UDP 88 para todos sus mensajes: AS_REQ, AS_REP, TGS_REQ, TGS_REP. Los tickets pequeños usan UDP; los mayores a ~1500 bytes usan TCP.",fb_ko:"Incorrecto. Kerberos v5 usa el puerto TCP/UDP 88. El 389 es de LDAP, el 636 de LDAPS y el 53 de DNS. Es importante no confundirlos porque todos coexisten en el mismo Domain Controller.",tag:"Kerberos"}
+/* =========================================================
+   Autoevaluación AD DS — DNS, LDAP y Kerberos (1INF35 PUCP)
+   Contenido: tomado del archivo original del docente.
+   ========================================================= */
+const QUESTIONS = [
+  {tag:"DNS", q:"¿Cuál es la función principal del servicio DNS en Active Directory?",
+   opts:["Autenticar usuarios mediante tickets cifrados","Localizar Domain Controllers, el KDC y el Global Catalog mediante registros SRV","Gestionar la replicación de objetos LDAP entre DCs","Cifrar las comunicaciones entre cliente y servidor"], ans:1,
+   exp:"DNS es el pilar de localización de AD: los clientes encuentran los DCs, el KDC y el Global Catalog mediante registros SRV publicados en la zona _msdcs. Sin DNS funcional no hay inicio de sesión de dominio."},
+  {tag:"LDAP", q:"¿Qué significa el acrónimo LDAP y cuál es su origen?",
+   opts:["Local Directory Access Protocol — creado por Microsoft para Windows Server","Lightweight Directory Access Protocol — versión simplificada del protocolo DAP definido en X.500","Linked Data Access Protocol — protocolo de red basado en TCP/IP","Layer Directory Authentication Protocol — parte del stack OSI"], ans:1,
+   exp:"LDAP (Lightweight Directory Access Protocol) nació como versión ligera del protocolo DAP del estándar X.500 (ISO/IEC 9594), pensada para operar sobre TCP/IP sin necesitar el stack OSI completo."},
+  {tag:"LDAP", q:"¿Qué puertos usa LDAP por defecto para comunicaciones no cifradas y cifradas (LDAPS)?",
+   opts:["Puerto 88 TCP/UDP para ambos casos","Puerto 389 TCP para no cifrado · Puerto 636 TCP para LDAPS","Puerto 53 UDP para consultas · Puerto 443 TCP para LDAPS","Puerto 445 SMB para no cifrado · Puerto 389 para LDAPS"], ans:1,
+   exp:"LDAP usa TCP 389 (sin cifrar) y TCP 636 (LDAPS, sobre SSL/TLS). No los confundas: el 88 es Kerberos, el 53 es DNS y el 445 es SMB."},
+  {tag:"Kerberos", q:"¿Qué es el AS-Service dentro del KDC de Kerberos?",
+   opts:["Application Server: el servidor al que el usuario quiere acceder","Authentication Service: el componente que valida la identidad del usuario y emite el TGT","Active Session Manager: gestiona las sesiones activas de usuarios en el DC","Access Selector: determina qué recursos puede ver el usuario en AD"], ans:1,
+   exp:"AS (Authentication Service) es el primer servicio del KDC: recibe el AS_REQ, valida las credenciales contra la base de AD, genera el TGT cifrado con la clave del KDC y entrega la Session Key 1."},
+  {tag:"Estructura AD", q:"¿Cuál es la diferencia fundamental entre una OU (Unidad Organizativa) y un objeto leaf como «usuario» en AD?",
+   opts:["No hay diferencia: ambos son objetos iguales del esquema LDAP","La OU es un contenedor que puede albergar otros objetos y sobre el que se aplican GPOs; el objeto leaf (usuario/equipo) es una entidad concreta sin capacidad de contener otros objetos","Las OUs solo existen en el Forest raíz; los usuarios se crean en cada dominio hijo","El usuario puede contener grupos; la OU solo puede contener otras OUs"], ans:1,
+   exp:"La OU (clase organizationalUnit) es un contenedor que estructura el directorio y recibe GPOs. Usuarios y equipos son objetos leaf: entidades concretas que viven dentro de las OUs y no contienen otros objetos."},
+  {tag:"Kerberos", q:"¿Cuál es el rol de la cuenta «krbtgt» en Active Directory?",
+   opts:["Es la cuenta del administrador principal del dominio con acceso total a todos los recursos","Es la cuenta especial cuya clave se usa como KDC Master Key para cifrar todos los TGTs del dominio","Es el usuario de servicio que gestiona la replicación entre Domain Controllers","Es la cuenta por defecto del servicio DNS integrado en Active Directory"], ans:1,
+   exp:"krbtgt es una cuenta especial que existe desde la creación del dominio y nunca inicia sesión de forma interactiva. Su hash actúa como KDC Master Key: con él se cifran todos los TGTs. Por eso es el objetivo de un ataque Golden Ticket."},
+  {tag:"Kerberos", q:"En el proceso Kerberos, ¿cuál es el orden correcto de los mensajes hasta acceder a un recurso compartido?",
+   opts:["TGS_REQ → AS_REQ → AP_REQ → AS_REP → TGS_REP → AP_REP","AS_REQ → AS_REP → TGS_REQ → TGS_REP → AP_REQ → AP_REP","AS_REP → TGT → AP_REQ → TGS_REQ → TGS_REP → acceso","DNS_QUERY → LDAP_BIND → AS_REQ → TGS_REQ → AP_REQ"], ans:1,
+   exp:"Flujo completo: (1) AS_REQ al KDC → (2) AS_REP con TGT + SK1 → (3) TGS_REQ con el TGT → (4) TGS_REP con el Service Ticket + SK2 → (5) AP_REQ al servidor destino → (6) AP_REP opcional (autenticación mutua)."},
+  {tag:"LDAP", q:"¿Qué representa el Distinguished Name (DN) «CN=Juan Perez,OU=Ventas,DC=empresa,DC=com» en LDAP?",
+   opts:["Un registro DNS SRV que apunta al Domain Controller del dominio empresa.com","La ruta jerárquica única de un objeto llamado Juan Perez, dentro de la OU Ventas, en el dominio empresa.com","El nombre de una GPO aplicada a la OU Ventas del bosque empresa.com","El identificador SID del usuario Juan Perez en la base de datos SAM local"], ans:1,
+   exp:"El DN es el identificador único y absoluto de un objeto en el directorio. CN = Common Name (nombre del objeto), OU = Unidad Organizativa que lo contiene, DC = Domain Component (partes del nombre DNS del dominio)."},
+  {tag:"Estructura AD", q:"¿Qué es el Global Catalog (GC) en Active Directory y para qué sirve?",
+   opts:["Es la base de datos NTDS.dit que almacena todos los objetos del dominio local con todos sus atributos completos","Es un DC especial que contiene información completa de los objetos de su dominio e información parcial de todos los objetos del bosque, usado para búsquedas multi-dominio","Es el servidor que gestiona los roles FSMO de Schema Master y RID Master del bosque","Es el catálogo de políticas GPO disponibles en todos los dominios del árbol"], ans:1,
+   exp:"El GC guarda los objetos completos de su dominio más un subconjunto de atributos de todos los objetos del bosque. Es esencial para búsquedas entre dominios y para resolver membresías de grupos Universal durante el inicio de sesión."},
+  {tag:"Kerberos", q:"¿Cuál es el puerto que utiliza el protocolo Kerberos v5 en Windows Server?",
+   opts:["Puerto TCP/UDP 389 para autenticación con pre-auth","Puerto TCP/UDP 88 para toda la comunicación Kerberos","Puerto TCP 636 exclusivamente para tickets cifrados","Puerto UDP 53 para la resolución de nombres del KDC"], ans:1,
+   exp:"Kerberos v5 (RFC 4120) usa el puerto 88 (TCP/UDP) para AS_REQ, AS_REP, TGS_REQ y TGS_REP. El 389 es LDAP, el 636 es LDAPS y el 53 es DNS; todos coexisten en el mismo Domain Controller."}
 ];
 
-const TOTAL=QS.length, TIME=30, MAX_PTS=20;
-let cur=0, score=0, answered=0, correct=0, timerInterval=null, timeLeft=TIME;
+const TIME = 30;                       // segundos por pregunta
+const COLORS = ['#ff2e63','#19c3ff','#ffe600','#39ff14'];
+const SHAPES = [
+  '<svg class="shape" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,3 22.5,21 1.5,21"/></svg>',
+  '<svg class="shape" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 22.5,12 12,22.5 1.5,12"/></svg>',
+  '<svg class="shape" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>',
+  '<svg class="shape" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/></svg>'
+];
+const R = 40, CIRC = 2 * Math.PI * R;
 
-function render(){
-  const q=QS[cur];
-  const colors=["#185FA5","#854F0B","#3B6D11","#993556"];
-  document.getElementById('quiz-area').innerHTML=`
-<div class="hdr">
-  <div>
-    <div class="hdr-left">Pregunta</div>
-    <div class="hdr-num">${cur+1} / ${TOTAL}</div>
+const $app = document.getElementById('app');
+let deck = [], cur = 0, score = 0, correct = 0, streak = 0, best = 0, log = [];
+let deadline = 0, tick = null, locked = false, muted = false, lastBeep = -1;
+
+/* ---------- Utilidades ---------- */
+function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function prepare(list){
+  return shuffle(list).map(q => {
+    const order = shuffle([0,1,2,3]);
+    return { tag:q.tag, q:q.q, exp:q.exp, opts:order.map(i=>q.opts[i]), ans:order.indexOf(q.ans), src:q };
+  });
+}
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- Audio (WebAudio, sin archivos externos) ---------- */
+let ctx = null;
+function beep(freq, dur, type='sine', vol=.06, when=0){
+  if (muted) return;
+  try{
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(ctx.destination);
+    const t = ctx.currentTime + when;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.start(t); o.stop(t + dur);
+  }catch(e){}
+}
+const sfx = {
+  ok(){ beep(660,.12,'triangle',.07); beep(880,.12,'triangle',.07,.1); beep(1175,.2,'triangle',.07,.2); },
+  ko(){ beep(220,.18,'sawtooth',.05); beep(160,.3,'sawtooth',.05,.15); },
+  to(){ beep(300,.25,'square',.04); },
+  tick(){ beep(900,.05,'square',.03); },
+  end(){ [523,659,784,1047].forEach((f,i)=>beep(f,.22,'triangle',.07,i*.14)); }
+};
+const SPK_ON  = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const SPK_OFF = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
+function toggleMute(){ muted = !muted; const b=document.getElementById('mute'); if(b){ b.innerHTML = muted?SPK_OFF:SPK_ON; b.setAttribute('aria-label', muted?'Activar sonido':'Silenciar'); } }
+
+/* ---------- Pantalla de inicio ---------- */
+function showStart(){
+  clearInterval(tick);
+  $app.innerHTML = `
+  <section class="hero">
+    <svg class="logo" viewBox="0 0 160 160" aria-hidden="true">
+      <defs><filter id="nf" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <g filter="url(#nf)" fill="none" stroke-width="4" stroke-linejoin="round">
+        <polygon points="40,66 62,106 18,106" stroke="#ff2e63"/>
+        <polygon points="110,18 134,42 110,66 86,42" stroke="#19c3ff"/>
+        <circle cx="116" cy="112" r="22" stroke="#ffe600"/>
+        <rect x="22" y="22" width="36" height="36" stroke="#39ff14" transform="translate(0 0)"/>
+      </g>
+    </svg>
+    <h1><span class="fl">AUTOEVALUACIÓN</span><br>AD DS · DNS · LDAP · KERBEROS</h1>
+    <p class="sub">1INF35 · Administración de Sistemas Operativos · ${QUESTIONS.length} preguntas · ${TIME} s cada una</p>
+    <div class="rules">
+      <div class="rule"><b>Velocidad = puntos</b>Cada acierto vale entre 500 y 1000 puntos según el tiempo que te sobre.</div>
+      <div class="rule"><b>Rachas</b>Cada acierto seguido suma un bono de +50 (hasta +250).</div>
+      <div class="rule"><b>Retroalimentación</b>Tras cada pregunta verás la respuesta correcta y por qué lo es.</div>
+    </div>
+    <button class="btn" id="go">▶ INICIAR</button>
+    <p class="note">Atajos: teclas 1–4 para responder · Enter o Espacio para continuar</p>
+  </section>`;
+  document.getElementById('go').onclick = () => startGame(QUESTIONS);
+}
+
+/* ---------- Flujo del juego ---------- */
+function startGame(list){
+  deck = prepare(list); cur = 0; score = 0; correct = 0; streak = 0; best = 0; log = [];
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+  showQuestion();
+}
+
+function showQuestion(){
+  const q = deck[cur]; locked = false; lastBeep = -1;
+  $app.innerHTML = `
+  <div class="top">
+    <div class="chip">Pregunta <b>${cur+1}</b> / ${deck.length}</div>
+    <div class="chip streak">Racha <b id="st">${streak}</b></div>
+    <div class="chip score">Puntos <b id="sc">${score}</b></div>
+    <button class="mute" id="mute" aria-label="${muted?'Activar sonido':'Silenciar'}">${muted?SPK_OFF:SPK_ON}</button>
   </div>
-  <div style="flex:1;padding:0 1rem">
-    <span class="badge badge-tag">${q.tag}</span>
+  <div class="progress" aria-hidden="true"><i style="width:${(cur/deck.length)*100}%"></i></div>
+
+  <div class="qhead">
+    <div class="timer" aria-label="Tiempo restante">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <defs><filter id="rg" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <circle cx="50" cy="50" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="8"/>
+        <circle id="ring" cx="50" cy="50" r="${R}" fill="none" stroke="#19c3ff" stroke-width="8" stroke-linecap="round"
+                stroke-dasharray="${CIRC}" stroke-dashoffset="0" filter="url(#rg)"/>
+      </svg>
+      <div class="num" id="tn">${TIME}</div>
+    </div>
+    <div class="qbox">
+      <span class="tag">${esc(q.tag)}</span>
+      <div class="qtext">${esc(q.q)}</div>
+    </div>
   </div>
-  <div>
-    <div class="hdr-score">Puntuación</div>
-    <div class="hdr-pts">${score} / ${cur*MAX_PTS}</div>
+
+  <div class="answers" id="answers">
+    ${q.opts.map((o,i)=>`
+      <button class="ans" data-i="${i}" style="--c:${COLORS[i]}">
+        ${SHAPES[i]}<span>${esc(o)}</span><span class="key">${i+1}</span>
+      </button>`).join('')}
   </div>
-</div>
-<div class="timer-wrap">
-  <div class="timer-bar-bg"><div class="timer-bar" id="tbar" style="width:100%"></div></div>
-  <div class="timer-lbl"><span id="tlbl">${TIME}s</span></div>
-</div>
-<div class="q-card">
-  <div class="q-text">${q.q}</div>
-  <div class="opts" id="opts">
-    ${q.opts.map((o,i)=>`<button class="opt" id="opt${i}" onclick="choose(${i})" style="border-left:3px solid ${colors[i]}">${o}</button>`).join('')}
-  </div>
-  <div class="feedback" id="fb"></div>
-</div>
-<button class="next-btn" id="nbtn" style="display:none" onclick="nextQ()">${cur<TOTAL-1?'Siguiente pregunta →':'Ver resultados →'}</button>`;
+  <div class="fb" id="fb" role="status" aria-live="polite"></div>`;
+
+  document.getElementById('mute').onclick = toggleMute;
+  document.querySelectorAll('.ans').forEach(b => b.onclick = () => pick(+b.dataset.i));
   startTimer();
 }
 
 function startTimer(){
-  timeLeft=TIME;
-  clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{
-    timeLeft--;
-    const pct=Math.round((timeLeft/TIME)*100);
-    const bar=document.getElementById('tbar');
-    const lbl=document.getElementById('tlbl');
-    if(bar) bar.style.width=pct+'%';
-    if(bar){
-      if(pct>50) bar.style.background='#185FA5';
-      else if(pct>25) bar.style.background='#854F0B';
-      else bar.style.background='#A32D2D';
-    }
-    if(lbl) lbl.textContent=timeLeft+'s';
-    if(timeLeft<=0){ clearInterval(timerInterval); timeoutQ(); }
-  },1000);
+  clearInterval(tick);
+  deadline = Date.now() + TIME * 1000;
+  tick = setInterval(() => {
+    const left = Math.max(0, (deadline - Date.now()) / 1000);
+    const frac = left / TIME;
+    const ring = document.getElementById('ring'), tn = document.getElementById('tn');
+    if (!ring) return;
+    ring.setAttribute('stroke-dashoffset', (CIRC * (1 - frac)).toFixed(2));
+    const col = frac > .5 ? '#19c3ff' : frac > .25 ? '#ffe600' : '#ff2e63';
+    ring.setAttribute('stroke', col); tn.style.color = col; tn.style.textShadow = '0 0 10px ' + col;
+    const sec = Math.ceil(left); tn.textContent = sec;
+    if (sec <= 5 && sec > 0 && sec !== lastBeep) { lastBeep = sec; sfx.tick(); }
+    if (left <= 0) { clearInterval(tick); resolve(-1); }
+  }, 100);
 }
 
-function choose(i){
-  clearInterval(timerInterval);
-  const q=QS[cur];
-  answered++;
-  const opts=document.querySelectorAll('.opt');
-  opts.forEach(o=>o.disabled=true);
-  const fb=document.getElementById('fb');
-  if(i===q.ans){
-    correct++;
-    const pts=Math.round((timeLeft/TIME)*MAX_PTS);
-    score+=pts;
-    document.getElementById('opt'+i).classList.add('correct');
-    fb.className='feedback show ok';
-    fb.innerHTML=`<strong>Correcto +${pts} pts</strong> — ${q.fb_ok}`;
-  } else {
-    document.getElementById('opt'+i).classList.add('wrong');
-    document.getElementById('opt'+q.ans).classList.add('reveal');
-    fb.className='feedback show ko';
-    fb.innerHTML=`<strong>Incorrecto — 0 pts</strong> — ${q.fb_ko}`;
-  }
-  document.getElementById('nbtn').style.display='block';
+function pick(i){ if (!locked) resolve(i); }
+
+function resolve(i){
+  if (locked) return; locked = true; clearInterval(tick);
+  const q = deck[cur];
+  const left = Math.max(0, (deadline - Date.now()) / 1000);
+  const timedOut = i === -1;
+  const isRight = i === q.ans;
+  let pts = 0, bonus = 0;
+
+  if (isRight){
+    streak++; best = Math.max(best, streak); correct++;
+    pts = Math.round(500 + 500 * (left / TIME));
+    bonus = Math.min(streak - 1, 5) * 50;
+    score += pts + bonus;
+  } else { streak = 0; }
+  log.push({ tag:q.tag, ok:isRight, q:q.q, right:q.opts[q.ans], chosen: timedOut ? null : q.opts[i], exp:q.exp, src:q.src });
+
+  document.querySelectorAll('.ans').forEach((b, k) => {
+    b.disabled = true;
+    if (k === q.ans) b.classList.add('right');
+    else if (k === i) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  document.getElementById('sc').textContent = score;
+  document.getElementById('st').textContent = streak;
+
+  const fb = document.getElementById('fb');
+  const kind = isRight ? 'ok' : timedOut ? 'to' : 'ko';
+  const icon = {
+    ok:'<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="#39ff14" stroke-width="3" style="filter:drop-shadow(0 0 6px #39ff14)"/><path d="M14 25l7 7 13-15" fill="none" stroke="#39ff14" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 6px #39ff14)"/></svg>',
+    ko:'<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="#ff2e63" stroke-width="3" style="filter:drop-shadow(0 0 6px #ff2e63)"/><path d="M16 16l16 16M32 16L16 32" fill="none" stroke="#ff2e63" stroke-width="4" stroke-linecap="round" style="filter:drop-shadow(0 0 6px #ff2e63)"/></svg>',
+    to:'<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="#ffe600" stroke-width="3" style="filter:drop-shadow(0 0 6px #ffe600)"/><path d="M24 12v13l8 5" fill="none" stroke="#ffe600" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 6px #ffe600)"/></svg>'
+  }[kind];
+  const title = isRight ? (streak >= 3 ? '¡Correcto! Estás en racha 🔥' : '¡Correcto!') : timedOut ? '¡Se acabó el tiempo!' : 'Incorrecto';
+  const ptsHtml = isRight
+    ? `<div class="fb-pts"><b>+${pts + bonus}</b>${bonus ? `${pts} + ${bonus} de racha` : 'por velocidad'}</div>`
+    : `<div class="fb-pts"><b>+0</b>racha reiniciada</div>`;
+  const isLast = cur === deck.length - 1;
+
+  fb.className = 'fb show ' + kind;
+  fb.innerHTML = `
+    <div class="fb-top">${icon}<div class="fb-title">${title}</div>${ptsHtml}</div>
+    ${isRight ? '' : `<div class="fb-correct">Respuesta correcta: <span>${esc(q.opts[q.ans])}</span></div>`}
+    <div class="fb-exp">${esc(q.exp)}</div>
+    <div class="fb-actions"><button class="btn cy sm" id="nx">${isLast ? 'Ver resultados →' : 'Siguiente →'}</button></div>`;
+  document.getElementById('nx').onclick = next;
+  document.getElementById('nx').focus({preventScroll:true});
+  fb.scrollIntoView({behavior:'smooth', block:'nearest'});
+  (isRight ? sfx.ok : timedOut ? sfx.to : sfx.ko)();
 }
 
-function timeoutQ(){
-  const q=QS[cur];
-  answered++;
-  const opts=document.querySelectorAll('.opt');
-  opts.forEach(o=>o.disabled=true);
-  document.getElementById('opt'+q.ans).classList.add('reveal');
-  const fb=document.getElementById('fb');
-  fb.className='feedback show timeout';
-  fb.innerHTML=`<strong>Tiempo agotado — 0 pts</strong> — ${q.fb_ko}`;
-  document.getElementById('nbtn').style.display='block';
-}
-
-function nextQ(){
+function next(){
   cur++;
-  if(cur>=TOTAL){ showResult(); return; }
-  render();
+  if (cur >= deck.length) showResults(); else showQuestion();
 }
 
-function showResult(){
-  const pct=Math.round((score/(TOTAL*MAX_PTS))*100);
-  let grade,gclass,emoji;
-  if(pct>=85){grade='Excelente (AD';gclass='grade-a';emoji='Sobresaliente';}
-  else if(pct>=70){grade='Aprobado';gclass='grade-b';emoji='Bueno';}
-  else if(pct>=50){grade='En proceso';gclass='grade-c';emoji='Regular';}
-  else{grade='Desaprobado';gclass='grade-d';emoji='Necesita refuerzo';}
-  document.getElementById('quiz-area').innerHTML=`
-<div class="result-card">
-  <div class="result-title">Resultados del quiz</div>
-  <div class="result-sub">AD DS — Servicios DNS, LDAP y Kerberos · 1INF35 PUCP</div>
-  <div class="result-score">${score}</div>
-  <div class="result-max">de ${TOTAL*MAX_PTS} puntos posibles</div>
-  <span class="result-grade ${gclass}">${grade} — ${emoji}</span>
-  <div class="stats-grid">
-    <div class="stat"><div class="stat-n">${correct}</div><div class="stat-l">Correctas</div></div>
-    <div class="stat"><div class="stat-n">${TOTAL-correct}</div><div class="stat-l">Incorrectas</div></div>
-    <div class="stat"><div class="stat-n">${pct}%</div><div class="stat-l">Acierto</div></div>
-  </div>
-  <button onclick="restart()" style="margin-bottom:0.75rem;width:100%">Reintentar quiz</button>
-  <br>
-  <button onclick="sendPrompt('Explícame los temas donde tuve más errores en el quiz de AD DS: DNS, LDAP y Kerberos')" style="width:100%">Repasar temas con errores ↗</button>
-</div>`;
+/* ---------- Resultados ---------- */
+function showResults(){
+  clearInterval(tick); sfx.end();
+  const n = deck.length, pct = Math.round(correct / n * 100);
+  let grade, gc, msg;
+  if (pct >= 90)      { grade = 'EXCELENTE';   gc = '#39ff14'; msg = 'Dominas los fundamentos de AD DS.'; }
+  else if (pct >= 70) { grade = 'APROBADO';    gc = '#19c3ff'; msg = 'Buen nivel; repasa los puntos fallados.'; }
+  else if (pct >= 50) { grade = 'EN PROCESO';  gc = '#ffe600'; msg = 'Hay conceptos que conviene reforzar.'; }
+  else                { grade = 'A REFORZAR';  gc = '#ff2e63'; msg = 'Repasa el material y vuelve a intentarlo.'; }
+
+  const topics = {};
+  log.forEach(l => { const t = topics[l.tag] = topics[l.tag] || {t:0, c:0}; t.t++; if (l.ok) t.c++; });
+  const topicHtml = Object.entries(topics).map(([k, v]) => {
+    const p = Math.round(v.c / v.t * 100);
+    const col = p >= 80 ? '#39ff14' : p >= 50 ? '#ffe600' : '#ff2e63';
+    return `<div class="topic"><span>${esc(k)}</span><div class="bar"><i style="width:${p}%;background:${col};box-shadow:0 0 10px ${col}"></i></div><span>${v.c}/${v.t}</span></div>`;
+  }).join('');
+
+  const wrong = log.filter(l => !l.ok);
+  const wrongHtml = wrong.length
+    ? wrong.map(l => `<div class="rev"><p class="q">${esc(l.q)}</p><p class="a">✔ ${esc(l.right)}</p><p class="e">${esc(l.exp)}</p></div>`).join('')
+    : '<p style="font-size:14px;color:#39ff14;text-shadow:0 0 8px #39ff14">¡Sin errores! No hay nada que repasar.</p>';
+
+  const C2 = 2 * Math.PI * 80;
+  $app.innerHTML = `
+  <section class="res">
+    <h2>RESULTADOS</h2>
+    <p class="sub">AD DS · DNS, LDAP y Kerberos · 1INF35 PUCP</p>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <defs><filter id="rf" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="14"/>
+        <circle id="rr" cx="100" cy="100" r="80" fill="none" stroke="${gc}" stroke-width="14" stroke-linecap="round"
+                stroke-dasharray="${C2}" stroke-dashoffset="${C2}" filter="url(#rf)" style="transition:stroke-dashoffset 1.2s ease-out"/>
+      </svg>
+      <div class="mid"><div><b style="color:${gc}">${pct}%</b><br><span>${correct} de ${n} correctas</span></div></div>
+    </div>
+    <span class="badge" style="color:${gc};border-color:${gc};box-shadow:0 0 14px ${gc},inset 0 0 12px ${gc}33;text-shadow:0 0 8px ${gc}">${grade}</span>
+    <p class="sub" style="margin-top:-8px">${msg}</p>
+
+    <div class="grid3">
+      <div class="stat"><b>${score}</b><span>puntos</span></div>
+      <div class="stat"><b>${correct}</b><span>correctas</span></div>
+      <div class="stat"><b>${n - correct}</b><span>falladas</span></div>
+      <div class="stat"><b>${best}</b><span>mejor racha</span></div>
+    </div>
+
+    <div class="panel"><h3>DESEMPEÑO POR TEMA</h3>${topicHtml}</div>
+    <div class="panel"><h3>REPASO DE ERRORES (${wrong.length})</h3>${wrongHtml}</div>
+
+    <div class="btns">
+      <button class="btn" id="again">↻ Reintentar todo</button>
+      ${wrong.length ? '<button class="btn cy" id="again-w">Repetir solo las falladas</button>' : ''}
+    </div>
+    <p class="note">Contenido basado en el archivo original de la autoevaluación. Los puntos no son una calificación oficial del curso.</p>
+  </section>`;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const rr = document.getElementById('rr');
+    if (rr) rr.setAttribute('stroke-dashoffset', (C2 * (1 - pct / 100)).toFixed(2));
+  }));
+  document.getElementById('again').onclick = () => startGame(QUESTIONS);
+  const aw = document.getElementById('again-w');
+  if (aw) aw.onclick = () => startGame(wrong.map(l => l.src));
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
-function restart(){
-  cur=0;score=0;answered=0;correct=0;
-  render();
-}
+/* ---------- Teclado ---------- */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const qa = document.getElementById('answers');
+  if (qa && !locked && ['1','2','3','4'].includes(e.key)) { pick(+e.key - 1); return; }
+  const nx = document.getElementById('nx');
+  if (nx && locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); nx.click(); }
+});
 
-render();
+showStart();
 </script>
-
+</body>
+</html>
