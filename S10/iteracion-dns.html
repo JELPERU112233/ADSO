@@ -1,1 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DNS con Root Hints · Neón + RA + Autoconocimiento</title>
+<style>
+:root{--bg:#050d1a;--cy:#00d4ff;--mg:#ff2bd6;--gr:#00ff88;--am:#ffaa00;--rd:#ff4466;--vi:#cc44ff;--tx:#cfeaff;--mut:#6fa3c4;--pn:rgba(7,21,37,.88)}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0}
+body{background:radial-gradient(1000px 500px at 15% -10%,#0f2a66 0%,transparent 60%),radial-gradient(800px 500px at 100% 0%,#3a0f55 0%,transparent 55%),var(--bg);color:var(--tx);min-height:100vh}
+header{text-align:center;padding:16px 12px 2px}
+h1{margin:0;font-size:clamp(18px,3.4vw,30px);letter-spacing:3px;color:#fff;text-shadow:0 0 6px var(--cy),0 0 20px var(--cy),0 0 40px var(--mg)}
+h1 span{color:var(--mg);text-shadow:0 0 8px var(--mg)}
+.sub{margin:6px 0 0;font-size:12.5px;color:var(--mut)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:14px;padding:14px;max-width:1500px;margin:auto}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}}
+.left,.right{display:flex;flex-direction:column;gap:10px;min-width:0}
+.card{background:var(--pn);border:1px solid rgba(0,212,255,.35);border-radius:12px;padding:12px 14px;box-shadow:0 0 14px rgba(0,212,255,.15),inset 0 0 22px rgba(0,212,255,.04)}
+.card h2{margin:0 0 8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--cy);text-shadow:0 0 8px var(--cy)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.toolbar label{font-size:11px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+input[type=text]{background:#07102b;color:var(--tx);border:1px solid #1d4a73;border-radius:8px;padding:7px 9px;font-size:13px;width:190px;outline:none}
+input[type=text]:focus{border-color:var(--cy);box-shadow:0 0 10px var(--cy)}
+button,.btn{cursor:pointer;background:#071525;color:var(--cy);border:1px solid #1a4a6e;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:bold;transition:.15s}
+button:hover{background:#0d2540;border-color:var(--cy);box-shadow:0 0 10px rgba(0,212,255,.5)}
+button.on{background:#0a2a4a;border-color:var(--cy);color:#fff;box-shadow:0 0 12px var(--cy)}
+button.pri{border-color:var(--mg);color:#fff;box-shadow:0 0 10px rgba(255,43,214,.6)}
+button.pri:hover{background:var(--mg)}
+button:disabled{opacity:.35;cursor:not-allowed}
+.sw{display:inline-flex;gap:0}
+.sw button{border-radius:0}.sw button:first-child{border-radius:8px 0 0 8px}.sw button:last-child{border-radius:0 8px 8px 0}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx);cursor:pointer;padding-bottom:7px}
+#stage{position:relative;aspect-ratio:680/430;border:1px solid var(--cy);border-radius:14px;overflow:hidden;background:#030a16;box-shadow:0 0 22px rgba(0,212,255,.45),inset 0 0 50px rgba(0,212,255,.1);perspective:1100px}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+#stage.ar #cam{display:block}
+#holo{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .15s ease-out}
+#holo svg{width:100%;height:100%;display:block}
+#stage.ar #holo{transform:rotateX(calc(34deg + var(--rx,0deg))) rotateZ(var(--rz,0deg)) scale(.9)}
+#stage.ar #holo svg{animation:floaty 4s ease-in-out infinite}
+@keyframes floaty{0%,100%{translate:0 0}50%{translate:0 -7px}}
+#stage.ar .floor{fill-opacity:.1}
+.scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,212,255,.045) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+.hud{position:absolute;left:12px;right:12px;top:8px;display:flex;justify-content:space-between;pointer-events:none;font-size:12px;color:#fff;text-shadow:0 0 8px var(--cy)}
+.hud b{color:var(--cy)}
+#arMsg{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(0,10,25,.8);border:1px solid var(--gr);color:var(--gr);padding:5px 12px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+#arMsg.show{opacity:1}
+.brk{position:absolute;width:26px;height:26px;border:2px solid var(--gr);opacity:0;pointer-events:none;filter:drop-shadow(0 0 5px var(--gr))}
+#stage.ar .brk{opacity:.8}
+.brk.a{left:10px;top:30px;border-right:0;border-bottom:0}.brk.b{right:10px;top:30px;border-left:0;border-bottom:0}
+.brk.c{left:10px;bottom:10px;border-right:0;border-top:0}.brk.d{right:10px;bottom:10px;border-left:0;border-top:0}
+.stepbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.stepbar .sbtn{min-width:86px}
+.sbtn.active{background:#0a2a4a;border-color:var(--cy);color:#fff;box-shadow:0 0 10px var(--cy)}
+.sbtn.s-ok{border-color:var(--gr)} .sbtn.s-shaky{border-color:var(--am)} .sbtn.s-over{border-color:var(--rd)} .sbtn.s-weak{border-color:var(--mg)}
+.info-strip{font-size:12px;color:#8fc4e2;background:#030d1a;border:1px solid #0d2540;border-radius:8px;padding:8px 10px;min-height:38px;line-height:1.5}
+.info-strip b{color:var(--cy)}
+/* SVG */
+#ns text{font-family:Arial,Helvetica,sans-serif}
+.nnode{cursor:pointer;transition:opacity .35s}
+.nnode:hover rect,.nnode:hover circle.core{filter:brightness(1.35)}
+#ns.focus .nnode:not(.act){opacity:.38}
+.nnode.act{filter:drop-shadow(0 0 7px rgba(255,255,255,.55))}
+.nnode.act>rect:first-of-type,.nnode.act circle.core{stroke-width:2.6}
+@keyframes neonPulse{0%,100%{opacity:1}50%{opacity:.7}}
+.arr{fill:none;stroke-width:2.2;stroke-linecap:round;opacity:0;transition:opacity .4s}
+.arr.old{opacity:.28}.arr.cur{opacity:1}
+.arr.dash{stroke-dasharray:6 4}
+.lab{font-size:10.5px;paint-order:stroke;stroke:#030a16;stroke-width:3px}
+.pulseRing{fill:none;stroke:#fff;stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:rp 1.6s ease-out infinite}
+@keyframes rp{from{transform:scale(1);opacity:.8}to{transform:scale(1.35);opacity:0}}
+/* tarjetas */
+.stepno{font-size:11px;color:var(--mut);letter-spacing:1px;margin-bottom:4px}
+.stepno .tag{color:var(--mg);margin-left:6px}
+#stepCard h3{margin:0 0 8px;font-size:17px;color:#fff;text-shadow:0 0 8px var(--cy)}
+#stepCard p{font-size:13.5px;line-height:1.6;margin:0 0 10px}
+.watch,.concept,.fb{font-size:12.5px;line-height:1.55;border-radius:8px;padding:8px 10px;margin:8px 0}
+.watch{background:#04122a;border:1px solid #12385e}
+.watch ul{margin:4px 0 0;padding-left:18px}
+.concept{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.4);color:#b9ffd9}
+.fb.good{background:rgba(0,255,136,.1);border:1px solid var(--gr)}
+.fb.bad{background:rgba(255,68,102,.1);border:1px solid var(--rd)}
+.fb.skip{background:#04122a;border:1px solid #12385e}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.q p{font-size:14px!important}
+.conf{display:flex;gap:6px;margin:6px 0 8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--mut)}
+.conf button.sel{background:var(--mg);color:#fff;border-color:var(--mg)}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;font-weight:normal;line-height:1.4}
+.warn{color:var(--am);font-size:12px;min-height:16px}
+#detail .body{font-size:13px;line-height:1.6;margin:0 0 8px}
+#detail pre{margin:0;white-space:pre-wrap;background:#030d1a;border:1px solid #1a4a6e;border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55;color:#7fc8ff;font-family:Consolas,monospace}
+#detail pre strong{color:#00ffcc}
+#detail h3{margin:0 0 6px;color:var(--cy);font-size:15px;text-shadow:0 0 8px var(--cy)}
+.kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.kc{border:1px solid #1a4a6e;border-radius:8px;padding:6px;text-align:center;font-size:11px;cursor:pointer;background:#04122a}
+.kc b{display:block;font-size:16px}
+.kc.ok{border-color:var(--gr);color:var(--gr)}.kc.shaky{border-color:var(--am);color:var(--am)}.kc.over{border-color:var(--rd);color:var(--rd)}.kc.weak{border-color:var(--mg);color:var(--mg)}
+.meter{height:10px;border-radius:6px;background:#02060f;border:1px solid var(--cy);overflow:hidden;margin:4px 0 8px}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg),var(--cy),var(--gr));transition:width .4s}
+.ktxt{font-size:12.5px;line-height:1.55;color:#b9d9ee}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.bd{font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid #28507a;color:#4d7a9c}
+.bd.got{color:#fff;border-color:var(--gr);box-shadow:0 0 10px var(--gr)}
+details{margin-top:8px;font-size:12.5px}
+summary{cursor:pointer;color:var(--cy);font-weight:bold}
+#ordBox{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+#ordBox button{font-weight:normal;text-align:left}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.shake{animation:shake .25s}
+footer{max-width:1500px;margin:0 auto;padding:4px 14px 26px;font-size:11.5px;line-height:1.55;color:#6f93b8}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>RESOLUCIÓN <span>DNS</span> · ROOT HINTS</h1>
+  <p class="sub">Diagrama SVG interactivo · modo RA · aprende prediciendo y mide tu propio conocimiento</p>
+</header>
 
+<div class="layout">
+  <div class="left">
+    <div class="card toolbar">
+      <label>Dominio a resolver
+        <input type="text" id="dom" value="microsoft.com" maxlength="40" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Vista del flujo
+        <span class="sw"><button id="vSim" class="on">Simplificada</button><button id="vReal">Real (iterativa)</button></span>
+      </label>
+      <label class="chk"><input type="checkbox" id="pred" checked> Modo autoconocimiento (predecir antes de ver)</label>
+      <button id="bPlay">▶ Reproducir secuencia</button>
+      <button id="bCache">⚡ Consulta repetida (caché)</button>
+      <button id="bAR" class="pri">🥽 Modo RA</button>
+    </div>
+
+    <div id="stage">
+      <video id="cam" playsinline muted></video>
+      <div id="holo">
+      <svg id="ns" viewBox="0 0 680 430" role="img">
+        <title>Resolución DNS con sugerencias de raíz</title>
+        <desc>Diagrama interactivo: PC1, servidor DNS local, clúster DNS, root hints, Internet, servidor raíz, TLD y servidor autoritativo.</desc>
+        <defs>
+          <filter id="glow-b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-c" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-p" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <clipPath id="globe-clip"><circle cx="578" cy="68" r="33"/></clipPath>
+          <pattern id="gridp" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#0b2a4a" stroke-width=".5"/></pattern>
+        </defs>
+        <rect class="floor" width="680" height="430" fill="#030a16"/>
+        <rect width="680" height="430" fill="url(#gridp)" opacity=".7"/>
+
+        <!-- Zona local -->
+        <rect x="10" y="28" width="370" height="378" rx="12" fill="none" stroke="#0d3a5c" stroke-width="1" stroke-dasharray="7 4"/>
+        <text x="22" y="22" font-size="11" fill="#2a7aa8">Red local</text>
+        <text x="400" y="22" font-size="11" fill="#2a7aa8">Internet · jerarquía DNS</text>
+
+        <!-- Clúster DNS -->
+        <g class="nnode" id="n-cluster" data-comp="cluster">
+          <rect x="22" y="148" width="112" height="162" rx="10" fill="#030d1a" stroke="#00aaff" stroke-width="1.5" filter="url(#glow-b)"/>
+          <text x="78" y="168" font-size="10" fill="#00aaff" text-anchor="middle" style="animation:neonPulse 2.5s ease-in-out infinite">Clúster DNS</text>
+          <text x="78" y="180" font-size="10" fill="#0077cc" text-anchor="middle">local</text>
+          <rect x="34" y="188" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width=".8"/><text x="78" y="203" font-size="10" fill="#4db8ff" text-anchor="middle">DNS-1</text>
+          <rect x="34" y="216" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width=".8"/><text x="78" y="231" font-size="10" fill="#4db8ff" text-anchor="middle">DNS-2</text>
+          <rect x="34" y="244" width="88" height="22" rx="4" fill="#040f1e" stroke="#00aaff" stroke-width=".8"/><text x="78" y="259" font-size="10" fill="#4db8ff" text-anchor="middle">DNS-3</text>
+          <text x="78" y="296" font-size="9" fill="#2a8ac0" text-anchor="middle">alta disponibilidad</text>
+        </g>
+        <!-- Servidor DNS -->
+        <g class="nnode" id="n-sdns" data-comp="sdns">
+          <rect x="160" y="240" width="120" height="68" rx="8" fill="#030d1a" stroke="#00ccff" stroke-width="1.5" filter="url(#glow-b)"/>
+          <rect x="172" y="252" width="96" height="7" rx="2" fill="none" stroke="#0066aa"/><rect x="172" y="263" width="96" height="7" rx="2" fill="none" stroke="#0066aa"/><rect x="172" y="274" width="96" height="7" rx="2" fill="none" stroke="#0066aa"/>
+          <circle cx="258" cy="255.5" r="2" fill="#00ffcc"/><circle cx="258" cy="266.5" r="2" fill="#00ffcc"/><circle cx="258" cy="277.5" r="2" fill="#00ffcc"/>
+          <text x="220" y="322" font-size="10" fill="#00ccff" text-anchor="middle">Servidor DNS</text>
+          <text id="ttlTag" x="220" y="336" font-size="9.5" fill="#00ff88" text-anchor="middle" opacity="0"></text>
+        </g>
+        <!-- Root hints -->
+        <g class="nnode" id="n-roothints" data-comp="roothints">
+          <rect x="166" y="192" width="108" height="38" rx="7" fill="#030d1a" stroke="#ffaa00" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text x="220" y="208" font-size="10" fill="#ffaa00" text-anchor="middle" font-weight="bold">Root hints</text>
+          <text x="220" y="221" font-size="9" fill="#cc8800" text-anchor="middle">almacenadas</text>
+        </g>
+        <!-- PC1 -->
+        <g class="nnode" id="n-pc1" data-comp="pc1">
+          <rect x="26" y="334" width="96" height="56" rx="8" fill="#030d1a" stroke="#00ffcc" stroke-width="1.5" filter="url(#glow-c)"/>
+          <rect x="42" y="342" width="64" height="34" rx="3" fill="none" stroke="#00aa77"/><rect x="60" y="376" width="28" height="5" rx="1" fill="#00aa77"/>
+          <text x="74" y="402" font-size="10" fill="#00ffcc" text-anchor="middle">PC1</text>
+        </g>
+        <!-- Globo -->
+        <g class="nnode" id="n-internet" data-comp="internet">
+          <circle cx="578" cy="68" r="40" fill="none" stroke="#00ccff" stroke-width=".5" opacity=".3" style="animation:neonPulse 2.5s infinite"/>
+          <circle cx="578" cy="68" r="36" fill="none" stroke="#00ccff" stroke-width=".8" opacity=".5" style="animation:neonPulse 2.5s infinite"/>
+          <circle class="core" cx="578" cy="68" r="33" fill="#030d1a" stroke="#00ccff" stroke-width="2" filter="url(#glow-b)"/>
+          <g id="meridians" clip-path="url(#globe-clip)"></g>
+          <g clip-path="url(#globe-clip)">
+            <line x1="545" y1="68" x2="611" y2="68" stroke="#00ccff" stroke-width=".9" opacity=".7"/>
+            <line x1="547" y1="52" x2="609" y2="52" stroke="#00ccff" stroke-width=".6" opacity=".45"/>
+            <line x1="547" y1="84" x2="609" y2="84" stroke="#00ccff" stroke-width=".6" opacity=".45"/>
+            <line x1="554" y1="38" x2="602" y2="38" stroke="#00ccff" stroke-width=".5" opacity=".28"/>
+            <line x1="554" y1="98" x2="602" y2="98" stroke="#00ccff" stroke-width=".5" opacity=".28"/>
+          </g>
+          <text x="578" y="118" font-size="10" fill="#00ccff" text-anchor="middle">Internet</text>
+        </g>
+        <!-- Raíz -->
+        <g class="nnode" id="n-root" data-comp="root">
+          <rect x="476" y="136" width="140" height="66" rx="8" fill="#030d1a" stroke="#cc44ff" stroke-width="1.5" filter="url(#glow-b)"/>
+          <rect x="490" y="148" width="112" height="7" rx="2" fill="none" stroke="#7a1fb0"/><rect x="490" y="159" width="112" height="7" rx="2" fill="none" stroke="#7a1fb0"/><rect x="490" y="170" width="112" height="7" rx="2" fill="none" stroke="#7a1fb0"/>
+          <text x="546" y="190" font-size="9.5" fill="#cc44ff" text-anchor="middle" opacity="0">.</text>
+          <text x="546" y="216" font-size="10" fill="#cc44ff" text-anchor="middle">Clúster raíz (.)</text>
+        </g>
+        <!-- TLD -->
+        <g class="nnode" id="n-tld" data-comp="tld">
+          <rect x="476" y="278" width="70" height="38" rx="7" fill="#030d1a" stroke="#ffaa00" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text id="tldTxt" x="511" y="302" font-size="13" fill="#ffaa00" text-anchor="middle" font-weight="bold">.com</text>
+        </g>
+        <!-- Autoritativo -->
+        <g class="nnode" id="n-auth" data-comp="auth">
+          <rect x="566" y="278" width="100" height="38" rx="7" fill="#030d1a" stroke="#00ff88" stroke-width="1.5" filter="url(#glow-c)"/>
+          <text id="authTxt" x="616" y="302" font-size="11" fill="#00ff88" text-anchor="middle" font-weight="bold">microsoft</text>
+          <text x="616" y="330" font-size="9" fill="#14a860" text-anchor="middle">autoritativo</text>
+        </g>
+
+        <g id="arrowsL"></g>
+        <g id="labelsL"></g>
+        <g id="ringsL"></g>
+        <circle id="pkt" cx="0" cy="0" r="5.5" fill="#00ffcc" opacity="0" filter="url(#glow-p)"/>
+      </svg>
+      </div>
+      <div class="scan"></div>
+      <i class="brk a"></i><i class="brk b"></i><i class="brk c"></i><i class="brk d"></i>
+      <div class="hud"><span>Paso <b id="hStep">0</b>/6</span><span id="hMode"></span></div>
+      <div id="arMsg"></div>
+    </div>
+
+    <div class="stepbar" id="stepbar"></div>
+    <div class="info-strip" id="info"></div>
+  </div>
+
+  <aside class="right">
+    <div class="card" id="stepCard"></div>
+    <div class="card" id="detail"><h2>Componente</h2><p class="body">Haz clic en cualquier elemento del diagrama (PC1, clúster, servidor DNS, root hints, Internet, raíz, TLD, autoritativo) para ver su función y un ejemplo.</p></div>
+    <div class="card" id="know"></div>
+  </aside>
+</div>
+
+<footer>
+  <b>Sobre los datos:</b> los conceptos (cliente DNS, resolvedor recursivo, root hints, delegaciones raíz → TLD → autoritativo, caché con TTL, 13 identidades de servidor raíz A–M con anycast) provienen de conocimiento general de DNS (RFC 1034/1035) y de entrenamiento; no se consultaron fuentes en línea al generar este archivo. Las IP y NS de «microsoft.com» son <i>ejemplos ilustrativos</i> que pueden haber cambiado; para otros dominios se usa 203.0.113.10 (rango reservado para documentación, RFC 5737). Las IP de los servidores raíz deben verificarse en iana.org/domains/root/servers (p. ej. la raíz B fue renumerada hace unos años). La latencia «5–30 ms» es una estimación general, no una medición. El editor de dominio toma las dos últimas etiquetas (no maneja sufijos públicos como .co.uk). La RA es simulada (cámara + holograma inclinable), sin marcadores ni WebXR.
+</footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const defs=$('#ns defs');
+
+/* ---------- dominio ---------- */
+let D={d:'microsoft.com',sld:'microsoft',tld:'com',q:'microsoft.com'},IP='20.112.52.29';
+function parseDom(v){
+  v=(v||'').toLowerCase().replace(/[^a-z0-9.-]/g,'').replace(/^[.-]+|[.-]+$/g,'');
+  const p=v.split('.').filter(Boolean);
+  if(p.length<2)return{d:'microsoft.com',sld:'microsoft',tld:'com',q:'microsoft.com'};
+  return{d:p.slice(-2).join('.'),sld:p[p.length-2],tld:p[p.length-1],q:v.slice(0,26)};
+}
+function applyDomain(){
+  D=parseDom($('#dom').value);IP=D.d==='microsoft.com'?'20.112.52.29':'203.0.113.10';
+  const t=$('#tldTxt');t.textContent='.'+D.tld.slice(0,8);t.setAttribute('font-size',D.tld.length>4?10:13);
+  const a=$('#authTxt');a.textContent=D.sld.slice(0,13);a.setAttribute('font-size',D.sld.length>10?9:11);
+  if(cur>=0)redraw();
+}
+
+/* ---------- flechas ---------- */
+const ARR={
+ a1:{d:'M122 346 L168 308',c:'#00ffcc'},
+ a2q:{d:'M160 262 L136 250',c:'#00aaff'},
+ a2r:{d:'M136 284 L160 286',c:'#00ffcc',dash:1},
+ a3a:{d:'M280 252 C 400 200, 430 92, 543 76',c:'#ffaa00'},
+ a3b:{d:'M572 101 L556 134',c:'#ffaa00'},
+ a4:{d:'M511 202 L511 276',c:'#cc44ff'},
+ a5:{d:'M546 297 L564 297',c:'#00ff88'},
+ rr:{d:'M476 192 C 400 240, 330 276, 282 282',c:'#cc44ff',dash:1},
+ tq:{d:'M280 292 L476 294',c:'#ffaa00'},
+ tr:{d:'M476 306 L282 304',c:'#ffcc55',dash:1},
+ aq:{d:'M250 308 C 300 400, 590 400, 600 318',c:'#00ff88'},
+ ar:{d:'M632 318 C 632 414, 300 422, 262 310',c:'#00ff88',dash:1},
+ a7:{d:'M160 302 L104 334',c:'#00ffcc',dash:1}
+};
+function marker(c){
+  const id='m'+c.slice(1);
+  if(!document.getElementById(id)){
+    const m=el('marker',{id,viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},defs);
+    el('path',{d:'M2 1L8 5L2 9',fill:'none',stroke:c,'stroke-width':1.8,'stroke-linecap':'round','stroke-linejoin':'round'},m);
+  }
+  return 'url(#'+id+')';
+}
+const arrEl={};
+for(const k in ARR){
+  arrEl[k]=el('path',{d:ARR[k].d,class:'arr'+(ARR[k].dash?' dash':''),stroke:ARR[k].c,'marker-end':marker(ARR[k].c)},$('#arrowsL'));
+}
+
+/* ---------- globo con meridianos que giran de verdad ---------- */
+const mer=[];
+for(let k=0;k<4;k++)mer.push(el('ellipse',{cx:578,cy:68,rx:20,ry:33,fill:'none',stroke:'#00ccff','stroke-width':k%2?.6:.9,opacity:k%2?.45:.75},$('#meridians')));
+el('circle',{cx:578,cy:68,r:33,fill:'none',stroke:'#00ccff','stroke-width':.5,opacity:.4},$('#meridians'));
+let ang=0;
+(function spin(){ang+=.012;mer.forEach((m,k)=>m.setAttribute('rx',(33*Math.abs(Math.cos(ang+k*Math.PI/4))).toFixed(2)));requestAnimationFrame(spin)})();
+
+/* ---------- pasos ---------- */
+const S=[
+{short:'0·Inicio',title:'Vista general',
+ act:{simple:[],real:[]},arrows:{simple:[],real:[]},
+ labels:()=>[],
+ text:()=>`PC1 quiere abrir <b>${D.q}</b>, pero las redes solo se entienden con direcciones IP. DNS es la «agenda telefónica» distribuida que traduce el nombre en una IP. En el diagrama ves tu red local (PC1, servidor DNS, clúster y root hints) y la jerarquía de Internet (raíz, TLD y autoritativo).`,
+ watch:['Haz clic en cualquier componente para ver su función.','Pulsa «Siguiente»: antes de cada paso te pediré una predicción.'],
+ concept:'Resolver un nombre es recorrer una cadena de delegaciones: raíz → TLD → autoritativo.'},
+{short:'1·PC1→DNS',title:'PC1 consulta al servidor DNS',
+ act:{simple:['pc1','sdns'],real:['pc1','sdns']},arrows:{simple:['a1'],real:['a1']},
+ labels:()=>[{t:`¿IP de ${D.q}?`,x:128,y:332,c:'#00ffcc'}],
+ text:()=>`El cliente DNS de PC1 revisa su caché local y el archivo hosts. Si no conoce <b>${D.q}</b>, envía la consulta al servidor DNS configurado (por DHCP o a mano), normalmente por UDP/53, y espera la respuesta. PC1 no sabe nada de raíces ni TLD: solo pregunta.`,
+ watch:['La flecha cian sale de PC1 hacia el servidor DNS local.','PC1 hace UNA pregunta; el trabajo pesado lo hará el servidor.'],
+ concept:'El cliente (resolver stub) delega en un resolvedor recursivo.',
+ q:{ask:()=>`PC1 quiere visitar ${D.q}. ¿A quién envía primero la consulta DNS?`,opts:['Directamente a un servidor raíz','Al servidor DNS configurado en el equipo','Al servidor autoritativo del dominio'],ok:1,
+    why:'El cliente solo conoce su(s) servidor(es) DNS configurados. Ese servidor hace la resolución recursiva por él.'}},
+{short:'2·DNS↔Clúster',title:'El servidor DNS revisa su clúster local',
+ act:{simple:['sdns','cluster'],real:['sdns','cluster']},arrows:{simple:['a1','a2q','a2r'],real:['a1','a2q','a2r']},
+ labels:()=>[{t:'¿en caché / zona local? → NO',x:8,y:142,c:'#4db8ff'}],
+ text:()=>`Antes de salir a Internet, el servidor DNS busca la respuesta en su caché y en las zonas que administra la organización, apoyándose en el clúster local (DNS-1, DNS-2, DNS-3) que da alta disponibilidad. Para <b>${D.q}</b> no hay nada guardado: fallo de caché (<i>MISS</i>), así que debe resolverlo desde cero.`,
+ watch:['Flecha sólida: consulta al clúster. Flecha punteada: respuesta «no lo sé».','Sin resultado local, la resolución continúa hacia Internet.'],
+ concept:'La caché evita tráfico: una respuesta guardada se sirve sin salir de la red local.',
+ q:{ask:()=>'El servidor DNS local recibe la consulta. ¿Qué hace ANTES de salir a Internet?',opts:['Consulta a la raíz de inmediato','Revisa su caché y zonas locales por si ya conoce la respuesta','Rechaza la consulta'],ok:1,
+    why:'Un resolvedor responde primero con lo que ya sabe (caché o zonas propias). Solo si no lo tiene inicia la resolución externa.'}},
+{short:'3·Root hints',title:'Root hints → Internet → servidor raíz',
+ act:{simple:['sdns','roothints','internet','root'],real:['sdns','roothints','internet','root']},arrows:{simple:['a3a','a3b'],real:['a3a','a3b']},
+ labels:()=>[{t:'root hints → raíz',x:300,y:238,c:'#ffaa00'}],
+ text:()=>`¿A quién preguntar primero? El servidor DNS lee su archivo de <b>root hints</b>: la lista de nombres e IP de los servidores raíz (A–M). Elige uno y envía la consulta por Internet; gracias a <i>anycast</i> llega a la instancia más cercana de ese servidor raíz.`,
+ watch:['El recuadro ámbar «Root hints» es un archivo local, no un servidor.','El paquete cruza el globo (Internet) hasta el clúster raíz.'],
+ concept:'Sin root hints un servidor DNS no sabría por dónde empezar.',
+ q:{ask:()=>'No hay respuesta local. ¿Cómo sabe el servidor DNS a quién preguntar primero?',opts:['Usa las root hints: la lista de servidores raíz','Adivina según el nombre del dominio','Le pregunta al navegador'],ok:0,
+    why:'Las root hints son el punto de partida de toda resolución recursiva; contienen nombres e IP de los servidores raíz.'}},
+{short:'4·Raíz→TLD',title:'La raíz responde con una referencia al TLD',
+ act:{simple:['root','tld'],real:['root','sdns']},arrows:{simple:['a3a','a3b','a4'],real:['a3a','a3b','rr']},
+ labels:m=>m==='simple'?[{t:`referencia → .${D.tld}`,x:522,y:248,c:'#cc44ff'}]:[{t:`«pregunta a los TLD .${D.tld}»`,x:318,y:222,c:'#cc44ff'}],
+ text:m=>`La raíz <b>no conoce la IP</b> de ${D.q}: solo sabe quién administra el TLD <b>.${D.tld}</b> y responde con una <i>referencia (delegación)</i>. ${m==='simple'?'En la vista simplificada se dibuja como una cadena raíz → TLD.':'En la vista real la referencia vuelve al servidor DNS local, que es quien hará la siguiente pregunta.'}`,
+ watch:[m=>m==='simple'?'La flecha violeta baja de la raíz al TLD (cadena de delegación).':'La flecha punteada violeta regresa al servidor DNS local.','La raíz delega, no resuelve nombres finales.'],
+ concept:'Raíz = índice de los TLD. Responde «pregunta allá», no «la IP es esta».',
+ q:{ask:()=>`El servidor raíz recibe la consulta por ${D.q}. ¿Qué responde?`,opts:['La IP final del dominio',`Una referencia a los servidores del TLD .${D.tld}`,'Nada: no responde consultas'],ok:1,
+    why:'La raíz solo conoce los servidores de cada TLD y devuelve esa delegación.'}},
+{short:'5·TLD→Autoritativo',title:'El TLD refiere al servidor autoritativo',
+ act:{simple:['tld','auth'],real:['sdns','tld']},arrows:{simple:['a3a','a3b','a4','a5'],real:['a3a','a3b','rr','tq','tr']},
+ labels:m=>m==='simple'?[{t:'→ NS autoritativo',x:506,y:342,c:'#00ff88'}]:[{t:'TLD: «pregunta al NS del dominio»',x:316,y:324,c:'#ffcc55'}],
+ text:m=>`El servidor del TLD <b>.${D.tld}</b> tampoco guarda la IP: conoce los <b>servidores de nombres (NS) autoritativos</b> de <b>${D.d}</b> y responde con otra referencia. ${m==='simple'?'La flecha verde corta lleva la delegación al autoritativo.':'En la vista real el servidor DNS local pregunta al TLD (flecha sólida) y recibe la referencia (punteada).'}`,
+ watch:['Cada salto acerca la consulta a quien sí tiene la respuesta.','El autoritativo lo mantiene el propietario del dominio o su proveedor.'],
+ concept:'TLD = índice de los dominios de ese sufijo; apunta a sus servidores autoritativos.',
+ q:{ask:()=>`¿El TLD .${D.tld} conoce la IP del sitio ${D.d}?`,opts:['Sí, guarda las IP de todos los sitios','No: refiere a los servidores autoritativos (NS) del dominio','Solo si PC1 la tiene en caché'],ok:1,
+    why:'El TLD conoce las delegaciones (registros NS) de cada dominio, no sus direcciones IP finales.'}},
+{short:'6·Respuesta',title:'La IP vuelve y se guarda en caché',
+ act:{simple:['auth','sdns','pc1'],real:['auth','sdns','pc1']},arrows:{simple:['a3a','a3b','a4','a5','ar','a7'],real:['a3a','a3b','rr','tq','tr','aq','ar','a7']},
+ labels:()=>[{t:`${D.q} → ${IP}`,x:300,y:412,c:'#00ff88'}],
+ text:m=>`El servidor <b>autoritativo</b> de ${D.d} sí tiene la respuesta definitiva: el registro A con la IP <b>${IP}</b>${D.d==='microsoft.com'?' (valor de ejemplo; puede haber cambiado)':' (IP de documentación)'}. ${m==='real'?'El servidor DNS local la pregunta directamente al autoritativo. ':''}La respuesta vuelve al servidor DNS, que la <b>guarda en caché durante el TTL</b> y se la entrega a PC1, que ya puede conectarse.`,
+ watch:['Flecha punteada verde: viaja la respuesta; el servidor DNS muestra su TTL.','Prueba «⚡ Consulta repetida»: ya no hace falta recorrer la jerarquía.'],
+ concept:'La caché con TTL hace que la mayoría de consultas se resuelvan sin tocar raíz, TLD ni autoritativo.',
+ q:{ask:()=>'El autoritativo responde con la IP. ¿Qué hace el servidor DNS local con ella?',opts:['La descarta tras entregarla','La entrega a PC1 y la guarda en caché durante el TTL','Se la envía a la raíz'],ok:1,
+    why:'La respuesta se cachea mientras dure el TTL: las siguientes consultas iguales se resuelven localmente y rápido.'}}
+];
+const N=S.length-1;
+
+/* ---------- componentes (clic) ---------- */
+const COMP=key=>({
+pc1:{t:'🖥  PC1 — Cliente DNS',b:'PC1 genera la consulta. Su cliente DNS (resolver stub) revisa su caché local y el archivo hosts; si no conoce el nombre, reenvía la pregunta al servidor DNS configurado (por DHCP o manual) y espera la IP. No conoce raíces ni TLD.',
+ e:`<strong>Ejemplo:</strong> escribes ${D.q} en el navegador.\n→ el cliente DNS de Windows consulta a 192.168.1.1\n→ recibe: <strong>${IP}</strong>\n\n<strong>Pruébalo:</strong> nslookup ${D.q}  ·  ipconfig /displaydns`},
+cluster:{t:'🗄  Clúster DNS local',b:'Agrupa dos o más servidores DNS para dar alta disponibilidad y reparto de carga. Si DNS-1 falla, DNS-2 o DNS-3 siguen respondiendo. En Windows Server se logra con zonas primaria/secundaria o zonas integradas en Active Directory, que se replican entre controladores.',
+ e:'<strong>Ejemplo (Windows Server + AD):</strong>\nDNS-1 (DC primario): 10.0.0.1\nDNS-2 (DC secundario): 10.0.0.2\nDNS-3 (sitio remoto): 10.0.1.1\n→ Los clientes configuran DNS preferido y alternativo; si cae uno, siguen resolviendo.'},
+sdns:{t:'⚙  Servidor DNS local (resolvedor recursivo)',b:'Recibe las consultas de los clientes, revisa su caché y, si no tiene la respuesta, inicia la resolución iterativa usando las root hints: pregunta a raíz, luego a TLD y luego al autoritativo. Es el intermediario entre tus equipos e Internet y quien guarda las respuestas en caché.',
+ e:`<strong>Ejemplo con BIND9:</strong>\n$ dig @localhost ${D.q}\n→ caché: MISS\n→ consulta a una raíz (p. ej. 198.41.0.4)\n→ referencia al TLD .${D.tld}\n→ referencia al NS autoritativo\n→ ${D.q}. IN A ${IP}\n\n<strong>Para ver toda la cadena:</strong> dig +trace ${D.q}`},
+roothints:{t:'📋  Sugerencias de raíz (Root hints)',b:'Archivo con los nombres y las IP de los servidores raíz del mundo (13 identidades, A a M). Es el punto de partida cuando la caché no basta. Sin él, el servidor DNS no sabría a quién preguntar primero.',
+ e:'<strong>Extracto de named.root (IANA):</strong>\n.   3600000  IN  NS  A.ROOT-SERVERS.NET.\nA.ROOT-SERVERS.NET.  A     198.41.0.4\nA.ROOT-SERVERS.NET.  AAAA  2001:503:ba3e::2:30\n...\nM.ROOT-SERVERS.NET.  A     202.12.27.33\n\n<strong>Windows Server:</strong> Administrador DNS → Propiedades → pestaña «Sugerencias de raíz».\n<strong>Verifica siempre</strong> la versión vigente en iana.org/domains/root/servers.'},
+internet:{t:'🌐  Internet — red global',b:'Es la infraestructura que interconecta millones de redes. Para DNS, es el medio por el que el servidor local alcanza raíz, TLD y autoritativos. El ruteo anycast (BGP) entrega la consulta a la instancia más cercana de cada servidor raíz.',
+ e:'<strong>¿Cómo llega la consulta a la raíz?</strong>\nUDP/53 sale por el gateway → atraviesa tu ISP → ruteo BGP → instancia anycast más cercana.\n\n<strong>Puerto:</strong> UDP/TCP 53 (TCP cuando la respuesta es grande o en transferencias de zona)\n<strong>Latencia típica:</strong> decenas de ms o menos (estimación general; depende de tu ubicación)'},
+root:{t:'🌐  Servidores raíz (.)',b:'Son la cima de la jerarquía: no resuelven nombres finales, delegan a los servidores de cada TLD. Hay 13 identidades (A–M) operadas por distintas organizaciones, pero físicamente son cientos de instancias en todo el mundo mediante anycast.',
+ e:'<strong>Algunos operadores:</strong>\nA y J → Verisign\nB → USC-ISI (la IP de B cambió hace unos años: verifica en IANA)\nC → Cogent\nK → RIPE NCC\nL → ICANN\nM → WIDE Project (Japón)\n\n$ dig . NS @198.41.0.4\n→ lista las 13 identidades raíz'},
+tld:{t:`📂  Servidor TLD — .${D.tld}`,b:`Los servidores TLD gestionan los dominios de primer nivel (.com, .net, .org, .pe...). El TLD .${D.tld} ${D.tld==='com'?'está operado por Verisign':'lo opera su registro correspondiente'}. Recibe la consulta y devuelve los servidores autoritativos del dominio concreto.`,
+ e:D.tld==='com'||D.tld==='net'?`<strong>Delegación desde el TLD:</strong>\n$ dig +norecurse ${D.d} NS @a.gtld-servers.net\n→ el TLD no da la IP final\n→ devuelve los NS autoritativos de ${D.d}`:`<strong>Delegación desde el TLD:</strong>\n$ dig +norecurse ${D.d} NS @<servidor del TLD .${D.tld}>\n→ devuelve los NS autoritativos de ${D.d}\n\n<strong>Otros TLD:</strong> .pe → registro de Perú, .edu → EDUCAUSE`},
+auth:{t:`✅  Servidor autoritativo — ${D.d}`,b:'Tiene la respuesta definitiva del dominio y lo mantiene su propietario o su proveedor. Devuelve el registro A (IPv4) o AAAA (IPv6). El servidor DNS local cachea la respuesta durante el TTL indicado.',
+ e:D.d==='microsoft.com'?'<strong>Ejemplo ilustrativo (valores que pueden haber cambiado):</strong>\n$ dig microsoft.com @<NS autoritativo>\n;; ANSWER SECTION:\nmicrosoft.com. 3600 IN A 20.112.52.29\nmicrosoft.com. 3600 IN A 20.81.111.85\n\n<strong>TTL = 3600</strong> → se cachea 1 hora antes de volver a consultar.':`<strong>Ejemplo ilustrativo:</strong>\n$ dig ${D.d} @<NS autoritativo>\n;; ANSWER SECTION:\n${D.d}. 3600 IN A ${IP}\n\n<strong>TTL = 3600</strong> → se cachea 1 hora antes de volver a consultar.`}
+}[key]);
+const visited=new Set();
+function showComp(key){
+  const c=COMP(key);if(!c)return;visited.add(key);
+  $('#detail').innerHTML=`<h2>Componente</h2><h3>${c.t}</h3><p class="body">${c.b}</p><pre>${c.e}</pre>`;
+  $('#info').innerHTML=`<b>${c.t}</b> — ${c.b.split('. ')[0]}.`;
+  document.querySelectorAll('.nnode').forEach(n=>n.querySelector('.pulseRing')&&0);
+  renderKnow();
+}
+document.querySelectorAll('.nnode').forEach(g=>{
+  const t=el('title',{},g);t.textContent='Clic para ver su función';
+  g.addEventListener('click',()=>showComp(g.dataset.comp));
+});
+
+/* ---------- estado y render ---------- */
+let cur=-1,mode='simple',res={},pending=-1,playing=null,animToken=0,predictOn=true;
+function buildBar(){
+  const b=$('#stepbar');b.innerHTML='';
+  S.forEach((s,i)=>{
+    const x=document.createElement('button');x.className='sbtn';x.id='b'+i;x.textContent=s.short;
+    x.onclick=()=>{stopPlay();go(i)};b.appendChild(x);
+  });
+}
+function statusOf(r){
+  if(!r||r.skipped)return null;
+  if(r.ok&&r.conf===3)return['ok','✔','Dominado'];
+  if(r.ok)return['shaky','◐','Acierto con dudas'];
+  if(r.conf===3)return['over','⚠','Sobreconfianza'];
+  return['weak','✖','A reforzar'];
+}
+function paintBar(){
+  S.forEach((s,i)=>{
+    const b=$('#b'+i);b.classList.toggle('active',i===(pending>=0?pending:cur));
+    ['ok','shaky','over','weak'].forEach(c=>b.classList.remove('s-'+c));
+    const st=statusOf(res[i]);if(st)b.classList.add('s-'+st[0]);
+  });
+}
+function clearArrows(){for(const k in arrEl)arrEl[k].setAttribute('class','arr'+(ARR[k].dash?' dash':''))}
+function setActive(list){
+  document.querySelectorAll('.nnode').forEach(n=>n.classList.toggle('act',list.includes(n.dataset.comp)));
+  $('#ns').classList.toggle('focus',list.length>0);
+  const R=$('#ringsL');R.innerHTML='';
+  list.forEach(k=>{const g=$('#n-'+k);if(!g)return;const b=g.getBBox();
+    el('rect',{x:b.x-3,y:b.y-3,width:b.width+6,height:b.height+6,rx:10,class:'pulseRing'},R)});
+}
+function setLabels(arr){
+  const L=$('#labelsL');L.innerHTML='';
+  arr.forEach(o=>{const t=el('text',{x:o.x,y:o.y,class:'lab',fill:o.c},L);t.textContent=o.t});
+}
+function playSeq(ids,done){
+  const token=++animToken,pkt=$('#pkt');let i=0;
+  (function next(){
+    if(token!==animToken)return;
+    if(i>=ids.length){pkt.setAttribute('opacity','0');done&&done();return}
+    const id=ids[i++],p=arrEl[id],L=p.getTotalLength(),s=performance.now();
+    p.classList.remove('old');p.classList.add('cur');
+    pkt.setAttribute('fill',ARR[id].c);pkt.setAttribute('opacity','1');
+    (function f(now){
+      if(token!==animToken)return;
+      const k=Math.min(1,(now-s)/(L>200?1000:700)),q=p.getPointAtLength(L*k);
+      pkt.setAttribute('cx',q.x);pkt.setAttribute('cy',q.y);
+      if(k<1)requestAnimationFrame(f);else{p.classList.remove('cur');p.classList.add('old');next()}
+    })(s);
+  })();
+}
+function drawStep(n,animate){
+  const s=S[n];
+  clearArrows();
+  const prevSet=new Set();
+  for(let i=1;i<n;i++)S[i].arrows[mode].forEach(id=>prevSet.add(id));
+  prevSet.forEach(id=>arrEl[id].classList.add('old'));
+  const fresh=s.arrows[mode].filter(id=>!prevSet.has(id));
+  if(animate)playSeq(fresh);else fresh.forEach(id=>arrEl[id].classList.add('old'));
+  setActive(s.act[mode]);
+  setLabels(s.labels(mode));
+  const tt=$('#ttlTag');tt.textContent='💾 caché · TTL 3600 s';tt.setAttribute('opacity',n===N?1:0);
+  $('#hStep').textContent=n;
+  $('#hMode').innerHTML='Vista <b>'+(mode==='simple'?'simplificada':'real (iterativa)')+'</b>';
+  $('#info').innerHTML=`<b>${s.title}.</b> ${s.text(mode).replace(/<[^>]+>/g,'')}`.slice(0,260)+'…';
+}
+function renderStepCard(n,fb){
+  const s=S[n];
+  const watch=s.watch.map(w=>typeof w==='function'?w(mode):w);
+  let fbh='';
+  if(fb){
+    fbh=fb.skipped?`<div class="fb skip">⏭ Omitiste la predicción de este paso.</div>`
+     :fb.ok?`<div class="fb good"><b>✔ Predicción correcta</b> (confianza: ${['','adivinando','con dudas','segur@'][fb.conf]}). ${s.q.why}</div>`
+     :`<div class="fb bad"><b>✖ No era esa opción.</b> ${s.q.why}</div>`;
+  }
+  $('#stepCard').innerHTML=`<div class="stepno">PASO ${n} / ${N}<span class="tag">${mode==='simple'?'vista simplificada':'vista real'}</span></div>
+   <h3>${s.title}</h3>${fbh}<p>${s.text(mode)}</p>
+   <div class="watch"><b>👀 Observa</b><ul>${watch.map(w=>`<li>${w}</li>`).join('')}</ul></div>
+   <div class="concept">💡 <b>Concepto clave:</b> ${s.concept}</div>
+   <div class="nav"><button id="pv" ${n===0?'disabled':''}>◀ Anterior</button><button id="nx" class="pri" ${n===N?'disabled':''}>Siguiente ▶</button><button id="rp">↻ Repetir animación</button></div>`;
+  $('#pv').onclick=()=>{stopPlay();go(n-1,true)};
+  $('#nx').onclick=()=>{stopPlay();go(n+1)};
+  $('#rp').onclick=()=>{drawStep(n,true)};
+}
+function reveal(n,fb){
+  cur=n;pending=-1;
+  drawStep(n,true);renderStepCard(n,fb||(res[n]&&!res[n].skipped?res[n]:res[n]));
+  paintBar();renderKnow();
+}
+function redraw(){
+  if(pending>=0){showQuestion(pending);return}
+  if(cur>=0){drawStep(cur,false);renderStepCard(cur,res[cur])}
+  renderKnow();
+}
+function go(n,skip){
+  n=clamp(n,0,N);
+  if(n>0&&predictOn&&!res[n]&&!skip&&!playing){showQuestion(n);return}
+  reveal(n);
+}
+function showQuestion(n){
+  pending=n;paintBar();
+  const s=S[n];let conf=0;
+  $('#stepCard').innerHTML=`<div class="q"><div class="stepno">PASO ${n} / ${N} · 🔮 PREDICE ANTES DE VER</div>
+   <h3>${s.title}</h3><p>${s.q.ask()}</p>
+   <div class="conf"><span>① ¿Qué tan seguro estás?</span>
+     <button data-c="3">Seguro</button><button data-c="2">Con dudas</button><button data-c="1">Adivinando</button></div>
+   <div id="opts"></div><div class="warn" id="warn"></div>
+   <div class="nav"><button id="skip">Saltar y ver directamente</button></div></div>`;
+  document.querySelectorAll('.conf button').forEach(b=>b.onclick=()=>{
+    conf=+b.dataset.c;document.querySelectorAll('.conf button').forEach(x=>x.classList.toggle('sel',x===b));$('#warn').textContent='';
+  });
+  s.q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';b.textContent='② '+String.fromCharCode(65+i)+') '+o;
+    b.onclick=()=>{
+      if(!conf){$('#warn').textContent='Primero elige tu nivel de confianza (así medimos tu autoconocimiento).';return}
+      res[n]={ok:i===s.q.ok,conf};reveal(n,res[n]);
+    };
+    $('#opts').appendChild(b);
+  });
+  $('#skip').onclick=()=>{res[n]={skipped:true};reveal(n,res[n])};
+}
+
+/* ---------- consulta repetida (caché) ---------- */
+function cacheRun(){
+  stopPlay();pending=-1;cur=-2;
+  clearArrows();setActive(['pc1','sdns']);
+  setLabels([{t:`¿IP de ${D.q}?`,x:128,y:332,c:'#00ffcc'},{t:`${IP} (desde caché)`,x:24,y:424,c:'#00ff88'}]);
+  const tt=$('#ttlTag');tt.textContent='💾 caché HIT · TTL restante';tt.setAttribute('opacity',1);
+  $('#hStep').textContent='⚡';
+  $('#info').innerHTML='<b>Consulta repetida.</b> El servidor DNS responde desde caché: no toca clúster, raíz, TLD ni autoritativo hasta que expire el TTL.';
+  $('#stepCard').innerHTML=`<div class="stepno">EXPERIMENTO</div><h3>⚡ Misma consulta, ahora con caché</h3>
+   <p>PC1 vuelve a pedir <b>${D.q}</b>. El servidor DNS ya guardó la respuesta del paso 6, así que contesta <b>de inmediato</b> sin recorrer la jerarquía. Esto reduce latencia y carga sobre raíz, TLD y autoritativos.</p>
+   <div class="watch"><b>👀 Observa</b><ul><li>Solo se usan dos flechas: PC1 → DNS y DNS → PC1.</li><li>Cuando el TTL llega a 0, la entrada caduca y se repite la cadena completa.</li></ul></div>
+   <div class="concept">💡 <b>Concepto clave:</b> TTL bajo = cambios rápidos pero más consultas; TTL alto = menos carga pero cambios lentos.</div>
+   <div class="nav"><button id="back" class="pri">Volver a los pasos</button></div>`;
+  $('#back').onclick=()=>go(N,true);
+  paintBar();document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('active'));
+  playSeq(['a1','a7']);
+}
+
+/* ---------- reproducción automática ---------- */
+function stopPlay(){if(playing){clearTimeout(playing.t);playing=null;$('#bPlay').textContent='▶ Reproducir secuencia';$('#bPlay').classList.remove('on')}}
+function play(){
+  if(playing){stopPlay();return}
+  playing={t:null};$('#bPlay').textContent='⏸ Detener';$('#bPlay').classList.add('on');
+  let i=0;
+  (function step(){
+    if(!playing)return;
+    if(i>N){stopPlay();return}
+    reveal(i++);
+    playing.t=setTimeout(step,i===1?2800:5200);
+  })();
+}
+
+/* ---------- mapa de conocimiento ---------- */
+const badgeDefs=[['👁 Explorador',()=>visited.size>=8,'Abre los 8 componentes'],['🔮 Predictor',()=>[1,2,3,4,5,6].every(i=>res[i]&&!res[i].skipped),'Predice los 6 pasos'],['🧠 Calibrado',()=>calibScore()>=.75&&answered().length>=4,'Calibración ≥ 75 %'],['📐 Ordenador',()=>ordWon,'Ordena la secuencia']];
+let ordWon=false;
+const answered=()=>Object.entries(res).filter(([k,r])=>!r.skipped).map(([k,r])=>({n:+k,...r}));
+function calibScore(){
+  const a=answered();if(!a.length)return 0;
+  return a.reduce((s,r)=>s+(r.ok?[0,.2,.6,1][r.conf]:[0,.8,.4,0][r.conf]),0)/a.length;
+}
+function renderKnow(){
+  const a=answered(),ok=a.filter(r=>r.ok).length,cs=Math.round(calibScore()*100);
+  const over=a.filter(r=>!r.ok&&r.conf===3).map(r=>r.n),weak=a.filter(r=>!r.ok).map(r=>r.n),shaky=a.filter(r=>r.ok&&r.conf<3).map(r=>r.n);
+  let txt='Responde las predicciones de cada paso: aquí verás cómo se compara lo que <b>crees</b> saber con lo que <b>realmente</b> sabes.';
+  if(a.length){
+    txt=`Aciertos: <b>${ok}/${a.length}</b> · Calibración: <b>${cs}%</b>. `;
+    if(over.length)txt+=`⚠ <b>Sobreconfianza</b> en los pasos ${over.join(', ')}: estabas seguro y fallaste; son los más valiosos para repasar. `;
+    else if(weak.length)txt+=`Fallaste en ${weak.join(', ')} pero lo sabías con dudas: buena autoevaluación. `;
+    if(shaky.length)txt+=`◐ Aciertos frágiles en ${shaky.join(', ')}: refuerza antes de darlos por sabidos. `;
+    if(!over.length&&!weak.length&&!shaky.length)txt+='Tu confianza coincide con tu conocimiento. ¡Muy bien calibrado!';
+  }
+  const cells=[1,2,3,4,5,6].map(n=>{const st=statusOf(res[n]);
+    return `<div class="kc ${st?st[0]:''}" data-n="${n}" title="Clic para repasar este paso"><b>${st?st[1]:'·'}</b>Paso ${n}<br>${st?st[2]:(res[n]&&res[n].skipped?'Omitido':'Pendiente')}</div>`}).join('');
+  const bd=badgeDefs.map(([n,f,h])=>`<span class="bd ${f()?'got':''}" title="${h}">${n}</span>`).join('');
+  const hasWeak=weak.length+shaky.length>0;
+  $('#know').innerHTML=`<h2>🧭 Mi autoconocimiento</h2><div class="kgrid">${cells}</div>
+   <div class="meter"><i style="width:${cs}%"></i></div><div class="ktxt">${txt}</div>
+   <div class="badges">${bd}</div>
+   <div class="nav">${hasWeak?'<button id="rev" class="pri">Repasar pasos débiles</button>':''}<button id="rst">Reiniciar todo</button></div>
+   <details id="ord"${ordOpen?' open':''}><summary>📐 Reto: ordena la resolución</summary><div class="ktxt" id="ordMsg"></div><div id="ordBox"></div></details>`;
+  document.querySelectorAll('.kc').forEach(c=>c.onclick=()=>{stopPlay();const n=+c.dataset.n;delete res[n];go(n)});
+  const rev=$('#rev');if(rev)rev.onclick=()=>{stopPlay();const w=[...new Set([...over,...weak,...shaky])].sort();w.forEach(n=>delete res[n]);go(w[0])};
+  $('#rst').onclick=resetAll;
+  $('#ord').ontoggle=e=>{ordOpen=e.target.open};
+  renderOrder();
+}
+let ordOpen=false,ordShuf=[],ordSeq=[];
+function initOrder(){ordShuf=[1,2,3,4,5,6].sort(()=>Math.random()-.5);ordSeq=[]}
+function renderOrder(){
+  const box=$('#ordBox');if(!box)return;box.innerHTML='';
+  const m=$('#ordMsg');
+  m.textContent=ordWon?'🏅 ¡Orden correcto! Dominas la secuencia.':`Haz clic en los pasos en el orden en que ocurren (${ordSeq.length}/6).`;
+  ordShuf.forEach(n=>{
+    const b=document.createElement('button');b.textContent=S[n].title;b.disabled=ordSeq.includes(n);
+    b.onclick=()=>{
+      if(n===ordSeq.length+1){ordSeq.push(n);if(ordSeq.length===6){ordWon=true;renderKnow();return}}
+      else{box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),300);m.textContent='❌ Ese no va ahora. Se reinicia el reto; piensa: ¿qué ocurre primero, dentro o fuera de tu red?';ordSeq=[];setTimeout(renderOrder,900);return}
+      renderOrder();
+    };
+    box.appendChild(b);
+  });
+}
+function resetAll(){
+  stopPlay();res={};visited.clear();ordWon=false;initOrder();pending=-1;cur=-1;
+  go(0);
+}
+
+/* ---------- controles ---------- */
+$('#dom').addEventListener('input',applyDomain);
+$('#vSim').onclick=()=>{mode='simple';$('#vSim').classList.add('on');$('#vReal').classList.remove('on');if(cur>=0||pending>=0)redraw()};
+$('#vReal').onclick=()=>{mode='real';$('#vReal').classList.add('on');$('#vSim').classList.remove('on');if(cur>=0||pending>=0)redraw()};
+$('#pred').onchange=e=>{predictOn=e.target.checked};
+$('#bPlay').onclick=play;
+$('#bCache').onclick=cacheRun;
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowRight'){stopPlay();go(Math.max(0,(pending>=0?pending:cur))+1)}
+  if(e.key==='ArrowLeft'){stopPlay();go(Math.max(0,(pending>=0?pending:cur)-1),true)}
+});
+
+/* ---------- Modo RA (simulado: cámara + holograma inclinable) ---------- */
+let ar=false,stream=null;const stage=$('#stage'),arMsg=$('#arMsg');
+function setTilt(rx,rz){stage.style.setProperty('--rx',rx.toFixed(1)+'deg');stage.style.setProperty('--rz',rz.toFixed(1)+'deg')}
+function msg(t,ms=2200){arMsg.textContent=t;arMsg.classList.add('show');setTimeout(()=>arMsg.classList.remove('show'),ms)}
+stage.addEventListener('pointermove',e=>{
+  if(!ar)return;const r=stage.getBoundingClientRect();
+  setTilt(((e.clientY-r.top)/r.height-.5)*-22,((e.clientX-r.left)/r.width-.5)*26);
+});
+function onOri(e){if(!ar||e.gamma==null)return;setTilt(clamp((e.beta-55)/3,-14,14),clamp(e.gamma/3,-16,16))}
+$('#bAR').onclick=async()=>{
+  const b=$('#bAR');
+  if(!ar){
+    ar=true;stage.classList.add('ar');b.classList.add('on');b.textContent='🥽 Salir de RA';msg('Detectando superficie…',1500);
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      $('#cam').srcObject=stream;await $('#cam').play();
+      setTimeout(()=>msg('Holograma anclado · mueve el ratón o el móvil para inclinarlo',3200),1600);
+    }catch(err){
+      setTimeout(()=>msg('Sin cámara ('+((err&&err.name)||'error')+'): holograma 3D sin fondo de cámara',3600),1600);
+    }
+    try{
+      if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function'){
+        const r=await DeviceOrientationEvent.requestPermission();if(r==='granted')window.addEventListener('deviceorientation',onOri);
+      }else window.addEventListener('deviceorientation',onOri);
+    }catch(e){}
+  }else{
+    ar=false;stage.classList.remove('ar');b.classList.remove('on');b.textContent='🥽 Modo RA';
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+    $('#cam').srcObject=null;setTilt(0,0);
+  }
+};
+
+/* ---------- inicio ---------- */
+buildBar();initOrder();applyDomain();go(0);
+})();
+</script>
+</body>
+</html>
