@@ -1,1 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIEM explicado paso a paso</title>
+<style>
+:root{--t:#1f2a37;--s:#52606d;--bg:#ffffff;--s1:#f3f5f7;--s2:#ffffff;--bd:rgba(15,30,50,.14);--bds:rgba(15,30,50,.35);
+--ba:#E1F3F8;--ta:#0B5568;--bs:#E3F4E8;--ts:#14532D;--bw:#FEF3D6;--tw:#7A4B06;--bdg:#FDE8E8;--tdg:#7F1D1D;--ac:#0E8FAE}
+@media (prefers-color-scheme: dark){:root{--t:#e8eef3;--s:#a5b4c0;--bg:#10171f;--s1:#18222d;--s2:#141d27;--bd:rgba(255,255,255,.14);--bds:rgba(255,255,255,.32);
+--ba:#0B4658;--ta:#BDEBF7;--bs:#14532D;--ts:#C9F0D6;--bw:#6B4306;--tw:#FDE7B0;--bdg:#7F1D1D;--tdg:#FBD0D0;--ac:#38C6E4}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font-family:Arial,Helvetica,sans-serif;line-height:1.55}
+main{max-width:980px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:26px;margin:0 0 8px;line-height:1.25}
+h2{font-size:18px;margin:28px 0 10px}
+p{margin:0 0 10px}
+.lead{font-size:15px;color:var(--s);max-width:760px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.card svg{width:26px;height:26px;stroke:var(--ac);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
+.card h3{font-size:15px;margin:0 0 4px}
+.card p{font-size:13px;color:var(--s);margin:0}
+.how{font-size:13px;color:var(--s);background:var(--s1);border-radius:10px;padding:10px 14px}
+.scene{border-radius:16px;overflow:hidden;border:1px solid var(--bd);margin-top:16px;background:#0B1623}
+.scene svg{display:block;width:100%;height:auto}
+.scene svg text{font-family:Arial,Helvetica,sans-serif}
+.nm{font-size:15px;font-weight:700;fill:#E6F7FB}
+.sb{font-size:12px;fill:#8FB3C4}
+.ut{font-size:11px;fill:#9FE8F5}
+.tgt{font-size:12px;fill:#BFF3FF}
+.mut{font-size:12px;fill:#8FB3C4}
+.st{cursor:pointer;outline:none}
+.st:focus-visible .hit{stroke:#22D3EE;stroke-width:1.5}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 8px}
+button{font-family:inherit;font-size:13px;color:var(--t);background:transparent;border:1px solid var(--bds);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{background:var(--s1)}button:active{transform:scale(.98)}
+.tg[aria-pressed=true]{background:var(--ba);color:var(--ta);border-color:transparent;font-weight:700}
+.sep{flex:1}
+.opts{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:center;margin:0 0 14px;font-size:13px;color:var(--s)}
+.opts label{display:flex;align-items:center;gap:8px}
+select{font-family:inherit;font-size:13px;padding:7px 8px;border-radius:8px;border:1px solid var(--bds);background:var(--s2);color:var(--t)}
+input[type=range]{width:160px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:16px 20px}
+.ph{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+#pt{font-size:18px;font-weight:700}
+#ps{font-size:12px;color:var(--s)}
+.lb{font-size:12px;font-weight:700;color:var(--s);margin:12px 0 4px}
+#pd{font-size:14px;margin:0;color:var(--t)}
+#pa{font-size:13px;margin:10px 0 0;padding:8px 12px;border-radius:8px;background:var(--bw);color:var(--tw)}
+#pl{font-family:Consolas,"Courier New",monospace;font-size:12px;line-height:1.5;background:var(--s1);border-radius:8px;padding:8px 12px;word-break:break-all}
+#pf{border-radius:8px;padding:8px 12px;font-size:13px}
+.qq{font-size:14px;font-weight:700;margin-bottom:8px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;font-size:13px}
+.opt.ok{background:var(--bs);color:var(--ts);border-color:transparent}
+.opt.no{background:var(--bdg);color:var(--tdg);border-color:transparent}
+.qf{font-size:13px;margin-top:8px;padding:8px 12px;border-radius:8px}
+.qf.good{background:var(--bs);color:var(--ts)}.qf.bad{background:var(--bw);color:var(--tw)}
+#sc2{font-size:12px;color:var(--s);margin-top:10px}
+details{border-bottom:1px solid var(--bd);padding:8px 0}
+summary{cursor:pointer;font-size:14px;font-weight:700}
+details p{font-size:13px;color:var(--s);margin:6px 0 0}
+.src{font-size:12px;color:var(--s)}
+.src li{margin-bottom:4px}
+.scan{animation:none}
+@media (prefers-reduced-motion: no-preference){
+@keyframes scan{0%{transform:translateY(0);opacity:.1}50%{opacity:.5}100%{transform:translateY(400px);opacity:.1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes dash{to{stroke-dashoffset:-14}}
+@keyframes ping{0%{transform:scale(.7);opacity:.8}100%{transform:scale(1.3);opacity:0}}
+.scan{animation:scan 3.6s linear infinite}
+.led circle{animation:blink 1.2s ease-in-out infinite}
+.led circle:nth-child(2){animation-delay:.3s}.led circle:nth-child(3){animation-delay:.6s}
+.flow{animation:dash 1s linear infinite}
+.ping{transform-box:fill-box;transform-origin:center;animation:ping 1.8s ease-out infinite}
+#cap{transition:transform .9s ease}
+#ar,#icons{transition:transform .25s ease-out}}
+</style>
+</head>
+<body>
+<main>
+<h1>SIEM: el centro de control de seguridad de un servidor</h1>
+<p class="lead">SIEM significa <em>Security Information and Event Management</em> (gestión de información y eventos de seguridad). Piensa en un edificio con decenas de cámaras y sensores: nadie puede mirar todas las pantallas a la vez. El SIEM es la sala de control que junta todas las señales, detecta lo raro y avisa a una persona.</p>
+
+<div class="cards">
+<div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg><h3>Detectar a tiempo</h3><p>Descubre patrones sospechosos, como decenas de intentos fallidos de contraseña, antes de que el atacante logre entrar.</p></div>
+<div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg><h3>Investigar qué pasó</h3><p>Conserva los eventos con hora y origen para reconstruir un incidente: quién, desde dónde y qué hizo.</p></div>
+<div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 13l2.5 2.5L16 10"/></svg><h3>Demostrar cumplimiento</h3><p>Aporta evidencia de registro y monitoreo que piden las auditorías y normas de seguridad, como ISO 27001.</p></div>
+</div>
+
+<div class="how"><b>Cómo usar esta animación:</b> 1) Pulsa Reproducir o haz clic en cada estación. 2) Activa la analogía del edificio si eres nuevo en el tema. 3) Cambia el escenario y mueve el umbral para ver cuándo el SIEM acierta o se equivoca. 4) Responde la pregunta de cada etapa.</div>
+
+<div class="scene" id="wrap">
+<svg id="scene" viewBox="0 0 900 600" role="img" aria-labelledby="sct scd">
+<title id="sct">Recorrido de un evento por un SIEM</title>
+<desc id="scd">Cinco estaciones en una vista de realidad aumentada simulada: servidor, recolector, normalizador, correlación y alerta. Un evento viaja por una pista y un bucle devuelve el veredicto del analista a las reglas.</desc>
+<defs>
+<pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="#112437" stroke-width="1"/></pattern>
+<linearGradient id="gRack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A4766"/><stop offset="1" stop-color="#172A40"/></linearGradient>
+<linearGradient id="gUnit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F3856"/><stop offset="1" stop-color="#132338"/></linearGradient>
+<linearGradient id="gShield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#0E7490"/></linearGradient>
+</defs>
+<rect width="900" height="600" fill="#0B1623"/>
+<rect width="900" height="600" fill="url(#grid)"/>
+
+<line x1="100" y1="118" x2="800" y2="118" stroke="#22D3EE" stroke-opacity=".4" stroke-width="2" stroke-dasharray="6 8" class="flow"/>
+<g fill="#22D3EE" fill-opacity=".7">
+<polygon points="182,112 192,118 182,124"/><polygon points="357,112 367,118 357,124"/><polygon points="532,112 542,118 532,124"/><polygon points="707,112 717,118 707,124"/>
+</g>
+
+<g id="icons">
+
+<g class="st" id="st0" transform="translate(100 0)" onclick="go(0)" tabindex="0" role="button" aria-label="Etapa 1: servidor" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go(0)}">
+<rect class="hit" x="-86" y="136" width="172" height="290" rx="12" fill="transparent"/>
+<ellipse cx="0" cy="352" rx="76" ry="14" fill="#0F2438" stroke="#22D3EE" stroke-opacity=".5"/>
+<ellipse id="pl0" cx="0" cy="352" rx="56" ry="9" fill="none" stroke="#22D3EE" stroke-opacity=".4"/>
+<ellipse class="ping" id="pg0" cx="0" cy="352" rx="76" ry="14" fill="none" stroke="#22D3EE" stroke-width="2"/>
+<rect x="-52" y="150" width="104" height="194" rx="8" fill="url(#gRack)" stroke="#3E5B7A" stroke-width="1.5"/>
+<rect x="-44" y="160" width="88" height="40" rx="4" fill="url(#gUnit)" stroke="#2E4A68"/>
+<text class="ut" x="-36" y="180" dominant-baseline="central">SSH</text>
+<g class="led" id="ledSSH" fill="#34D399"><circle cx="18" cy="180" r="3"/><circle cx="28" cy="180" r="3"/><circle cx="38" cy="180" r="3"/></g>
+<rect x="-44" y="206" width="88" height="40" rx="4" fill="url(#gUnit)" stroke="#2E4A68"/>
+<text class="ut" x="-36" y="226" dominant-baseline="central">Web</text>
+<g class="led" fill="#34D399"><circle cx="18" cy="226" r="3"/><circle cx="28" cy="226" r="3"/><circle cx="38" cy="226" r="3"/></g>
+<rect x="-44" y="252" width="88" height="40" rx="4" fill="url(#gUnit)" stroke="#2E4A68"/>
+<text class="ut" x="-36" y="272" dominant-baseline="central">Firewall</text>
+<g class="led" fill="#34D399"><circle cx="18" cy="272" r="3"/><circle cx="28" cy="272" r="3"/><circle cx="38" cy="272" r="3"/></g>
+<path d="M-36 308H36M-36 318H36M-36 328H36" stroke="#2E4A68" stroke-width="2" stroke-linecap="round"/>
+<text class="nm" x="0" y="392" text-anchor="middle">Servidor</text>
+<text class="sb" x="0" y="410" text-anchor="middle">genera logs</text>
+</g>
+
+<g class="st" id="st1" transform="translate(275 0)" onclick="go(1)" tabindex="0" role="button" aria-label="Etapa 2: recolector" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go(1)}">
+<rect class="hit" x="-86" y="136" width="172" height="290" rx="12" fill="transparent"/>
+<ellipse cx="0" cy="352" rx="76" ry="14" fill="#0F2438" stroke="#22D3EE" stroke-opacity=".5"/>
+<ellipse id="pl1" cx="0" cy="352" rx="56" ry="9" fill="none" stroke="#22D3EE" stroke-opacity=".4"/>
+<ellipse class="ping" id="pg1" cx="0" cy="352" rx="76" ry="14" fill="none" stroke="#22D3EE" stroke-width="2"/>
+<path d="M-70 212H-40M-70 240H-40M-70 268H-40M40 240H70" stroke="#22D3EE" stroke-opacity=".5" stroke-width="2"/>
+<rect x="-36" y="186" width="72" height="108" rx="14" fill="url(#gUnit)" stroke="#22D3EE" stroke-width="1.5"/>
+<g fill="#22D3EE"><circle cx="-36" cy="212" r="4.5"/><circle cx="-36" cy="240" r="4.5"/><circle cx="-36" cy="268" r="4.5"/><circle cx="36" cy="240" r="6"/></g>
+<path d="M-18 204H18M-18 214H6" stroke="#7FD8EA" stroke-width="3" stroke-linecap="round"/>
+<rect x="-13" y="246" width="26" height="20" rx="3" fill="#22D3EE"/>
+<path d="M-7 246V240a7 7 0 0 1 14 0V246" fill="none" stroke="#22D3EE" stroke-width="3"/>
+<circle cx="0" cy="256" r="2.6" fill="#0B1623"/>
+<path d="M-24 282H24" stroke="#2E4A68" stroke-width="2" stroke-linecap="round"/>
+<text class="nm" x="0" y="392" text-anchor="middle">Recolector</text>
+<text class="sb" x="0" y="410" text-anchor="middle">junta y envía</text>
+</g>
+
+<g class="st" id="st2" transform="translate(450 0)" onclick="go(2)" tabindex="0" role="button" aria-label="Etapa 3: normalizador" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go(2)}">
+<rect class="hit" x="-86" y="136" width="172" height="290" rx="12" fill="transparent"/>
+<ellipse cx="0" cy="352" rx="76" ry="14" fill="#0F2438" stroke="#22D3EE" stroke-opacity=".5"/>
+<ellipse id="pl2" cx="0" cy="352" rx="56" ry="9" fill="none" stroke="#22D3EE" stroke-opacity=".4"/>
+<ellipse class="ping" id="pg2" cx="0" cy="352" rx="76" ry="14" fill="none" stroke="#22D3EE" stroke-width="2"/>
+<rect x="-68" y="196" width="46" height="68" rx="4" fill="#1A2E45" stroke="#5B7694"/>
+<path d="M-62 210H-30M-62 222H-36M-62 234H-28M-62 246H-40M-62 256H-34" stroke="#6F8CA6" stroke-width="3" stroke-linecap="round"/>
+<path d="M-16 230H2" stroke="#22D3EE" stroke-width="2.5" stroke-linecap="round"/>
+<polygon points="2,223 14,230 2,237" fill="#22D3EE"/>
+<rect x="20" y="188" width="60" height="84" rx="6" fill="#123349" stroke="#22D3EE" stroke-width="1.5"/>
+<rect x="20" y="188" width="60" height="16" rx="6" fill="#22D3EE" fill-opacity=".35"/>
+<g fill="#7DD3FC"><rect x="26" y="214" width="20" height="7" rx="3"/><rect x="26" y="236" width="20" height="7" rx="3"/><rect x="26" y="258" width="20" height="7" rx="3"/></g>
+<g fill="#E2F3FA"><rect x="50" y="214" width="24" height="7" rx="3"/><rect x="50" y="236" width="24" height="7" rx="3"/><rect x="50" y="258" width="24" height="7" rx="3"/></g>
+<text class="nm" x="0" y="392" text-anchor="middle">Normalizador</text>
+<text class="sb" x="0" y="410" text-anchor="middle">ordena los datos</text>
+</g>
+
+<g class="st" id="st3" transform="translate(625 0)" onclick="go(3)" tabindex="0" role="button" aria-label="Etapa 4: correlación" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go(3)}">
+<rect class="hit" x="-86" y="136" width="172" height="290" rx="12" fill="transparent"/>
+<ellipse cx="0" cy="352" rx="76" ry="14" fill="#0F2438" stroke="#22D3EE" stroke-opacity=".5"/>
+<ellipse id="pl3" cx="0" cy="352" rx="56" ry="9" fill="none" stroke="#22D3EE" stroke-opacity=".4"/>
+<ellipse class="ping" id="pg3" cx="0" cy="352" rx="76" ry="14" fill="none" stroke="#22D3EE" stroke-width="2"/>
+<path d="M-50 196L50 200L50 284L-44 286Z" fill="none" stroke="#22D3EE" stroke-opacity=".25" stroke-dasharray="4 4"/>
+<path d="M-50 196L-20 222M-44 286L-18 258M50 200L20 222M50 284L18 258" stroke="#22D3EE" stroke-opacity=".6" stroke-width="1.8"/>
+<g fill="#123349" stroke="#22D3EE" stroke-width="1.8"><circle cx="-50" cy="196" r="10"/><circle cx="-44" cy="286" r="10"/><circle cx="50" cy="200" r="10"/><circle cx="50" cy="284" r="10"/></g>
+<circle id="corrC" cx="0" cy="240" r="26" fill="#123349" stroke="#22D3EE" stroke-width="2.5"/>
+<circle cx="-3" cy="237" r="9" fill="none" stroke="#E6F7FB" stroke-width="2.5"/>
+<path d="M4 244L12 252" stroke="#E6F7FB" stroke-width="3" stroke-linecap="round"/>
+<text class="nm" x="0" y="392" text-anchor="middle">Correlación</text>
+<text class="sb" x="0" y="410" text-anchor="middle">detecta patrones</text>
+</g>
+
+<g class="st" id="st4" transform="translate(800 0)" onclick="go(4)" tabindex="0" role="button" aria-label="Etapa 5: alerta" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go(4)}">
+<rect class="hit" x="-86" y="136" width="172" height="290" rx="12" fill="transparent"/>
+<ellipse cx="0" cy="352" rx="76" ry="14" fill="#0F2438" stroke="#22D3EE" stroke-opacity=".5"/>
+<ellipse id="pl4" cx="0" cy="352" rx="56" ry="9" fill="none" stroke="#22D3EE" stroke-opacity=".4"/>
+<ellipse class="ping" id="pg4" cx="0" cy="352" rx="76" ry="14" fill="none" stroke="#22D3EE" stroke-width="2"/>
+<path id="shield" d="M-8 172L34 188V232C34 266 14 288 -8 298C-30 288 -50 266 -50 232V188Z" fill="url(#gShield)" fill-opacity=".55" stroke="#22D3EE" stroke-width="2"/>
+<g id="icoAlert" style="display:none"><rect x="-11" y="204" width="6" height="36" rx="3" fill="#fff"/><circle cx="-8" cy="256" r="4.5" fill="#fff"/></g>
+<g id="icoOk" style="display:none"><path d="M-26 238l12 13 24-28" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></g>
+<circle cx="62" cy="286" r="8" fill="#8FB3C4"/>
+<path d="M46 322a16 16 0 0 1 32 0Z" fill="#8FB3C4"/>
+<text class="nm" x="0" y="392" text-anchor="middle">Alerta</text>
+<text class="sb" x="0" y="410" text-anchor="middle">avisa y responde</text>
+</g>
+
+<path id="loop" d="M800 420C800 452 625 452 625 424" fill="none" stroke="#22D3EE" stroke-opacity=".5" stroke-width="1.6" stroke-dasharray="5 4"/>
+<polygon id="loopHead" points="619,432 631,432 625,420" fill="#22D3EE" fill-opacity=".5"/>
+<text class="mut" x="712" y="456" text-anchor="middle">el veredicto del analista ajusta las reglas</text>
+
+<g id="cap" style="transform:translate(100px,118px)">
+<rect id="capb" x="-11" y="-14" width="22" height="28" rx="3" fill="#94A3B8" stroke="#E6F7FB" stroke-width="1"/>
+<path d="M-6 -6H6M-6 0H6M-6 6H2" stroke="#0B1623" stroke-width="2" stroke-linecap="round"/>
+<text id="capt" x="0" y="31" text-anchor="middle" font-size="11" fill="#CFEFF7">evento crudo</text>
+</g>
+</g>
+
+<g id="meter">
+<line x1="30" y1="476" x2="870" y2="476" stroke="#1B3550"/>
+<g id="gauge">
+<text class="mut" x="40" y="500">Fallos de login desde una misma IP en 60 s</text>
+<g id="cells"></g>
+<line id="thr" x1="187" y1="510" x2="187" y2="552" stroke="#F59E0B" stroke-width="2.5"/>
+<text id="thrt" x="187" y="568" text-anchor="middle" font-size="12" fill="#F59E0B">umbral 5</text>
+<text x="40" y="590" font-size="11" fill="#8FB3C4">Cada casilla = 1 intento fallido</text>
+</g>
+<rect x="400" y="488" width="470" height="92" rx="10" fill="#22D3EE" fill-opacity=".06" stroke="#22D3EE" stroke-opacity=".5" stroke-dasharray="4 4"/>
+<text id="h1" x="420" y="514" font-size="12" fill="#8FB3C4">esperando eventos</text>
+<text id="h2" x="420" y="544" font-size="20" font-weight="700" fill="#E6F7FB">Intentos – / umbral 5</text>
+<text id="h3" x="420" y="568" font-size="14" font-weight="700" fill="#8FB3C4">Resultado: pendiente</text>
+</g>
+
+<g id="ar">
+<g fill="none" stroke="#22D3EE" stroke-width="2.5" stroke-linecap="round">
+<path d="M12 40V12H40"/><path d="M888 40V12H860"/><path d="M12 560V588H40"/><path d="M888 560V588H860"/>
+</g>
+<text x="52" y="30" font-size="12" fill="#22D3EE">AR · vista simulada</text>
+<text x="848" y="30" font-size="12" fill="#8FB3C4" text-anchor="end">SIEM · centro de monitoreo</text>
+<rect class="scan" x="22" y="96" width="856" height="2" fill="#22D3EE" fill-opacity=".35"/>
+<g id="tags"></g>
+</g>
+</svg>
+</div>
+
+<div class="ctl">
+<button onclick="step(-1)">‹ Anterior</button>
+<button id="pb" onclick="toggle()">▶ Reproducir</button>
+<button onclick="step(1)">Siguiente ›</button>
+<button onclick="reset()">↻ Reiniciar</button>
+<span class="sep"></span>
+<button class="tg" id="arb" aria-pressed="true" onclick="tAR()">Vista AR: activada</button>
+<button class="tg" id="anb" aria-pressed="false" onclick="tAna()">Analogía del edificio: apagada</button>
+</div>
+<div class="opts">
+<label>Escenario
+<select id="sc" onchange="render()"><option value="atk">Ataque: alguien prueba contraseñas</option><option value="ok">Normal: un usuario se equivoca</option></select></label>
+<label>Umbral de la regla (fallos que activan la alarma)
+<input type="range" id="th" min="2" max="10" step="1" value="5" oninput="render()"><b id="thv">5</b></label>
+</div>
+
+<div class="grid">
+<div class="panel">
+<div class="ph"><span id="pt"></span><span id="ps"></span></div>
+<div class="lb">¿Qué pasa aquí?</div>
+<p id="pd"></p>
+<p id="pa" style="display:none"></p>
+<div class="lb">Así se ve el dato en esta etapa</div>
+<div id="pl"></div>
+<div class="lb">Retroalimentación</div>
+<div id="pf"></div>
+</div>
+<div class="panel">
+<div class="ph"><span style="font-size:16px;font-weight:700">Comprueba lo aprendido</span><span id="ps2" style="font-size:12px;color:var(--s)"></span></div>
+<div id="quiz"></div>
+<div id="sc2"></div>
+</div>
+</div>
+
+<h2>Glosario para novatos</h2>
+<details><summary>Log (registro)</summary><p>Línea de texto que un sistema escribe cuando algo ocurre: un inicio de sesión, un error, una conexión bloqueada.</p></details>
+<details><summary>Evento</summary><p>Un hecho concreto registrado en un log, con hora, equipo de origen y detalles. El SIEM trabaja con millones de eventos.</p></details>
+<details><summary>Agente</summary><p>Programa instalado en el servidor que lee los logs y los envía al SIEM de forma segura.</p></details>
+<details><summary>Normalización (parser)</summary><p>Traducción de logs con formatos distintos a un formato común con campos como usuario, IP de origen y resultado.</p></details>
+<details><summary>Regla de correlación y umbral</summary><p>Condición que relaciona eventos, por ejemplo «muchos fallos de login desde la misma IP en poco tiempo». El umbral es el número a partir del cual se considera sospechoso.</p></details>
+<details><summary>Falso positivo</summary><p>Alerta que se dispara por algo inocente, como un usuario que olvidó su clave. Demasiados falsos positivos saturan al analista.</p></details>
+<details><summary>Falso negativo</summary><p>Ataque real que el SIEM no detecta, por ejemplo porque el umbral es demasiado alto o falta una fuente de logs. Es el error más peligroso.</p></details>
+
+<h2>Fiabilidad y fuentes</h2>
+<ul class="src">
+<li><b>Origen del contenido:</b> conocimiento general sobre arquitectura SIEM (recolección, normalización, correlación, alerta). No se consultó la web al generar este archivo.</li>
+<li><b>Para verificar:</b> NIST SP 800-92 (guía de gestión de logs de seguridad), el glosario del NIST CSRC (definición de SIEM), la documentación de Elastic Common Schema (nombres de campos) y la de cada agente o producto. Estas referencias se citan de memoria y no se abrieron.</li>
+<li><b>Datos didácticos (inferencia, no cifras reales):</b> ventana de 60 s, umbral por defecto de 5, 6 intentos del ataque y 2 del usuario normal. En producción se calibran con datos propios.</li>
+<li><b>Posibles imprecisiones:</b> los eventos y nombres (por ejemplo el evento 4625 de Windows, auditd, Filebeat) deben contrastarse con su documentación oficial. La mención a ISO 27001 es general, no un mapeo de controles.</li>
+<li><b>Ejemplos de red:</b> la IP 203.0.113.45 pertenece al rango reservado para documentación (RFC 5737).</li>
+<li><b>Realidad aumentada:</b> es una simulación visual en SVG; no usa cámara ni WebXR.</li>
+<li><b>Uso docente:</b> material generado con asistencia de IA; se recomienda revisión humana antes de usarlo en clase.</li>
+</ul>
+</main>
+
+<script>
+var $=function(i){return document.getElementById(i)};
+var cx=[100,275,450,625,800],cur=0,timer=null,ana=false,arOn=true,ans=[null,null,null,null,null];
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+var ST=[
+{n:'Servidor',tag:'Logs · syslog',atag:'Cámaras y sensores',
+ d:'Todo servidor deja rastros: quién inició sesión, qué página se pidió, qué conexión bloqueó el firewall. Cada rastro es una línea de texto llamada log. Un servidor genera miles al día, imposibles de leer a mano.',
+ a:'Analogía: es el edificio lleno de cámaras y sensores. Cada puerta y pasillo graba lo que ocurre, pero cada cámara guarda su video por separado.'},
+{n:'Recolector',tag:'Agente + TLS',atag:'El cableado seguro',
+ d:'Un programa llamado agente (como Filebeat o rsyslog) lee los logs, les añade la hora y el nombre del equipo y los envía cifrados al SIEM. Así todos los registros terminan en un solo lugar.',
+ a:'Analogía: es el cableado seguro que lleva el video de todas las cámaras hasta una sola sala de control, por un canal que nadie puede espiar.'},
+{n:'Normalizador',tag:'Parser · campos',atag:'El traductor',
+ d:'Cada sistema escribe sus logs a su manera. El parser los traduce a un formato común con campos claros (usuario, IP de origen, resultado). Sin esto, el SIEM no podría comparar un log de Linux con uno de Windows.',
+ a:'Analogía: es un traductor. Las cámaras hablan idiomas distintos y él lo pasa todo a un mismo idioma, en fichas ordenadas.'},
+{n:'Correlación',tag:'Regla · umbral',atag:'El guardia atento',
+ d:'Aquí está la inteligencia. El motor relaciona eventos con reglas, por ejemplo: «si una misma IP falla el login varias veces en 60 segundos, es sospechosa». Un fallo suelto es normal; muchos seguidos, no. Mueve el umbral y mira el resultado.',
+ a:'Analogía: es el guardia experimentado. Si un empleado se equivoca de clave una vez, no se alarma; si alguien prueba muchas llaves en la misma puerta, sí.'},
+{n:'Alerta',tag:'Alerta + analista',atag:'Alarma y guardia',
+ d:'Si la regla se cumple, el SIEM crea una alerta con severidad y contexto, avisa al equipo y puede iniciar una respuesta (por ejemplo, bloquear la IP). Un analista revisa si es real y su veredicto vuelve para mejorar las reglas.',
+ a:'Analogía: suena la alarma y el guardia acude. Luego anota si fue un peligro real o una falsa alarma, para que la central sea más precisa la próxima vez.'}];
+var Q=[
+{q:'¿Qué pasa si un servidor no registra un evento importante?',o:['El SIEM lo detecta igual','El SIEM nunca lo verá','El recolector lo inventa'],c:1,e:'El SIEM solo trabaja con lo que recibe. Sin registro no hay visibilidad.'},
+{q:'¿Por qué importa que todos los eventos tengan la hora correcta?',o:['Para poder ordenarlos y relacionar equipos distintos','Para que el log ocupe menos espacio','Solo es un detalle estético'],c:0,e:'Sin una hora fiable no se sabe qué ocurrió primero, y la correlación pierde sentido.'},
+{q:'Si el parser lee mal un campo, ¿qué suele pasar?',o:['La regla que usa ese campo deja de ver el dato','El SIEM va más rápido','No pasa nada'],c:0,e:'El campo queda vacío y las reglas que dependen de él se vuelven ciegas.'},
+{q:'Con el umbral demasiado bajo, ¿qué es más probable?',o:['Falsos negativos (ataques que pasan)','Falsos positivos (alarmas por casos normales)','Ningún cambio'],c:1,e:'Un umbral bajo hace sonar la alarma por casos normales y satura al analista.'},
+{q:'¿Para qué marcar una alerta como verdadera o falsa?',o:['Para borrar el log original','Para apagar el SIEM','Para ajustar las reglas y mejorar la detección'],c:2,e:'Ese veredicto es la retroalimentación que afina umbrales y reglas.'}];
+
+var tg=$('tags'),cl=$('cells'),NS='http://www.w3.org/2000/svg';
+function mk(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+cx.forEach(function(x,i){
+ var g=mk('g',{id:'tag'+i},tg);
+ mk('rect',{x:x-76,y:52,width:152,height:26,rx:6,fill:'#22D3EE','fill-opacity':'.1',stroke:'#22D3EE','stroke-dasharray':'3 3'},g);
+ mk('polygon',{points:(x-5)+',78 '+(x+5)+',78 '+x+',85',fill:'#22D3EE'},g);
+ mk('circle',{cx:x-62,cy:65,r:9,fill:'#22D3EE'},g);
+ var n=mk('text',{x:x-62,y:65,'text-anchor':'middle','dominant-baseline':'central','font-size':11,'font-weight':700,fill:'#0B1623'},g);n.textContent=i+1;
+ var t=mk('text',{id:'tg'+i,'class':'tgt',x:x+10,y:65,'text-anchor':'middle','dominant-baseline':'central'},g);t.textContent=ST[i].tag;
+});
+for(var c=0;c<10;c++)mk('rect',{id:'c'+c,x:40+c*30,y:512,width:24,height:30,rx:4,fill:'#17304A',stroke:'#2E4A68'},cl);
+
+function esc(x){return x.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function render(){
+ var atk=$('sc').value==='atk',thr=+$('th').value;
+ $('thv').textContent=thr;
+ var ip=atk?'203.0.113.45':'192.168.1.20',usr=atk?'root':'jose',att=atk?6:2,fired=att>=thr,show=cur>=3;
+ for(var i=0;i<5;i++){
+  var on=i===cur;
+  $('st'+i).style.opacity=on?1:.55;
+  $('pl'+i).setAttribute('stroke-opacity',on?1:.4);$('pl'+i).setAttribute('stroke-width',on?3:1);
+  $('pg'+i).style.display=on?'':'none';
+  $('tag'+i).style.opacity=on?1:.6;
+  $('tg'+i).textContent=ana?ST[i].atag:ST[i].tag;
+ }
+ var cc=['#94A3B8','#38BDF8','#22D3EE','#F59E0B',fired?'#EF4444':'#10B981'][cur];
+ $('capb').setAttribute('fill',cc);
+ $('cap').style.transform='translate('+cx[cur]+'px,118px)';
+ $('capt').textContent=['evento crudo','evento recolectado','evento normalizado','evento correlacionado',fired?'alerta generada':'sin alerta'][cur];
+ var sh=$('shield');
+ if(cur===4){sh.setAttribute('fill',fired?'#EF4444':'#10B981');sh.setAttribute('fill-opacity',1);$('icoAlert').style.display=fired?'':'none';$('icoOk').style.display=fired?'none':''}
+ else{sh.setAttribute('fill','url(#gShield)');sh.setAttribute('fill-opacity',.55);$('icoAlert').style.display='none';$('icoOk').style.display='none'}
+ $('corrC').setAttribute('stroke',(cur===3&&fired)?'#F59E0B':'#22D3EE');
+ $('ledSSH').setAttribute('fill',(cur<=1&&atk)?'#F87171':'#34D399');
+ var lc=cur===4?'#F59E0B':'#22D3EE';
+ $('loop').setAttribute('stroke',lc);$('loop').setAttribute('stroke-opacity',cur===4?1:.5);$('loop').setAttribute('stroke-width',cur===4?2.5:1.6);
+ $('loopHead').setAttribute('fill',lc);$('loopHead').setAttribute('fill-opacity',cur===4?1:.5);
+ $('gauge').style.opacity=show?1:.35;
+ for(var c=0;c<10;c++)$('c'+c).setAttribute('fill',show&&c<att?'#F59E0B':'#17304A');
+ var x=40+thr*30-3;$('thr').setAttribute('x1',x);$('thr').setAttribute('x2',x);
+ $('thrt').setAttribute('x',x);$('thrt').textContent='umbral '+thr;
+ $('h1').textContent=show?('IP de origen '+ip+' · ventana de 60 s'):'esperando eventos de la etapa 4';
+ $('h2').textContent='Intentos '+(show?att:'–')+' / umbral '+thr;
+ var h3=$('h3');h3.textContent='Resultado: '+(show?(fired?'ALERTA generada':'sin alerta'):'pendiente');
+ h3.setAttribute('fill',show?(fired?'#F87171':'#34D399'):'#8FB3C4');
+
+ var raw='Oct  8 23:41:07 srv01 sshd[2211]: Failed password for '+usr+' from '+ip+' port 51122 ssh2';
+ var L=[raw,
+  '{"@timestamp":"2026-10-08T23:41:07-05:00","host":"srv01","message":"'+raw.slice(21)+'"}',
+  'event.category=authentication  event.outcome=failure  user.name='+usr+'  source.ip='+ip,
+  'count(event.outcome=failure BY source.ip, 60s) = '+att+'   umbral = '+thr+'   → '+(fired?'la regla se cumple':'la regla NO se cumple'),
+  fired?'ALERT severidad=alta regla=ssh_fuerza_bruta origen='+ip+' acción=ticket+notificación':'Sin alerta: ningún origen supera el umbral'];
+ var F=[
+  ['i','Cobertura: un SIEM solo es tan bueno como las fuentes de log que se activan. Si un equipo no registra el evento, no hay nada que analizar.'],
+  ['i','Hora: si los relojes no están sincronizados (NTP), no se puede ordenar lo que ocurrió ni relacionar equipos distintos.'],
+  ['i','Calidad: un campo mal extraído queda vacío y la regla que lo usa se vuelve ciega.'],
+  atk?(fired?['s','Detección correcta: '+att+' fallos alcanzan el umbral de '+thr+'. La alarma suena.']:['d','Falso negativo: el ataque (6 fallos) pasa inadvertido porque el umbral es '+thr+'. Baja el umbral.']):(fired?['w','Falso positivo: un usuario legítimo con 2 errores dispara la regla con umbral '+thr+'. Sube el umbral.']:['s','Correcto: 2 errores de contraseña no superan el umbral de '+thr+' y no generan ruido.']),
+  fired?(atk?['s','El analista confirma un verdadero positivo y puede bloquear la IP. Su veredicto vuelve a las reglas (flecha punteada).']:['w','El analista la marcará como falso positivo. Ese veredicto vuelve a las reglas para subir el umbral (flecha punteada).']):(atk?['d','No hubo alerta ante un ataque real. El ciclo de ajuste debe corregir la regla.']:['s','Sin alerta y sin ruido: el analista no pierde tiempo con un evento benigno.'])];
+ $('pt').textContent=(cur+1)+'. '+ST[cur].n;
+ $('ps').textContent='Etapa '+(cur+1)+' de 5';
+ $('pd').textContent=ST[cur].d;
+ var pa=$('pa');pa.style.display=ana?'':'none';pa.textContent=ST[cur].a;
+ $('pl').textContent=L[cur];
+ var f=F[cur],m={i:'a',s:'s',w:'w',d:'dg'}[f[0]],pf=$('pf');
+ pf.style.background='var(--b'+m+')';pf.style.color='var(--t'+m+')';pf.textContent=f[1];
+ renderQ();
+}
+function renderQ(){
+ var q=Q[cur],a=ans[cur],h='<div class="qq">'+q.q+'</div>';
+ q.o.forEach(function(t,i){
+  var cls='opt';if(a!==null){if(i===q.c)cls+=' ok';else if(i===a)cls+=' no'}
+  h+='<button class="'+cls+'" onclick="pick('+i+')">'+t+'</button>';
+ });
+ if(a!==null)h+='<div class="qf '+(a===q.c?'good':'bad')+'"><b>'+(a===q.c?'Correcto. ':'Casi. ')+'</b>'+q.e+'</div>';
+ $('quiz').innerHTML=h;
+ var r=0,k=0;ans.forEach(function(v,i){if(v!==null){r++;if(v===Q[i].c)k++}});
+ $('ps2').textContent='Pregunta '+(cur+1)+' de 5';
+ $('sc2').textContent='Aciertos: '+k+' de '+r+' respondidas';
+}
+function pick(i){if(ans[cur]!==null)return;stopPlay();ans[cur]=i;renderQ()}
+function go(i){stopPlay();cur=i;render()}
+function step(d){stopPlay();cur=(cur+d+5)%5;render()}
+function stopPlay(){if(timer){clearInterval(timer);timer=null;$('pb').textContent='▶ Reproducir'}}
+function toggle(){
+ if(timer){stopPlay();return}
+ timer=setInterval(function(){cur=(cur+1)%5;render()},4500);
+ $('pb').textContent='❚❚ Pausar';
+}
+function reset(){stopPlay();cur=0;ans=[null,null,null,null,null];render()}
+function tAR(){arOn=!arOn;$('ar').style.display=arOn?'':'none';var b=$('arb');b.setAttribute('aria-pressed',arOn);b.textContent='Vista AR: '+(arOn?'activada':'desactivada')}
+function tAna(){ana=!ana;var b=$('anb');b.setAttribute('aria-pressed',ana);b.textContent='Analogía del edificio: '+(ana?'activada':'apagada');render()}
+var wrap=$('wrap'),ar=$('ar'),ic=$('icons');
+wrap.addEventListener('pointermove',function(e){
+ if(reduce)return;var r=wrap.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width-.5,dy=(e.clientY-r.top)/r.height-.5;
+ ar.style.transform='translate('+(dx*14)+'px,'+(dy*10)+'px)';ic.style.transform='translate('+(-dx*4)+'px,'+(-dy*3)+'px)';
+});
+wrap.addEventListener('pointerleave',function(){ar.style.transform='';ic.style.transform=''});
+render();
+</script>
+</body>
+</html>
 
