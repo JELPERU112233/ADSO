@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FSMO en Active Directory · Animación interactiva RA</title>
+<style>
+:root{--bg:#050b18;--panel:rgba(8,20,40,.8);--line:rgba(34,211,238,.38);--cy:#22d3ee;--tx:#e6f4ff;--mut:#8fb0c9;--c:#22d3ee}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--tx)}
+body.cam{background:transparent}
+body.cam .hud{background:rgba(8,20,40,.58)}
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:0}
+body.cam #cam{display:block}
+#grid{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(34,211,238,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.07) 1px,transparent 1px);background-size:44px 44px}
+#scan{position:fixed;left:0;right:0;top:-160px;height:160px;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,rgba(34,211,238,.09),transparent);animation:scan 7s linear infinite}
+@keyframes scan{to{transform:translateY(calc(100vh + 160px))}}
+.app{position:relative;z-index:2;max-width:1560px;margin:0 auto;padding:14px}
+.hud{position:relative;border:1px solid var(--line);background:var(--panel);border-radius:10px;backdrop-filter:blur(6px)}
+.hud::before,.hud::after{content:"";position:absolute;width:16px;height:16px;border:2px solid var(--c);pointer-events:none;transition:border-color .4s}
+.hud::before{top:-2px;left:-2px;border-right:none;border-bottom:none;border-top-left-radius:10px}
+.hud::after{bottom:-2px;right:-2px;border-left:none;border-top:none;border-bottom-right-radius:10px}
+.pad{padding:14px}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 16px}
+h1{margin:0;font-size:20px;letter-spacing:.02em}
+.sub{color:var(--mut);font-size:13px;margin-top:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:rgba(34,211,238,.1);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;transition:.2s}
+.btn:hover:not(:disabled){background:rgba(34,211,238,.22);box-shadow:0 0 12px rgba(34,211,238,.35)}
+.btn.pri{background:var(--c);color:#031018;font-weight:bold;border-color:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.layout{display:grid;grid-template-columns:310px minmax(0,1fr) 360px;gap:12px;margin-top:12px;align-items:start}
+.colL,.colC,.colR{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);margin-bottom:6px}
+/* cubo 3D */
+.scene3d{perspective:900px;height:270px;display:grid;place-items:center;touch-action:none;cursor:grab;user-select:none}
+.scene3d:active{cursor:grabbing}
+.cube{--s:190px;position:relative;width:var(--s);height:var(--s);transform-style:preserve-3d}
+.cube.glitch{animation:glitch .7s ease-out}
+@keyframes glitch{0%{filter:brightness(2.2) saturate(2)}100%{filter:none}}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;background:rgba(4,14,30,.9);border:1.5px solid var(--c);box-shadow:inset 0 0 28px color-mix(in srgb,var(--c) 28%,transparent),0 0 16px color-mix(in srgb,var(--c) 35%,transparent);backface-visibility:hidden;overflow:hidden}
+.face h4{margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+.face p{margin:0;font-size:12.5px;line-height:1.35}
+.face .mono{font-size:34px;font-weight:bold;color:var(--c);text-shadow:0 0 14px var(--c);margin-bottom:6px}
+.face .sm{font-size:11px;color:var(--mut);margin-top:6px}
+.f-front{transform:translateZ(calc(var(--s)/2))}
+.f-back{transform:rotateY(180deg) translateZ(calc(var(--s)/2))}
+.f-right{transform:rotateY(90deg) translateZ(calc(var(--s)/2))}
+.f-left{transform:rotateY(-90deg) translateZ(calc(var(--s)/2))}
+.f-top{transform:rotateX(90deg) translateZ(calc(var(--s)/2))}
+.f-bottom{transform:rotateX(-90deg) translateZ(calc(var(--s)/2))}
+.fbtns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.fbtns .btn{padding:7px 4px;font-size:12px}
+.intro h3,.info h3{margin:14px 0 4px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.intro h3{margin-top:0}
+.intro p{font-size:13px;line-height:1.5;margin:6px 0;color:#cfe3f3}
+/* roles */
+.roles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.role{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-left:4px solid var(--c);color:var(--tx);border-radius:8px;padding:6px 10px 6px 6px;cursor:pointer;transition:.2s;font-size:13px}
+.role i{font-style:normal;font-weight:bold;min-width:34px;height:34px;padding:0 4px;display:grid;place-items:center;border-radius:17px;background:var(--c);color:#031018;font-size:11px}
+.role:hover{background:rgba(255,255,255,.1)}
+.role.on{background:rgba(255,255,255,.14);box-shadow:0 0 16px color-mix(in srgb,var(--c) 55%,transparent)}
+/* escenario */
+.persp{perspective:1200px}
+.tilt{transform-style:preserve-3d;transition:transform .2s ease-out;will-change:transform;border:1px solid rgba(34,211,238,.2);border-radius:10px;background:rgba(2,8,20,.55)}
+svg{display:block;width:100%;height:auto}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.narr{margin-top:10px;padding:10px 12px;border-left:3px solid var(--c);background:rgba(34,211,238,.07);font-size:14px;line-height:1.55;min-height:70px}
+.step{display:inline-block;background:var(--c);color:#031018;font-weight:bold;font-size:11px;padding:2px 8px;border-radius:10px;margin-right:6px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;color:var(--mut)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend b{display:inline-grid;place-items:center;width:18px;height:12px;border-radius:3px;color:#031018;font-size:9px}
+/* info */
+.info h2{margin:0 0 8px;font-size:20px;color:var(--c)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tag{font-size:11px;border:1px solid var(--c);color:var(--c);border-radius:12px;padding:3px 9px}
+.analogy{background:rgba(255,255,255,.06);border-radius:8px;padding:9px 11px;font-size:13px;line-height:1.5;margin-bottom:6px}
+.info p{font-size:13.5px;line-height:1.55;margin:4px 0;color:#d6e8f6}
+.meter{display:flex;gap:4px;margin:8px 0 2px}
+.meter span{height:8px;flex:1;border-radius:4px;background:rgba(255,255,255,.12)}
+.mlab{font-size:12px;color:var(--mut)}
+.cmdline{display:flex;gap:6px;align-items:center;margin:5px 0;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 6px}
+.cmdline code{flex:1;font-size:12px;color:#9ff0ff;word-break:break-all}
+.cp{background:transparent;border:1px solid var(--line);color:var(--tx);border-radius:5px;font-size:11px;padding:3px 7px;cursor:pointer}
+.note{font-size:12.5px;color:var(--mut)}
+.src{margin-top:14px;padding:10px;border:1px dashed rgba(255,255,255,.25);border-radius:8px;font-size:11.5px;line-height:1.5;color:var(--mut)}
+/* SVG */
+.forest{fill:rgba(34,211,238,.03);stroke:rgba(34,211,238,.55);stroke-width:1.5;stroke-dasharray:8 6}
+.dom{fill:rgba(34,211,238,.05);stroke:rgba(120,200,255,.5);stroke-width:1.2}
+.lblF{fill:#7fe9ff;font-size:12px;font-weight:bold;letter-spacing:.08em}
+.lblD{fill:#a9d4f0;font-size:11px;font-weight:bold}
+.link{stroke:rgba(34,211,238,.42);stroke-width:1.2;fill:none;stroke-dasharray:5 5;animation:dash 1.4s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-20}}
+.ghost{opacity:0;transition:opacity .6s;pointer-events:none}
+.ghost.on{opacity:1}
+.ghostrect{fill:rgba(251,191,36,.04);stroke:rgba(251,191,36,.6);stroke-width:1.2;stroke-dasharray:6 5}
+.iso .l{fill:#0d2640}.iso .r{fill:#123a5e}.iso .t{fill:#1c5b8c}
+.iso polygon{stroke:var(--cy);stroke-width:1;stroke-linejoin:round}
+.newdc .iso polygon{stroke:#fbbf24;stroke-dasharray:3 2}
+.led{fill:#4ade80}
+.dead .led{fill:#ff5a5f}
+.dead .iso{filter:grayscale(1) brightness(.6)}
+.xmark{display:none;stroke:#ff5a5f;stroke-width:4;stroke-linecap:round}
+.dead .xmark{display:block}
+.off{display:none;fill:#ff5a5f;font-size:10px;font-weight:bold;text-anchor:middle}
+.dead .off{display:inline}
+.dname{fill:#fff;font-size:12px;font-weight:bold;text-anchor:middle}
+.ptxt{font-size:8px;font-weight:bold;fill:#031018;text-anchor:middle}
+.pcn{fill:#cfe3f3;font-size:11px;font-weight:bold;text-anchor:middle}
+.pl{fill:#fff;font-size:10px;font-weight:bold;text-anchor:middle;paint-order:stroke;stroke:#050b18;stroke-width:3px}
+.bt{fill:#e6f4ff;font-size:10px}
+.ct{fill:#fff;font-size:11px;font-weight:bold;text-anchor:middle}
+.ring{fill:none;stroke-width:2;transform-box:fill-box;transform-origin:center;animation:ring 1.1s ease-out forwards}
+@keyframes ring{from{transform:scale(1);opacity:.9}to{transform:scale(7);opacity:0}}
+.bub{animation:pop .35s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.callout,.halo{transition:transform .8s cubic-bezier(.3,.8,.3,1),opacity .4s}
+.hide{opacity:0}
+.halo{animation:halo 1.6s ease-in-out infinite}
+@keyframes halo{50%{stroke-opacity:.25}}
+@media (max-width:1180px){.layout{grid-template-columns:1fr}.colC{order:1}.colL{order:2}.colR{order:3}}
+@media (prefers-reduced-motion:reduce){#scan{display:none}.link,.halo{animation:none}}
+</style>
+</head>
+<body>
+<video id="cam" playsinline muted autoplay></video>
+<div id="grid"></div><div id="scan"></div>
+
+<div class="app">
+  <header class="hud top">
+    <div>
+      <h1>FSMO · Los 5 roles maestros de Active Directory</h1>
+      <div class="sub">Animación interactiva en modo realidad aumentada · elige un rol, pulsa Reproducir y arrastra el holograma 3D</div>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnCam">Activar cámara (RA)</button>
+      <button class="btn" id="btnReset">Restablecer escena</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="colL">
+      <section class="hud pad">
+        <div class="cap">Holograma 3D · arrastra para girar</div>
+        <div class="scene3d" id="scene3d">
+          <div class="cube" id="cube">
+            <div class="face f-front"></div><div class="face f-back"></div>
+            <div class="face f-right"></div><div class="face f-left"></div>
+            <div class="face f-top"></div><div class="face f-bottom"></div>
+          </div>
+        </div>
+        <div class="fbtns">
+          <button class="btn" data-f="front">Frente</button>
+          <button class="btn" data-f="right">¿Qué es?</button>
+          <button class="btn" data-f="back">¿Para qué?</button>
+          <button class="btn" data-f="left">Alcance</button>
+          <button class="btn" data-f="top">Si falla</button>
+          <button class="btn" data-f="bottom">Práctica</button>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="btn" id="btnAuto" style="flex:1">Giro automático: sí</button></div>
+      </section>
+      <section class="hud pad intro">
+        <h3>¿Qué es FSMO? (en 20 segundos)</h3>
+        <p>Active Directory es <b>multimaestro</b>: cualquier controlador de dominio (DC) puede escribir cambios y luego los replica a los demás.</p>
+        <p>Pero <b>5 tareas delicadas</b> no toleran dos escritores a la vez. Cada una la hace <b>un solo DC</b>, llamado <i>maestro de operaciones</i>. Hay <b>2 por bosque</b> y <b>3 por cada dominio</b>.</p>
+        <p>Por defecto, el primer DC del bosque tiene los 5; el primer DC de cada dominio nuevo tiene los 3 de dominio.</p>
+      </section>
+    </aside>
+
+    <main class="colC">
+      <section class="hud pad">
+        <div class="roles" id="roles"></div>
+        <div class="persp" id="stageWrap">
+          <div class="tilt" id="tilt">
+<svg id="svg" viewBox="0 0 820 440" role="img" aria-label="Diagrama de un bosque de Active Directory con dos dominios y sus controladores de dominio">
+  <defs>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="10" y="20" width="800" height="410" rx="18" class="forest"/>
+  <text x="30" y="46" class="lblF">BOSQUE (FOREST) · RAÍZ: empresa.local</text>
+  <rect x="30" y="64" width="440" height="350" rx="14" class="dom"/>
+  <text x="46" y="88" class="lblD">DOMINIO A · empresa.local (raíz)</text>
+  <rect x="500" y="64" width="290" height="200" rx="14" class="dom"/>
+  <text x="516" y="88" class="lblD">DOMINIO B · ventas.empresa.local</text>
+  <g id="ghostC" class="ghost">
+    <rect x="500" y="280" width="290" height="134" rx="14" class="ghostrect"/>
+    <text x="516" y="300" class="lblD" style="fill:#fbbf24">DOMINIO C (NUEVO) · rrhh.empresa.local</text>
+    <g id="ghostNode"></g>
+  </g>
+  <g id="links"></g>
+  <ellipse id="halo" class="halo hide" rx="46" ry="19" fill="none" stroke-width="2" stroke="#22d3ee" style="transform:translate(140px,230px)"/>
+  <g id="nodes"></g>
+  <g id="callout" class="callout hide" style="transform:translate(140px,144px)">
+    <line id="callLine" x1="0" y1="11" x2="0" y2="27" stroke="#22d3ee" stroke-width="1.5"/>
+    <rect id="callRect" x="-60" y="-11" width="120" height="22" rx="6" fill="rgba(5,15,30,.94)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text id="callTxt" x="0" y="4" class="ct">Rol</text>
+  </g>
+  <g id="fx"></g>
+</svg>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn pri" id="btnPlay">Reproducir animación</button>
+          <button class="btn" id="btnTrans">Transferir rol</button>
+          <button class="btn" id="btnFail">Simular caída</button>
+        </div>
+        <div class="narr" id="narr" aria-live="polite"></div>
+        <div class="legend" id="legend"></div>
+      </section>
+    </main>
+
+    <aside class="colR">
+      <section class="hud pad info" id="info"></section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var NS='http://www.w3.org/2000/svg';
+var $=function(s){return document.querySelector(s);};
+var el=function(n,a,p){var e=document.createElementNS(NS,n);for(var k in a){e.setAttribute(k,a[k]);}if(p){p.appendChild(e);}return e;};
+var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- DATOS ---------- */
+var ROLES={
+ALL:{name:'FSMO',es:'Flexible Single Master Operations',mono:'FSMO',color:'#22d3ee',scope:'Bosque + Dominio',count:'5 roles',member:'',
+ analogy:`Una oficina donde todos pueden atender (multimaestro), pero hay 5 trámites delicados que solo firma una persona a la vez, para que nunca se contradigan.`,
+ what:`AD DS replica los cambios entre todos los controladores de dominio (DC), y casi todos pueden escribir. Pero cinco operaciones no toleran conflictos, así que se asignan a un único DC a la vez: los roles FSMO.`,
+ why:`Evitar conflictos de escritura en tareas críticas: esquema, alta y baja de dominios, contraseñas urgentes y hora, numeración de SID y referencias entre dominios.`,
+ fail:`Depende del rol: la mayoría no se nota de inmediato, pero a mediano plazo cada uno provoca problemas específicos. Elige un rol para verlo.`,
+ best:`Documentar quién tiene cada rol, monitorear su disponibilidad y tener un DC de respaldo listo para recibirlos.`,
+ impact:0,
+ cmd:['netdom query fsmo','Get-ADForest | Select SchemaMaster, DomainNamingMaster','Get-ADDomain | Select PDCEmulator, RIDMaster, InfrastructureMaster'],
+ f:{que:`Operaciones que solo UN DC puede hacer a la vez.`,para:`Evitar conflictos en tareas delicadas de AD.`,alc:`2 por bosque (Schema, Domain Naming) y 3 por dominio (PDC, RID, Infraestructura).`,falla:`Cada rol falla distinto: elige uno para verlo.`,buena:`Documenta quién tiene cada rol.`}},
+SM:{name:'Schema Master',es:'Maestro de esquema',mono:'SM',color:'#b794f6',scope:'Bosque',count:'1 por bosque',member:'Requiere Schema Admins',
+ analogy:`El arquitecto que decide qué campos tiene cada ficha (usuario, equipo, impresora…).`,
+ what:`Es el único DC que puede modificar el esquema: la definición de las clases de objetos y atributos del directorio. Los cambios se replican a todos los DC del bosque.`,
+ why:`Extender AD de forma ordenada, por ejemplo al instalar Exchange, al agregar atributos personalizados, al preparar el bosque para una versión nueva de Windows Server (adprep) o al desplegar Windows LAPS.`,
+ fail:`Sin impacto inmediato: AD sigue autenticando y replicando. Solo quedan bloqueadas las extensiones del esquema.`,
+ best:`Un cambio de esquema no se puede deshacer (solo se desactivan objetos). Probar en laboratorio y respaldar el estado del sistema antes.`,
+ impact:1,
+ cmd:['Get-ADForest | Select SchemaMaster','Move-ADDirectoryServerOperationMasterRole -Identity DC2 -OperationMasterRole SchemaMaster'],
+ f:{que:`Único DC que puede cambiar el esquema de AD.`,para:`Definir qué atributos y clases existen (Exchange, LAPS, adprep).`,alc:`1 por bosque. Se replica a todos los DC del bosque.`,falla:`AD sigue funcionando; solo no se puede extender el esquema.`,buena:`Cambios irreversibles: prueba y respalda antes.`}},
+DNM:{name:'Domain Naming Master',es:'Maestro de nomenclatura de dominios',mono:'DNM',color:'#2dd4bf',scope:'Bosque',count:'1 por bosque',member:'Requiere Enterprise Admins',
+ analogy:`El registro civil de dominios: aprueba nombres nuevos y bajas, sin duplicados.`,
+ what:`Es el único DC que agrega o quita dominios (y particiones de aplicación) del bosque, y garantiza que cada nombre de dominio sea único.`,
+ why:`Controlar la estructura del bosque: crear un dominio hijo o un árbol nuevo, o eliminar un dominio que ya no se usa.`,
+ fail:`Sin impacto diario. No se pueden agregar ni quitar dominios hasta recuperar el rol.`,
+ best:`Práctica habitual: en el mismo DC que el Schema Master, en el dominio raíz, y que ese DC sea catálogo global.`,
+ impact:1,
+ cmd:['Get-ADForest | Select DomainNamingMaster','Move-ADDirectoryServerOperationMasterRole -Identity DC2 -OperationMasterRole DomainNamingMaster'],
+ f:{que:`Único DC que crea o elimina dominios del bosque.`,para:`Garantizar nombres de dominio únicos y controlar la estructura.`,alc:`1 por bosque.`,falla:`Sin impacto diario; no se pueden añadir ni quitar dominios.`,buena:`Junto al Schema Master, en el dominio raíz.`}},
+PDC:{name:'PDC Emulator',es:'Emulador de PDC',mono:'PDC',color:'#fbbf24',scope:'Dominio',count:'1 por dominio',member:'',
+ analogy:`El reloj oficial y el portero de contraseñas del dominio.`,
+ what:`DC con prioridad para tres cosas: ser la fuente de hora del dominio (en el dominio raíz, de todo el bosque), recibir de inmediato los cambios de contraseña y bloqueos de cuenta, y ser el destino por defecto al editar GPO.`,
+ why:`Mantener la hora coherente (Kerberos tolera por defecto unos 5 minutos de diferencia), lograr que una contraseña nueva funcione en cualquier DC y que los bloqueos se apliquen de forma consistente.`,
+ fail:`Es el rol más sensible a corto plazo: deriva de hora, contraseñas nuevas que tardan en funcionar y bloqueos inconsistentes.`,
+ best:`Colocarlo en un DC robusto y bien conectado. En el dominio raíz, configurar su hora con una fuente NTP externa fiable.`,
+ impact:3,
+ cmd:['Get-ADDomain | Select PDCEmulator','w32tm /query /source','Move-ADDirectoryServerOperationMasterRole -Identity DC2 -OperationMasterRole PDCEmulator'],
+ f:{que:`DC prioritario para hora, contraseñas y bloqueos.`,para:`Hora coherente (Kerberos) y cambios de clave inmediatos.`,alc:`1 por dominio. El del dominio raíz marca la hora del bosque.`,falla:`Deriva de hora, claves lentas, bloqueos inconsistentes.`,buena:`DC robusto, bien conectado y con NTP fiable.`}},
+RID:{name:'RID Master',es:'Maestro de RID',mono:'RID',color:'#4ade80',scope:'Dominio',count:'1 por dominio',member:'',
+ analogy:`La oficina que reparte rangos de numeración de DNI a cada sucursal.`,
+ what:`Entrega a cada DC bloques (pools) de identificadores relativos (RID), de 500 por defecto. El SID de un objeto es el SID del dominio más un RID.`,
+ why:`Que cada usuario, grupo o equipo creado en cualquier DC tenga un SID único. El espacio total ronda los 1.073 millones de RID por dominio (2³⁰).`,
+ fail:`Los DC siguen creando objetos mientras les quede RID en su bloque. Al agotarse, ya no pueden crear usuarios, grupos ni equipos nuevos.`,
+ best:`No colocarlo en un DC inestable y comprobar periódicamente que los DC pueden pedir bloques nuevos.`,
+ impact:2,
+ cmd:['Get-ADDomain | Select RIDMaster','dcdiag /test:ridmanager /v','Move-ADDirectoryServerOperationMasterRole -Identity DC2 -OperationMasterRole RIDMaster'],
+ f:{que:`Reparte bloques de RID a cada DC.`,para:`SID único: SID del dominio + RID.`,alc:`1 por dominio. Límite de unos 1.073 millones de RID.`,falla:`Al agotarse el bloque, no se crean objetos nuevos.`,buena:`DC estable; vigila la emisión de bloques.`}},
+IM:{name:'Infrastructure Master',es:'Maestro de infraestructura',mono:'IM',color:'#f472b6',scope:'Dominio',count:'1 por dominio',member:'',
+ analogy:`El corrector de agenda: mantiene al día los nombres de personas que viven en otros dominios.`,
+ what:`Actualiza las referencias a objetos de otros dominios (por ejemplo, un usuario de otro dominio dentro de un grupo local) comparándolas con un catálogo global.`,
+ why:`Que si el objeto remoto se renombra o se mueve, el grupo lo siga mostrando con el nombre correcto.`,
+ fail:`Sin impacto inmediato. Con el tiempo aparecen nombres desactualizados en pertenencias a grupos entre dominios.`,
+ best:`En bosques con varios dominios, no ponerlo en un catálogo global salvo que todos los DC lo sean. En un solo dominio, o con la Papelera de reciclaje de AD habilitada, el rol pierde relevancia.`,
+ impact:1,
+ cmd:['Get-ADDomain | Select InfrastructureMaster','Move-ADDirectoryServerOperationMasterRole -Identity DC2 -OperationMasterRole InfrastructureMaster'],
+ f:{que:`Actualiza referencias a objetos de otros dominios.`,para:`Que los grupos muestren nombres correctos tras renombrar.`,alc:`1 por dominio.`,falla:`Sin impacto inmediato; nombres viejos entre dominios.`,buena:`Varios dominios: no en un catálogo global.`}}
+};
+var ORDER=['SM','DNM','PDC','RID','IM'];
+var LETTER={SM:'S',DNM:'N',PDC:'P',RID:'R',IM:'I'};
+
+/* ---------- ESTADO ---------- */
+var sel='ALL',run=0;
+var holder={SM:'DC1',DNM:'DC1',PDC:'DC1',RID:'DC1',IM:'DC1'};
+var failed=new Set();
+var NODES={DC1:{x:140,y:230,ax:140,ay:205},DC2:{x:385,y:230,ax:385,ay:205},DC3:{x:640,y:200,ax:640,ay:175},PC:{x:260,y:372,ax:260,ay:350},NEWC:{x:700,y:370,ax:700,ay:345}};
+var BUB={DC1:[120,322],DC2:[385,322],DC3:[645,308],PC:[255,404],NEWC:[580,352]};
+var CTRL={'DC1|DC3':[390,60],'DC1|NEWC':[400,420],'DC3|NEWC':[745,260]};
+var A=['DC1','DC2'];
+function Cancel(){}
+var anc=function(n){return [NODES[n].ax,NODES[n].ay];};
+
+/* ---------- ESCENA ---------- */
+var gLinks=$('#links'),gNodes=$('#nodes'),fx=$('#fx'),narr=$('#narr');
+function linkPath(a,b){var A1=anc(a),B1=anc(b),k=[a,b].sort().join('|');var c=CTRL[k]||[(A1[0]+B1[0])/2,(A1[1]+B1[1])/2];return {A:A1,B:B1,c:c};}
+function drawLink(a,b){var p=linkPath(a,b);el('path',{d:'M'+p.A[0]+','+p.A[1]+' Q'+p.c[0]+','+p.c[1]+' '+p.B[0]+','+p.B[1],'class':'link'},gLinks);}
+[['DC1','DC2'],['DC2','DC3'],['DC1','DC3'],['PC','DC1'],['PC','DC2']].forEach(function(p){drawLink(p[0],p[1]);});
+
+function drawDC(parent,id,label,cls){
+  var n=NODES[id];
+  var g=el('g',{transform:'translate('+n.x+','+n.y+')','class':'dc '+(cls||''),id:'n-'+id},parent);
+  el('title',{},g).textContent=label+' · controlador de dominio';
+  var iso=el('g',{'class':'iso'},g);
+  var a=28,b=16,h=42;
+  el('polygon',{'class':'l',points:(-a)+',0 0,'+b+' 0,'+(b-h)+' '+(-a)+','+(-h)},iso);
+  el('polygon',{'class':'r',points:'0,'+b+' '+a+',0 '+a+','+(-h)+' 0,'+(b-h)},iso);
+  el('polygon',{'class':'t',points:(-a)+','+(-h)+' 0,'+(b-h)+' '+a+','+(-h)+' 0,'+(-b-h)},iso);
+  for(var k=1;k<=3;k++){el('line',{x1:0,y1:b-h+k*10,x2:a,y2:-h+k*10,stroke:'rgba(34,211,238,.45)','stroke-width':1},iso);}
+  [0.2,0.4,0.6].forEach(function(v){el('circle',{'class':'led',cx:-21,cy:(4-v*42).toFixed(1),r:1.8},iso);});
+  el('line',{'class':'xmark',x1:-22,y1:-54,x2:22,y2:-6},g);
+  el('line',{'class':'xmark',x1:22,y1:-54,x2:-22,y2:-6},g);
+  el('text',{'class':'off',x:0,y:-64},g).textContent='OFFLINE';
+  el('text',{'class':'dname',x:0,y:32},g).textContent=label;
+  if(!cls){el('g',{'class':'pills',transform:'translate(0,38)'},g);}
+  return g;
+}
+drawDC(gNodes,'DC1','DC1');
+drawDC(gNodes,'DC2','DC2');
+drawDC(gNodes,'DC3','DC3 (GC)');
+drawDC($('#ghostNode'),'NEWC','DC5 (nuevo)','newdc');
+
+(function(){
+  var n=NODES.PC;
+  var g=el('g',{transform:'translate('+n.x+','+n.y+')',id:'n-PC'},gNodes);
+  el('title',{},g).textContent='PC de Ana';
+  el('rect',{x:-22,y:-34,width:44,height:28,rx:3,fill:'#0d2640',stroke:'#22d3ee','stroke-width':1.2},g);
+  el('rect',{x:-17,y:-29,width:34,height:18,rx:1,fill:'rgba(34,211,238,.18)'},g);
+  el('line',{x1:0,y1:-6,x2:0,y2:4,stroke:'#22d3ee','stroke-width':2},g);
+  el('line',{x1:-12,y1:4,x2:12,y2:4,stroke:'#22d3ee','stroke-width':2},g);
+  el('text',{'class':'pcn',x:0,y:22},g).textContent='PC de Ana';
+})();
+
+function updatePills(){
+  ['DC1','DC2','DC3'].forEach(function(d){
+    var g=$('#n-'+d+' .pills');
+    while(g.firstChild){g.removeChild(g.firstChild);}
+    var items=[];
+    ORDER.forEach(function(r){if(holder[r]===d){items.push({r:r,b:false});}});
+    if(d==='DC3'){['PDC','RID','IM'].forEach(function(r){items.push({r:r,b:true});});}
+    var w=18,gap=3,total=items.length*(w+gap)-gap,x0=-total/2;
+    items.forEach(function(it,i){
+      var col=ROLES[it.r].color;
+      var gg=el('g',{transform:'translate('+(x0+i*(w+gap))+',0)'},g);
+      var attrs={width:w,height:11,rx:3,fill:col};
+      if(it.b){attrs['fill-opacity']=.3;attrs.stroke=col;attrs['stroke-dasharray']='2 2';}
+      el('rect',attrs,gg);
+      el('text',{'class':'ptxt',x:w/2,y:8.5,style:it.b?'fill:#e6f4ff':''},gg).textContent=LETTER[it.r];
+      el('title',{},gg).textContent=ROLES[it.r].name+(it.b?' (del dominio B)':'');
+    });
+  });
+}
+function applyDead(){
+  ['DC1','DC2','DC3'].forEach(function(d){$('#n-'+d).classList.toggle('dead',failed.has(d));});
+}
+function updateScene(){
+  updatePills();applyDead();
+  var call=$('#callout'),halo=$('#halo');
+  if(sel==='ALL'){call.classList.add('hide');halo.classList.add('hide');return;}
+  var R=ROLES[sel],n=NODES[holder[sel]];
+  call.classList.remove('hide');halo.classList.remove('hide');
+  call.style.transform='translate('+n.x+'px,'+(n.y-86)+'px)';
+  $('#callTxt').textContent=R.name;
+  var w=R.name.length*6.8+26,rc=$('#callRect');
+  rc.setAttribute('x',-w/2);rc.setAttribute('width',w);rc.setAttribute('stroke',R.color);
+  $('#callLine').setAttribute('stroke',R.color);
+  halo.style.transform='translate('+n.x+'px,'+n.y+'px)';
+  halo.setAttribute('stroke',R.color);
+}
+function clearFx(){while(fx.firstChild){fx.removeChild(fx.firstChild);}}
+function resetVisual(){$('#ghostC').classList.remove('on');}
+function narrate(s,t){narr.innerHTML='<span class="step">'+(typeof s==='number'?'Paso '+s:s)+'</span>'+t;}
+
+/* ---------- CONTEXTO DE ANIMACIÓN ---------- */
+function makeCtx(id){
+  var alive=function(){return id===run;};
+  var chk=function(){if(!alive()){throw new Cancel();}};
+  return {
+    sleep:function(ms){return new Promise(function(res,rej){setTimeout(function(){if(alive()){res();}else{rej(new Cancel());}},ms);});},
+    say:function(s,t){chk();narrate(s,t);},
+    ring:function(n,col){chk();var a=anc(n);var r=el('circle',{'class':'ring',cx:a[0],cy:a[1],r:10,stroke:col},fx);setTimeout(function(){if(r.parentNode){r.parentNode.removeChild(r);}},1200);},
+    bubble:function(n,lines,col){
+      chk();var p=BUB[n];
+      var outer=el('g',{transform:'translate('+p[0]+','+p[1]+')'},fx);
+      var g=el('g',{'class':'bub'},outer);
+      var w=Math.max.apply(null,lines.map(function(l){return l.length;}))*5.8+16,h=lines.length*13+10;
+      el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:6,fill:'rgba(5,15,30,.94)',stroke:col},g);
+      lines.forEach(function(l,i){el('text',{'class':'bt',x:0,y:-h/2+14+i*13,'text-anchor':'middle'},g).textContent=l;});
+      return outer;
+    },
+    pkt:function(a,b,col,label,dur,tmax){
+      dur=dur||1200;tmax=tmax||1;
+      return new Promise(function(res,rej){
+        if(!alive()){rej(new Cancel());return;}
+        var P=linkPath(a,b);
+        var g=el('g',{},fx);
+        el('circle',{r:6,fill:col,filter:'url(#glow)'},g);
+        el('text',{'class':'pl',x:0,y:-12},g).textContent=label;
+        var t0=performance.now();
+        function step(now){
+          if(!alive()){if(g.parentNode){g.parentNode.removeChild(g);}rej(new Cancel());return;}
+          var t=Math.min(1,(now-t0)/dur);
+          var e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+          var q=e*tmax,u=1-q;
+          var x=u*u*P.A[0]+2*u*q*P.c[0]+q*q*P.B[0];
+          var y=u*u*P.A[1]+2*u*q*P.c[1]+q*q*P.B[1];
+          g.setAttribute('transform','translate('+x+','+y+')');
+          if(t<1){requestAnimationFrame(step);}else{if(g.parentNode){g.parentNode.removeChild(g);}res();}
+        }
+        requestAnimationFrame(step);
+      });
+    }
+  };
+}
+
+/* ---------- ESCENARIOS ---------- */
+var SC={};
+SC.SM=async function(c){
+  var R=ROLES.SM,h=holder.SM,col=R.color;
+  var others=['DC1','DC2','DC3'].filter(function(d){return d!==h&&!failed.has(d);});
+  c.say(1,'Un administrador quiere <b>extender el esquema</b> (por ejemplo, agregar el atributo <i>tarjetaAcceso</i> a todos los usuarios). Esa escritura solo la acepta el <b>Schema Master ('+h+')</b>.');
+  c.bubble(h,['Esquema vN → vN+1','+ atributo tarjetaAcceso'],col);
+  c.ring(h,col);
+  await c.sleep(2400);
+  c.say(2,'El cambio se <b>replica a todos los DC del bosque</b>, también a los de otros dominios.');
+  await Promise.all(others.map(function(d){return c.pkt(h,d,col,'esquema vN+1',1700);}));
+  others.forEach(function(d){c.ring(d,col);c.bubble(d,['✓ esquema vN+1'],col);});
+  await c.sleep(1800);
+  c.say(3,'Resultado: todo el bosque comparte la misma definición. Si dos administradores pudieran editar el esquema a la vez en DC distintos habría definiciones contradictorias; por eso hay <b>un solo maestro</b>.');
+  await c.sleep(3000);
+};
+SC.DNM=async function(c){
+  var R=ROLES.DNM,h=holder.DNM,col=R.color;
+  c.say(1,'La empresa quiere crear un dominio nuevo: <b>rrhh.empresa.local</b>. Antes de crearlo, el <b>Domain Naming Master ('+h+')</b> debe aprobarlo.');
+  $('#ghostC').classList.add('on');
+  await c.sleep(1700);
+  c.say(2,'Comprueba que el nombre sea <b>único en todo el bosque</b> y autoriza el alta.');
+  await c.pkt(h,'NEWC',col,'¿nombre único? sí',2000);
+  c.ring('NEWC',col);c.bubble('NEWC',['✓ rrhh.empresa.local','alta autorizada'],col);
+  await c.sleep(2200);
+  c.say(3,'Con el mismo criterio autoriza <b>eliminar</b> dominios y crear o quitar particiones de aplicación (por ejemplo, las zonas DNS integradas en AD).');
+  await c.sleep(3200);
+};
+SC.PDC=async function(c){
+  var R=ROLES.PDC,h=holder.PDC,col=R.color;
+  var o=A.filter(function(d){return d!==h&&!failed.has(d);})[0];
+  if(!o){c.say('Aviso','No hay otro DC activo en el dominio A para mostrar el ejemplo. Restaura el DC caído.');await c.sleep(2500);return;}
+  c.say(1,'Ana cambia su contraseña. Su PC habla con un DC cualquiera: <b>'+o+'</b>.');
+  await c.pkt('PC',o,'#fbbf24','nueva contraseña',1600);
+  c.say(2,o+' no espera al ciclo normal de replicación: envía el cambio <b>de inmediato (replicación urgente)</b> al <b>PDC Emulator ('+h+')</b>. Así, si Ana prueba la clave nueva en otro DC, este puede consultar al PDC Emulator antes de rechazarla.');
+  await c.pkt(o,h,'#ff5a5f','¡urgente!',1600);
+  c.ring(h,col);
+  await c.sleep(1000);
+  c.say(3,'Además es la <b>fuente de hora</b>: Kerberos exige relojes casi iguales (por defecto, hasta 5 minutos de diferencia). Los demás DC, y los PDC Emulator de otros dominios, se sincronizan siguiendo esa jerarquía.');
+  await Promise.all([c.pkt(h,o,'#60a5fa','hora',1600),c.pkt(h,'DC3','#60a5fa','hora',1800)]);
+  c.ring(o,'#60a5fa');c.ring('DC3','#60a5fa');
+  await c.sleep(1300);
+  c.say(4,'También gestiona los <b>bloqueos de cuenta</b> y es el DC al que apunta por defecto la consola de GPO. Es el rol más sensible a corto plazo.');
+  await c.sleep(3200);
+};
+SC.RID=async function(c){
+  var R=ROLES.RID,h=holder.RID,col=R.color;
+  var o=A.filter(function(d){return d!==h&&!failed.has(d);})[0];
+  if(!o){c.say('Aviso','No hay otro DC activo en el dominio A para mostrar el ejemplo. Restaura el DC caído.');await c.sleep(2500);return;}
+  c.say(1,'Cada objeto (usuario, grupo, equipo) necesita un <b>SID único</b>: <b>SID = SID del dominio + RID</b>. Para que dos DC nunca repartan el mismo RID, cada DC recibe un <b>bloque</b> propio.');
+  await c.sleep(2800);
+  c.say(2,o+' se queda sin bloque y lo pide al <b>RID Master ('+h+')</b>.');
+  await c.pkt(o,h,col,'¿RID?',1300);
+  await c.pkt(h,o,col,'bloque de 500 RID',1500);
+  c.ring(o,col);
+  var b1=c.bubble(o,['Bloque: RID 2100–2599','(ejemplo)'],col);
+  await c.sleep(2000);
+  c.say(3,o+' ya puede crear objetos <b>sin consultar a nadie</b>: cada nuevo usuario toma el siguiente RID de su bloque.');
+  b1.parentNode.removeChild(b1);
+  c.bubble(o,['Usuario nuevo: ana','SID = S-1-5-21-…-2100'],col);
+  await c.sleep(2600);
+  c.say(4,'Cuando el bloque se agota, el DC pide otro. El espacio total ronda los <b>1.073 millones</b> de RID por dominio (2³⁰).');
+  await c.sleep(3000);
+};
+SC.IM=async function(c){
+  var R=ROLES.IM,h=holder.IM,col=R.color;
+  if(failed.has('DC3')){c.say('Aviso','DC3 (catálogo global) está caído: sin él no hay a quién preguntar. Restáuralo para ver el ejemplo.');await c.sleep(2500);return;}
+  c.say(1,'El grupo <b>Proyecto-X</b> (dominio A) contiene a <b>ventas\\ana</b>, una usuaria de <b>otro dominio</b>. El grupo guarda solo una referencia a ella.');
+  var b1=c.bubble(h,['Grupo "Proyecto-X" incluye','a ventas\\ana'],col);
+  await c.sleep(2600);
+  c.say(2,'En el dominio B renombran a Ana: ahora es <b>ana.perez</b>. El grupo todavía muestra el nombre viejo.');
+  c.bubble('DC3',['ventas\\ana → ana.perez'],'#94a3b8');c.ring('DC3','#94a3b8');
+  await c.sleep(2600);
+  c.say(3,'El <b>Infrastructure Master ('+h+')</b> pregunta a un <b>catálogo global</b> (DC3) cuál es el nombre actual.');
+  await c.pkt(h,'DC3',col,'¿nombre actual?',1600);
+  await c.pkt('DC3',h,col,'ana.perez',1600);
+  c.ring(h,col);
+  b1.parentNode.removeChild(b1);
+  c.bubble(h,['✓ Proyecto-X incluye','a ventas\\ana.perez'],col);
+  await c.sleep(1800);
+  c.say(4,'Referencia actualizada. Consejo: en un bosque con varios dominios, este rol no debe estar en un catálogo global (salvo que todos los DC lo sean), porque un catálogo global «cree» tener todo al día y no detecta referencias viejas.');
+  await c.sleep(3600);
+};
+async function failScen(c,r){
+  var R=ROLES[r],h=holder[r];
+  var list=(r==='SM'||r==='DNM')?['DC1','DC2','DC3']:['DC1','DC2'];
+  var src=list.filter(function(d){return d!==h&&!failed.has(d);})[0]||'PC';
+  c.say(1,'<b>'+h+'</b> está fuera de línea y tiene el rol <b>'+R.name+'</b>. Alguien intenta usarlo…');
+  await c.sleep(1400);
+  await c.pkt(src,h,'#ff5a5f','¿'+R.name+'?',1700,0.78);
+  c.ring(h,'#ff5a5f');c.bubble(h,['Sin respuesta ✕'],'#ff5a5f');
+  await c.sleep(900);
+  c.say(2,'Consecuencia: '+R.fail);
+  await c.sleep(3200);
+  c.say(3,'Salida: <b>restaurar</b> el DC, o <b>apoderarse (seize)</b> del rol en otro DC con el botón de arriba (solo si el original no volverá).');
+  await c.sleep(2500);
+}
+
+/* ---------- ACCIONES ---------- */
+async function play(){
+  var id=++run;clearFx();resetVisual();var c=makeCtx(id);
+  try{
+    if(sel==='ALL'){
+      c.say('Inicio','Recorrido por los <b>5 roles FSMO</b>: veremos qué hace cada uno y por qué solo puede tenerlo un DC a la vez.');
+      await c.sleep(2200);
+      for(var i=0;i<ORDER.length;i++){
+        setRole(ORDER[i],true);
+        await SC[ORDER[i]](c);
+        await c.sleep(900);
+      }
+    }else{
+      var r=sel;
+      if(failed.has(holder[r])){await failScen(c,r);}else{await SC[r](c);}
+    }
+    c.say('Fin','Puedes repetir la animación, <b>transferir</b> el rol a otro DC o <b>simular una caída</b> para ver qué pasa.');
+  }catch(e){if(!(e instanceof Cancel)){console.error(e);}}
+}
+function nextHolder(){
+  if(sel==='ALL'){return null;}
+  var list=(sel==='SM'||sel==='DNM')?['DC1','DC2','DC3']:['DC1','DC2'];
+  var cur=holder[sel],i=list.indexOf(cur);
+  for(var k=1;k<=list.length;k++){var d=list[(i+k)%list.length];if(d!==cur&&!failed.has(d)){return d;}}
+  return null;
+}
+async function transfer(){
+  if(sel==='ALL'){return;}
+  var r=sel,R=ROLES[r],cur=holder[r],to=nextHolder();
+  if(!to){return;}
+  var id=++run;clearFx();resetVisual();var c=makeCtx(id);
+  var nota=(r==='SM'||r==='DNM')?'':' Recuerda: un rol de <b>dominio</b> solo puede moverse a un DC <b>del mismo dominio</b> (aquí, el dominio A).';
+  try{
+    if(failed.has(cur)){
+      c.say('Seize',cur+' no responde. Se <b>fuerza</b> el rol en '+to+' (parámetro <code>-Force</code>). Úsalo solo si '+cur+' no va a volver; no debe reconectarse a la red sin haberlo reinstalado o limpiado.');
+      c.ring(to,R.color);
+      await c.sleep(1400);
+      holder[r]=to;updateScene();refreshButtons();c.ring(to,R.color);
+      c.say('Listo',to+' es ahora el <b>'+R.name+'</b>. AD recupera esa función.'+nota);
+    }else{
+      c.say('Transferencia',cur+' cede <b>ordenadamente</b> el rol <b>'+R.name+'</b> a '+to+'. Ambos DC están en línea y se coordinan.'+nota);
+      await c.pkt(cur,to,R.color,'rol '+R.name,1700);
+      holder[r]=to;updateScene();refreshButtons();c.ring(to,R.color);
+      c.say('Listo',to+' es ahora el <b>'+R.name+'</b>. Sigue habiendo <b>un solo</b> maestro.'+nota);
+    }
+  }catch(e){if(!(e instanceof Cancel)){console.error(e);}}
+}
+function toggleFail(){
+  if(sel==='ALL'){return;}
+  run++;clearFx();resetVisual();
+  var h=holder[sel];
+  if(failed.has(h)){failed.delete(h);narrate('OK',h+' vuelve a estar en línea.');}
+  else{failed.add(h);narrate('Fallo','<b>'+h+'</b> cayó. '+ROLES[sel].fail+' Pulsa <b>Reproducir</b> para ver el efecto.');}
+  updateScene();refreshButtons();
+}
+function resetAll(){
+  ORDER.forEach(function(r){holder[r]='DC1';});
+  failed.clear();
+  setRole(sel,false,true);
+  narrate('Reinicio','Escena restablecida: los 5 roles vuelven a estar en DC1 y todos los DC están en línea.');
+}
+
+/* ---------- PANEL, CUBO, BOTONES ---------- */
+var btnP=$('#btnPlay'),btnT=$('#btnTrans'),btnF=$('#btnFail');
+function refreshButtons(){
+  var all=sel==='ALL';
+  btnP.textContent=all?'Recorrido completo de los 5 roles':'Reproducir animación';
+  if(all){btnT.disabled=true;btnF.disabled=true;btnT.textContent='Transferir rol';btnF.textContent='Simular caída';return;}
+  var h=holder[sel],dead=failed.has(h),nx=nextHolder();
+  btnF.disabled=false;
+  btnF.textContent=dead?'Restaurar '+h:'Simular caída de '+h;
+  btnT.disabled=!nx;
+  btnT.textContent=dead?'Apoderarse (seize) → '+(nx||'—'):'Transferir rol → '+(nx||'—');
+}
+function renderInfo(){
+  var R=ROLES[sel];
+  var h='<h2>'+R.name+'</h2><div class="tags"><span class="tag">'+R.scope+'</span><span class="tag">'+R.count+'</span>'+(R.member?'<span class="tag">'+R.member+'</span>':'')+'</div>';
+  h+='<div class="analogy"><b>Analogía:</b> '+R.analogy+'</div>';
+  h+='<h3>¿Qué es?</h3><p>'+R.what+'</p><h3>¿Para qué sirve?</h3><p>'+R.why+'</p>';
+  h+='<h3>Si el DC con este rol falla</h3><p>'+R.fail+'</p>';
+  if(R.impact){
+    var cols=['#4ade80','#fbbf24','#ff5a5f'],lab=['Bajo','Medio','Alto'];
+    h+='<div class="meter">';
+    for(var i=0;i<3;i++){h+='<span style="'+(i<R.impact?'background:'+cols[R.impact-1]:'')+'"></span>';}
+    h+='</div><div class="mlab">Impacto a corto plazo: <b>'+lab[R.impact-1]+'</b> (valoración orientativa)</div>';
+  }
+  h+='<h3>Buena práctica</h3><p>'+R.best+'</p><h3>Comandos</h3>';
+  R.cmd.forEach(function(c){h+='<div class="cmdline"><code>'+esc(c)+'</code><button class="cp" data-t="'+esc(c)+'">Copiar</button></div>';});
+  if(sel!=='ALL'){h+='<p class="note">Apoderarse (emergencia): agrega <b>-Force</b> al comando de transferencia, ejecutado contra el DC que recibirá el rol.</p>';}
+  h+='<div class="src"><b>Origen de los datos:</b> conocimiento de entrenamiento basado en la documentación de Microsoft Learn sobre roles FSMO y AD DS; no verificado en vivo. <b>Inferencias propias:</b> analogías, nivel de impacto y valores de ejemplo (SID, versión de esquema, bloque de RID, nombres de dominio, topología). <b>Verifica antes de producción:</b> bloque de 500 RID y límite 2³⁰, tolerancia Kerberos de 5 min, comportamiento del Infrastructure Master con la Papelera de reciclaje y pasos de seize.</div>';
+  $('#info').innerHTML=h;
+}
+var FACE={};
+['front','back','right','left','top','bottom'].forEach(function(k){FACE[k]=$('.f-'+k);});
+function setFaces(r){
+  var R=ROLES[r],f=R.f;
+  FACE.front.innerHTML='<div class="mono">'+R.mono+'</div><h4>'+R.name+'</h4><p>'+R.es+'</p><p class="sm">'+R.count+' · '+R.scope+'</p>';
+  FACE.right.innerHTML='<h4>¿Qué es?</h4><p>'+f.que+'</p>';
+  FACE.back.innerHTML='<h4>¿Para qué sirve?</h4><p>'+f.para+'</p>';
+  FACE.left.innerHTML='<h4>Alcance</h4><p>'+f.alc+'</p>';
+  FACE.top.innerHTML='<h4>Si falla</h4><p>'+f.falla+'</p>';
+  FACE.bottom.innerHTML='<h4>Buena práctica</h4><p>'+f.buena+'</p>';
+}
+var cube=$('#cube'),scene=$('#scene3d');
+var rx=-18,ry=-28,drag=false,auto=!reduce,lx=0,ly=0,snapping=false;
+function apply(){cube.style.transform='rotateX('+rx+'deg) rotateY('+ry+'deg)';}
+function updAuto(){$('#btnAuto').textContent='Giro automático: '+(auto?'sí':'no');}
+apply();updAuto();
+(function loop(){if(auto&&!drag&&!snapping){ry+=0.28;apply();}requestAnimationFrame(loop);})();
+scene.addEventListener('pointerdown',function(e){drag=true;auto=false;updAuto();cube.style.transition='none';lx=e.clientX;ly=e.clientY;try{scene.setPointerCapture(e.pointerId);}catch(x){}});
+scene.addEventListener('pointermove',function(e){if(!drag){return;}ry+=(e.clientX-lx)*0.6;rx-=(e.clientY-ly)*0.6;lx=e.clientX;ly=e.clientY;apply();});
+['pointerup','pointercancel'].forEach(function(n){scene.addEventListener(n,function(){drag=false;});});
+function snap(face){
+  var T={front:[0,0],right:[0,-90],back:[0,-180],left:[0,90],top:[-90,0],bottom:[90,0]}[face];
+  auto=false;updAuto();
+  var n=function(cu,t){return t+360*Math.round((cu-t)/360);};
+  rx=n(rx,T[0]);ry=n(ry,T[1]);snapping=true;
+  cube.style.transition='transform .9s cubic-bezier(.2,.8,.2,1)';apply();
+  setTimeout(function(){snapping=false;cube.style.transition='none';},950);
+}
+document.querySelectorAll('[data-f]').forEach(function(b){b.addEventListener('click',function(){snap(b.dataset.f);});});
+$('#btnAuto').addEventListener('click',function(){auto=!auto;updAuto();});
+
+function setRole(r,keep,init){
+  sel=r;if(!keep){run++;}
+  clearFx();resetVisual();
+  document.documentElement.style.setProperty('--c',ROLES[r].color);
+  document.querySelectorAll('.role').forEach(function(b){b.classList.toggle('on',b.dataset.r===r);});
+  setFaces(r);renderInfo();updateScene();refreshButtons();
+  cube.classList.remove('glitch');void cube.offsetWidth;cube.classList.add('glitch');
+  if(!init){snap('front');}
+  if(!keep){
+    if(r==='ALL'){narrate('Bienvenido','Elige un rol arriba o pulsa <b>Recorrido completo</b>. Las letras bajo cada DC indican qué roles tiene: <b>S</b> Schema, <b>N</b> Domain Naming, <b>P</b> PDC, <b>R</b> RID, <b>I</b> Infraestructura.');}
+    else{narrate('Listo','Pulsa <b>Reproducir animación</b> para ver cómo trabaja el <b>'+ROLES[r].name+'</b>. Prueba también <b>Transferir</b> y <b>Simular caída</b>.');}
+  }
+}
+
+/* roles + leyenda */
+(function(){
+  var rb=$('#roles'),lg=$('#legend');
+  ['ALL'].concat(ORDER).forEach(function(k){
+    var R=ROLES[k],b=document.createElement('button');
+    b.className='role';b.dataset.r=k;b.style.setProperty('--c',R.color);b.title=R.scope+' · '+R.count;
+    b.innerHTML='<i>'+(k==='ALL'?'5':R.mono)+'</i><b>'+(k==='ALL'?'Visión general':R.name)+'</b>';
+    b.addEventListener('click',function(){setRole(k);});
+    rb.appendChild(b);
+  });
+  ORDER.forEach(function(k){var R=ROLES[k];lg.insertAdjacentHTML('beforeend','<span><b style="background:'+R.color+'">'+LETTER[k]+'</b>'+R.name+' ('+R.scope.toLowerCase()+')</span>');});
+  lg.insertAdjacentHTML('beforeend','<span>Etiqueta punteada = roles propios del dominio B</span>');
+})();
+
+btnP.addEventListener('click',play);
+btnT.addEventListener('click',transfer);
+btnF.addEventListener('click',toggleFail);
+$('#btnReset').addEventListener('click',resetAll);
+
+/* copiar comandos */
+function fallbackCopy(t,done){var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}document.body.removeChild(ta);}
+$('#info').addEventListener('click',function(e){
+  var b=e.target.closest('.cp');if(!b){return;}
+  var t=b.dataset.t;
+  var done=function(){b.textContent='Copiado';setTimeout(function(){b.textContent='Copiar';},1200);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){fallbackCopy(t,done);});}
+  else{fallbackCopy(t,done);}
+});
+
+/* inclinación 3D del escenario */
+if(!reduce){
+  var sw=$('#stageWrap'),tl=$('#tilt');
+  sw.addEventListener('pointermove',function(e){
+    var r=sw.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    tl.style.transform='rotateX('+(-y*7).toFixed(2)+'deg) rotateY('+(x*9).toFixed(2)+'deg)';
+  });
+  sw.addEventListener('pointerleave',function(){tl.style.transform='';});
+}
+
+/* cámara (RA) */
+var stream=null;
+$('#btnCam').addEventListener('click',async function(){
+  var v=$('#cam'),b=$('#btnCam');
+  if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;v.srcObject=null;document.body.classList.remove('cam');b.textContent='Activar cámara (RA)';return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    v.srcObject=stream;await v.play();document.body.classList.add('cam');b.textContent='Desactivar cámara';
+  }catch(e){
+    stream=null;
+    narrate('Cámara','No se pudo activar la cámara ('+esc(e&&e.message?e.message:e)+'). Revisa los permisos del navegador; algunos navegadores la bloquean al abrir el archivo localmente. La animación funciona igual sin cámara.');
+  }
+});
+
+setRole('ALL',false,true);
+})();
+</script>
+</body>
+</html>
