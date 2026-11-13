@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtualización 3D + AR: emulación, paravirtualización y contenedores</title>
+<style>
+/* ===== Base: Arial en todo el documento (incluye texto dentro de SVG) ===== */
+:root{
+  --bg:#06222a; --bg2:#0b3440; --panel:rgba(10,52,64,.82); --line:rgba(120,230,225,.38);
+  --teal:#3fd0c9; --blue:#4aa3ff; --amber:#ffcf5c; --ink:#e8fbfd; --mut:#b4dce1;
+}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);line-height:1.5;
+  background:radial-gradient(1200px 700px at 15% -10%,#0f4a5a 0,var(--bg) 60%) fixed,var(--bg)}
+button,input{font:inherit}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:-999px;top:0;background:var(--amber);color:#000;padding:.5rem 1rem;z-index:99}
+.skip:focus{left:8px;top:8px}
+header,main,.wrap{max-width:1280px;margin:0 auto;padding:0 1rem}
+header{padding-top:1.2rem}
+h1{font-size:clamp(1.5rem,3.4vw,2.3rem);margin:.1rem 0;color:#fff}
+h1 span{color:var(--teal)}
+.sub{color:var(--mut);margin:.2rem 0 1rem;max-width:80ch}
+h2{font-size:1.15rem;margin:.1rem 0 .5rem;color:#fff}
+h3{font-size:1rem;margin:.6rem 0 .2rem;color:var(--teal)}
+p{margin:.3rem 0}
+
+/* ===== Controles ===== */
+.tabs,.toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.btn,.tab{background:#0f4a5a;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+  padding:.55rem .9rem;cursor:pointer;font-size:.92rem;min-height:40px}
+.btn:hover,.tab:hover{background:#14606f}
+.btn:focus-visible,.tab:focus-visible,.stage:focus-visible,input:focus-visible,.lbtn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.tab[aria-selected="true"]{background:linear-gradient(135deg,#1b7f8a,#1f78d1);border-color:var(--teal);font-weight:bold}
+.btn[aria-pressed="true"]{background:#1b7f8a;border-color:var(--teal)}
+.btn.primary{background:linear-gradient(135deg,#1b7f8a,#1f78d1);font-weight:bold}
+
+/* ===== Layout ===== */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:1rem;align-items:start;margin-top:.6rem}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+
+/* ===== Escenario 3D / AR ===== */
+.stage{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#04181e;
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage.single{aspect-ratio:680/520}
+.scenes{position:relative;width:100%}
+.stage.single .scenes{position:absolute;inset:0}
+.scene{position:absolute;inset:0}
+.scene svg{width:100%;height:100%;display:block}
+.scene[hidden]{display:none}
+.stage.compare .scenes{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.stage.compare .scene{position:relative;inset:auto;aspect-ratio:420/400}
+@media (max-width:900px){.stage.compare .scenes{grid-template-columns:1fr}}
+svg text{paint-order:stroke;stroke:#04181e;stroke-width:3px;stroke-linejoin:round}
+.face{cursor:pointer}
+.arbg{position:absolute;inset:0;display:none;overflow:hidden;background:linear-gradient(#0a2e3a,#04181e)}
+.arbg .grid{position:absolute;left:-60%;right:-60%;bottom:-8%;height:75%;
+  background-image:linear-gradient(rgba(63,208,201,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(63,208,201,.35) 1px,transparent 1px);
+  background-size:48px 48px;transform:perspective(380px) rotateX(62deg);transform-origin:50% 100%;animation:gridmove 4s linear infinite}
+@keyframes gridmove{to{background-position:0 48px}}
+.stage.ar .arbg{display:block}
+.stage.cam .arbg{display:none}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.stage.cam video{display:block}
+.scan{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--teal),transparent);
+  opacity:.55;display:none;animation:scan 5s linear infinite;pointer-events:none}
+.stage.ar .scan{display:block}
+@keyframes scan{from{top:0}to{top:100%}}
+.hud{position:absolute;top:10px;right:10px;background:rgba(4,24,30,.72);border:1px solid var(--line);border-radius:999px;
+  padding:.2rem .7rem;font-size:.78rem;color:var(--teal);pointer-events:none;z-index:3}
+.hint{position:absolute;left:10px;bottom:8px;font-size:.78rem;color:var(--mut);background:rgba(4,24,30,.6);
+  padding:.15rem .5rem;border-radius:6px;pointer-events:none;z-index:3}
+.stage.ar{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal),0 0 28px rgba(63,208,201,.28)}
+
+/* ===== Paneles ===== */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem;margin-bottom:.8rem;backdrop-filter:blur(6px)}
+.card.holo{box-shadow:inset 0 0 22px rgba(63,208,201,.12)}
+.lead{color:var(--mut)}
+.tag{display:inline-block;background:#07303a;border:1px solid var(--line);border-radius:6px;padding:.05rem .45rem;font-size:.8rem;color:var(--amber)}
+.layers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
+.lbtn{width:100%;text-align:left;background:#0b3d4a;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.4rem .6rem;cursor:pointer;display:flex;gap:.5rem;align-items:center}
+.lbtn:hover{background:#12586a}
+.lbtn[aria-pressed="true"]{border-color:var(--amber);background:#17535f}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid #fff6;flex:none}
+.bars{display:grid;gap:.45rem}
+.row{display:grid;grid-template-columns:130px 1fr 52px;gap:.5rem;align-items:center;font-size:.86rem}
+.bar{height:12px;background:#07303a;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--blue));transition:width .2s}
+.log{min-height:3.2em;color:var(--ink);font-size:.9rem}
+.small{font-size:.8rem;color:var(--mut)}
+.step{font-size:.8rem;color:var(--amber)}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:.5rem 0;padding:.5rem .7rem}
+legend{padding:0 .3rem;font-weight:bold}
+label{display:block;padding:.2rem 0;cursor:pointer}
+.fb{font-size:.88rem;margin-top:.3rem}
+.ok{color:#7dffb0}.ko{color:#ff9d9d}
+
+/* ===== Tabla ===== */
+.tablewrap{overflow-x:auto;margin:1rem 0}
+table{border-collapse:collapse;width:100%;min-width:760px;background:var(--panel);border:1px solid var(--line)}
+caption{text-align:left;font-weight:bold;padding:.6rem 0;color:#fff;font-size:1.1rem}
+th,td{border:1px solid var(--line);padding:.55rem .7rem;text-align:left;vertical-align:top;font-size:.9rem}
+thead th{background:#12586a;color:#fff}
+tbody th{background:#0b3d4a;color:var(--teal);width:14%}
+footer{max-width:1280px;margin:0 auto;padding:0 1rem 2rem;color:var(--mut);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#stage">Saltar al modelo 3D</a>
+
+<header>
+  <h1>Virtualización: <span>técnicas</span> en 3D y realidad aumentada</h1>
+  <p class="sub">Explora cómo funcionan la <strong>emulación de hardware</strong>, la <strong>paravirtualización</strong> y los
+  <strong>contenedores</strong>. Gira el modelo, sepáralo en capas, ejecuta una llamada al sistema y compáralas. Si quieres, actívalo en AR con la cámara.</p>
+</header>
+
+<main>
+  <div class="tabs" role="tablist" aria-label="Técnica de virtualización">
+    <button class="tab" role="tab" id="tab-emu" data-tab="emu" aria-controls="stage" aria-selected="true" tabindex="0">Emulación de hardware</button>
+    <button class="tab" role="tab" id="tab-para" data-tab="para" aria-controls="stage" aria-selected="false" tabindex="-1">Paravirtualización</button>
+    <button class="tab" role="tab" id="tab-cont" data-tab="cont" aria-controls="stage" aria-selected="false" tabindex="-1">Contenedores</button>
+    <button class="tab" role="tab" id="tab-cmp" data-tab="cmp" aria-controls="stage" aria-selected="false" tabindex="-1">Comparar las 3</button>
+  </div>
+
+  <div class="toolbar" role="toolbar" aria-label="Acciones de la animación">
+    <button class="btn" id="bExplode" aria-pressed="false">Capas: separar</button>
+    <button class="btn primary" id="bRun">Ejecutar una instrucción</button>
+    <button class="btn" id="bGuide" aria-pressed="false">Modo guiado</button>
+    <button class="btn" id="bQuiz" aria-pressed="false">Mini-quiz</button>
+    <button class="btn" id="bAR" aria-pressed="false">Activar AR</button>
+    <button class="btn" id="bReset">Restablecer vista</button>
+  </div>
+  <p id="status" class="small" role="status" aria-live="polite"></p>
+
+  <div class="layout">
+    <div class="stage single" id="stage" tabindex="0"
+         aria-label="Modelo 3D interactivo. Flechas: girar. Más y menos: zoom. Cero: restablecer. Escape: quitar selección.">
+      <div class="arbg" aria-hidden="true"><div class="grid"></div></div>
+      <video id="cam" playsinline muted aria-hidden="true"></video>
+      <div class="scenes" id="scenes"></div>
+      <div class="scan" aria-hidden="true"></div>
+      <div class="hud" id="hud" aria-hidden="true">Vista 3D</div>
+      <div class="hint" id="hint" aria-hidden="true">Arrastra para girar · rueda o pellizco para zoom · clic en una capa</div>
+    </div>
+
+    <aside aria-label="Panel didáctico">
+      <section class="card holo" aria-live="polite" aria-label="Explicación">
+        <div id="info"></div>
+      </section>
+
+      <section class="card" aria-label="Capas">
+        <h2>Capas (de abajo hacia arriba)</h2>
+        <div id="layerList"></div>
+      </section>
+
+      <section class="card" aria-label="Llamada al sistema y costo">
+        <h2>Llamada al sistema y sobrecarga</h2>
+        <p class="log" id="runlog" aria-live="polite">Pulsa «Ejecutar una instrucción» para ver cómo viaja una llamada al sistema desde la aplicación hasta el hardware.</p>
+        <div class="bars" id="bars"></div>
+        <p class="small">Unidades relativas e ilustrativas de sobrecarga (no son una medición real).</p>
+      </section>
+
+      <section class="card holo" id="guideCard" hidden aria-label="Modo guiado">
+        <h2>Modo guiado <span class="step" id="guideN"></span></h2>
+        <p id="guideText" aria-live="polite"></p>
+        <div class="toolbar">
+          <button class="btn" id="gPrev">← Anterior</button>
+          <button class="btn primary" id="gNext">Siguiente →</button>
+          <button class="btn" id="gClose">Cerrar</button>
+        </div>
+      </section>
+
+      <section class="card holo" id="quizCard" hidden aria-label="Mini-quiz">
+        <h2>Mini-quiz (3 preguntas)</h2>
+        <div id="quizBody"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="tablewrap">
+    <table id="cmpTable">
+      <caption>Tabla comparativa de las tres técnicas</caption>
+      <thead><tr><th scope="col">Criterio</th><th scope="col">Emulación de hardware</th><th scope="col">Paravirtualización</th><th scope="col">Contenedores</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Aislamiento</th><td>Alto: cada máquina virtual tiene su propio kernel y hardware virtual.</td><td>Alto: cada invitado tiene su propio kernel (modificado).</td><td>Medio: aíslan procesos con namespaces y cgroups, pero comparten el kernel del anfitrión.</td></tr>
+        <tr><th scope="row">Rendimiento</th><td>Menor: la traducción y emulación añaden sobrecarga (se reduce con asistencia de hardware).</td><td>Medio-alto: las hypercalls evitan emular dispositivos.</td><td>Alto, cercano al nativo: no hay capa de traducción.</td></tr>
+        <tr><th scope="row">Kernel invitado</th><td>Sí, sin modificar.</td><td>Sí, modificado (conoce al hipervisor).</td><td>No hay: se usa el kernel compartido.</td></tr>
+        <tr><th scope="row">SO soportados</th><td>Casi cualquiera (Windows, Linux, otros).</td><td>Solo SO con kernel adaptado (p. ej. Linux).</td><td>Los compatibles con el kernel del anfitrión (p. ej. Linux sobre Linux).</td></tr>
+        <tr><th scope="row">Casos de uso</th><td>Laboratorios, pruebas y consolidación de servidores con SO distintos.</td><td>Servidores Linux virtualizados con buen rendimiento.</td><td>Microservicios, CI/CD y despliegues reproducibles.</td></tr>
+        <tr><th scope="row">Ejemplos</th><td>VMware, VirtualBox, KVM/QEMU.</td><td>Xen (modo PV), User-Mode Linux (UML).</td><td>Docker, LXC, Podman.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  <p><strong>Notas didácticas:</strong> los nombres de las capas siguen la diapositiva «Virtualización: Técnicas». La capa «Aplicación» y el viaje de la llamada
+  al sistema se añadieron para explicar; las unidades de sobrecarga son ilustrativas. Los hipervisores modernos usan asistencia de hardware (Intel VT-x / AMD-V), por lo que
+  en la práctica la brecha de rendimiento con la emulación pura es menor que la mostrada.</p>
+  <noscript><p>Esta animación necesita JavaScript.</p></noscript>
+</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================================================================
+ * 1. UTILIDADES
+ * ==================================================================== */
+const $  = (s, r = document) => r.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const rmq = window.matchMedia('(prefers-reduced-motion: reduce)');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const svgEl = (name, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+
+/* ======================================================================
+ * 2. DATOS (capas según la diapositiva)
+ * ==================================================================== */
+const TECH = {
+  emu: {
+    key: 'emu', name: 'Emulación de hardware', short: 'Emulación',
+    what: 'El sistema invitado corre sobre un hardware simulado por software. Cada máquina virtual cree que tiene su propia CPU, memoria y dispositivos.',
+    use: 'Ejecutar sistemas operativos completos y sin modificar (Windows, Linux…) aislados entre sí en un mismo servidor: laboratorios, pruebas y consolidación de servidores.',
+    example: 'VMware, VirtualBox, KVM/QEMU.',
+    layers: [
+      { id: 'hw',  name: 'Hardware', short: 'Hardware', level: 0, x: 0, w: 6.4, d: 4.4, h: .7, color: '#1f78d1', cost: 0,
+        what: 'Los componentes físicos reales: CPU, memoria, disco y red.',
+        use: 'Es quien finalmente ejecuta el trabajo; todas las capas de arriba compiten por él.',
+        example: 'El servidor físico (por ejemplo, un servidor x86).',
+        step: 'El hardware físico ejecuta la operación. Luego el resultado regresa por las mismas capas.' },
+      { id: 'hyp', name: 'Hypervisor Kernel', short: 'Hypervisor Kernel', level: 1, x: 0, w: 5.8, d: 4.0, h: .7, color: '#2a8a8f', cost: 3,
+        what: 'El kernel privilegiado que controla el hardware y reparte CPU, memoria y disco entre las máquinas virtuales.',
+        use: 'Garantiza que una VM no invada a otra y arbitra el acceso al hardware.',
+        example: 'KVM, Xen, VMware ESXi.',
+        step: 'El Hypervisor Kernel valida la operación y arbitra el acceso al recurso físico entre las VM.' },
+      { id: 'mw',  name: 'Virtualization Middleware', short: 'Virt. Middleware', level: 2, x: 0, w: 5.2, d: 3.6, h: .7, color: '#4fa6b5', cost: 6,
+        what: 'Capa que emula dispositivos y atrapa/traduce las instrucciones privilegiadas del invitado para que crea que hay hardware real.',
+        use: 'Permite correr un SO sin cambios, a costa de más trabajo de traducción.',
+        example: 'QEMU, VirtualBox, VMware Workstation (emulación de dispositivos).',
+        step: 'El middleware intercepta la operación y la traduce: convierte el «disco virtual» en una operación real (costo alto).' },
+      { id: 'gk',  name: 'Regular Guest Kernel', short: 'Regular Guest Kernel', level: 3, x: 0, w: 4.6, d: 3.2, h: .7, color: '#7fb7d4', cost: 1,
+        what: 'El kernel de un sistema operativo normal, sin modificar, que corre dentro de la VM. No sabe que no corre sobre hardware real.',
+        use: 'Es el SO del usuario: Windows, Linux u otro, tal como viene.',
+        example: 'Windows o Linux instalados dentro de una VM.',
+        step: 'El kernel invitado recibe la llamada y, creyendo que habla con hardware real, intenta usar un dispositivo (disco virtual).' }
+    ],
+    path: ['gk', 'mw', 'hyp', 'hw']
+  },
+  para: {
+    key: 'para', name: 'Paravirtualización', short: 'Paravirtualización',
+    what: 'El kernel invitado está modificado: sabe que está virtualizado y pide servicios al hipervisor mediante hypercalls, en vez de emular hardware.',
+    use: 'Reducir la sobrecarga frente a la emulación manteniendo un aislamiento fuerte por máquina.',
+    example: 'Xen (modo PV), User-Mode Linux (UML).',
+    layers: [
+      { id: 'hw',  name: 'Hardware', short: 'Hardware', level: 0, x: 0, w: 6.4, d: 4.4, h: .7, color: '#1f78d1', cost: 0,
+        what: 'Los componentes físicos reales: CPU, memoria, disco y red.',
+        use: 'Ejecuta el trabajo real; el hipervisor lo reparte entre los invitados.',
+        example: 'El servidor físico.',
+        step: 'El hardware ejecuta la operación y el resultado regresa.' },
+      { id: 'hyp', name: 'Hypervisor Kernel', short: 'Hypervisor Kernel', level: 1, x: 0, w: 5.6, d: 4.0, h: .7, color: '#2a8a8f', cost: 2,
+        what: 'Kernel que controla el hardware y atiende las hypercalls de los invitados.',
+        use: 'Coordina el acceso a recursos sin necesidad de emular dispositivos completos.',
+        example: 'Xen.',
+        step: 'El hipervisor atiende la hypercall directamente, sin emular ningún dispositivo.' },
+      { id: 'pk',  name: 'Paravirtual Kernel (ej. UML)', short: 'Paravirtual Kernel', level: 2, x: 0, w: 4.8, d: 3.4, h: .7, color: '#74c0c9', cost: 1,
+        what: 'Kernel invitado modificado para cooperar con el hipervisor: en lugar de ejecutar instrucciones privilegiadas, hace hypercalls.',
+        use: 'Obtener mejor rendimiento que con emulación, a cambio de portar el kernel del SO invitado.',
+        example: 'Xen PV con Linux adaptado; User-Mode Linux (UML).',
+        step: 'El kernel invitado modificado sabe que está virtualizado y no toca hardware: prepara una hypercall.' }
+    ],
+    path: ['pk', 'hyp', 'hw']
+  },
+  cont: {
+    key: 'cont', name: 'Contenedores', short: 'Contenedores',
+    what: 'No hay kernel invitado: varios entornos aislados comparten el kernel del anfitrión. El aislamiento lo dan los namespaces (qué ve cada uno) y los cgroups (cuánto puede usar).',
+    use: 'Empaquetar y desplegar aplicaciones de forma ligera y rápida: microservicios, CI/CD, entornos reproducibles.',
+    example: 'Docker, LXC, Podman.',
+    layers: [
+      { id: 'hw', name: 'Hardware', short: 'Hardware', level: 0, x: 0, w: 6.4, d: 4.4, h: .7, color: '#1f78d1', cost: 0,
+        what: 'Los componentes físicos reales: CPU, memoria, disco y red.',
+        use: 'Lo usan directamente el kernel y, a través de él, todos los contenedores.',
+        example: 'El servidor físico (o una VM que hace de anfitrión).',
+        step: 'El hardware ejecuta la operación y el resultado regresa.' },
+      { id: 'ks', name: 'Kernel compartido (Hypervisor Kernel)', short: 'Kernel compartido', level: 1, x: 0, w: 5.8, d: 4.0, h: .7, color: '#2a8a8f', cost: 1,
+        what: 'Un único kernel (el del anfitrión) que usan todos los contenedores. Aplica namespaces y cgroups para aislarlos.',
+        use: 'Evita tener un kernel por entorno: menos memoria y arranque casi instantáneo.',
+        example: 'El kernel de Linux del anfitrión usado por Docker, LXC o Podman.',
+        step: 'El kernel compartido atiende la llamada directamente, aplicando namespaces (qué ve) y cgroups (cuánto usa).' },
+      { id: 'c1', name: 'Virtual Container A', short: 'Virtual Containers', level: 2, x: -1.95, w: 1.6, d: 2.6, h: 1.0, color: '#7fb7d4', cost: 0, noLabel: true,
+        what: 'Entorno aislado con sus procesos, archivos y librerías, pero sin kernel propio.',
+        use: 'Ejecutar una aplicación empaquetada con sus dependencias.',
+        example: 'Un contenedor Docker.',
+        step: 'El proceso del contenedor hace una llamada al sistema normal; no hay kernel propio.' },
+      { id: 'c2', name: 'Virtual Container B', short: 'Virtual Containers', level: 2, x: 0, w: 1.6, d: 2.6, h: 1.0, color: '#5ea6c8', cost: 0, noLabel: true,
+        what: 'Otro entorno aislado que comparte el mismo kernel que A y C.',
+        use: 'Separar servicios entre sí (por ejemplo base de datos y web).',
+        example: 'Un contenedor LXC o Podman.',
+        step: 'El proceso dentro del contenedor hace una llamada al sistema normal; no hay kernel propio.' },
+      { id: 'c3', name: 'Virtual Container C', short: 'Virtual Containers', level: 2, x: 1.95, w: 1.6, d: 2.6, h: 1.0, color: '#9ccbe0', cost: 0,
+        what: 'Un tercer entorno aislado; todos están separados por namespaces y limitados por cgroups.',
+        use: 'Escalar: se pueden lanzar decenas en el mismo servidor.',
+        example: 'Pods de Kubernetes (contenedores sobre un kernel compartido).',
+        step: 'El proceso del contenedor hace una llamada al sistema normal; no hay kernel propio.' }
+    ],
+    path: ['c2', 'ks', 'hw']
+  }
+};
+const ORDER = ['emu', 'para', 'cont'];
+const MAXCOST = 10;
+
+const QUIZ = [
+  { q: '¿Qué técnica ejecuta un kernel invitado SIN modificar, que cree estar sobre hardware real?',
+    o: ['Contenedores', 'Emulación de hardware', 'Paravirtualización'], a: 1,
+    why: 'La emulación presenta hardware virtual completo; el invitado no necesita cambios ni sabe que está virtualizado.' },
+  { q: 'En la paravirtualización, ¿cómo coopera el kernel invitado con el hipervisor?',
+    o: ['Mediante namespaces y cgroups', 'Emulando una BIOS completa', 'Mediante hypercalls'], a: 2,
+    why: 'El kernel invitado está modificado y pide servicios al hipervisor con hypercalls, sin emular dispositivos.' },
+  { q: '¿Qué comparten todos los contenedores de un mismo servidor?',
+    o: ['El kernel del anfitrión', 'Un kernel invitado propio por contenedor', 'Un middleware de virtualización'], a: 0,
+    why: 'No hay kernel invitado: todos usan el kernel del anfitrión, aislados por namespaces y cgroups.' }
+];
+
+const GUIDE = [
+  { tech: 'emu', explode: false, sel: null, run: false,
+    t: 'Virtualizar es hacer que varios sistemas compartan un mismo equipo físico, cada uno creyendo que tiene recursos propios. Hay tres técnicas principales. Empecemos por la emulación de hardware. Gira el modelo con el ratón o el dedo.' },
+  { tech: 'emu', explode: true, sel: 'hyp', run: false,
+    t: 'Separamos las capas. Abajo está el Hardware real. Encima, el Hypervisor Kernel decide quién usa CPU, memoria y disco.' },
+  { tech: 'emu', explode: true, sel: 'mw', run: false,
+    t: 'El Virtualization Middleware emula un hardware completo (CPU, disco, red) para que el invitado crea que es una máquina real.' },
+  { tech: 'emu', explode: true, sel: 'gk', run: false,
+    t: 'Arriba va el Regular Guest Kernel: un sistema operativo común, sin modificar. No sabe que no corre sobre hardware real.' },
+  { tech: 'emu', explode: true, sel: null, run: true,
+    t: 'Observa cómo una llamada al sistema atraviesa cuatro capas; cada una suma sobrecarga, sobre todo la traducción del middleware.' },
+  { tech: 'para', explode: true, sel: 'pk', run: false,
+    t: 'Paravirtualización: el kernel invitado está modificado (por ejemplo UML). Sabe que está virtualizado y coopera con el hipervisor.' },
+  { tech: 'para', explode: true, sel: null, run: true,
+    t: 'Usa hypercalls: pide servicios directamente al hipervisor, sin emular hardware. Menos capas, menos sobrecarga.' },
+  { tech: 'cont', explode: true, sel: 'ks', run: false,
+    t: 'Contenedores: no hay kernel invitado. Todos comparten un único kernel; los namespaces aíslan lo que ve cada uno y los cgroups limitan lo que consume.' },
+  { tech: 'cont', explode: true, sel: null, run: true,
+    t: 'La llamada va directo al kernel compartido: es el camino más corto y por eso el de menor sobrecarga.' },
+  { tech: 'cmp', explode: true, sel: null, run: false,
+    t: 'Compáralas: menos capas implican más rendimiento, pero en contenedores el aislamiento es menor porque el kernel se comparte. Revisa también la tabla comparativa.' },
+  { tech: 'cmp', explode: true, sel: null, run: false, quiz: true,
+    t: 'Para terminar, responde el mini-quiz de tres preguntas.' }
+];
+
+/* ======================================================================
+ * 3. ESCENA 3D (proyección con perspectiva calculada en JS sobre SVG)
+ * ==================================================================== */
+const FACES = [
+  { v: [2, 3, 7, 6], n: [0, 1, 0] },   // arriba
+  { v: [0, 1, 5, 4], n: [0, -1, 0] },  // abajo
+  { v: [1, 3, 7, 5], n: [1, 0, 0] },   // +x
+  { v: [0, 2, 6, 4], n: [-1, 0, 0] },  // -x
+  { v: [4, 5, 7, 6], n: [0, 0, 1] },   // +z
+  { v: [0, 1, 3, 2], n: [0, 0, -1] }   // -z
+];
+const LIGHT = (() => { const l = [-.35, .75, -.55], m = Math.hypot(...l); return l.map(c => c / m); })();
+
+class Scene {
+  constructor(tech, wrap, hooks) {
+    this.tech = tech; this.wrap = wrap; this.hooks = hooks;
+    this.run = null; this.lastOrder = '';
+    this.setCompact(false);
+    const id = tech.key;
+    this.svg = svgEl('svg', { role: 'img', preserveAspectRatio: 'xMidYMid meet',
+      'aria-label': 'Modelo 3D de capas: ' + tech.name + '. Usa la lista de capas del panel para explorarlo con teclado.' });
+    const defs = svgEl('defs', {}, this.svg);
+    const glow = svgEl('filter', { id: 'glow-' + id, x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
+    svgEl('feGaussianBlur', { stdDeviation: '4', result: 'b' }, glow);
+    const mg = svgEl('feMerge', {}, glow);
+    svgEl('feMergeNode', { in: 'b' }, mg); svgEl('feMergeNode', { in: 'SourceGraphic' }, mg);
+    const blur = svgEl('filter', { id: 'blur-' + id, x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
+    svgEl('feGaussianBlur', { stdDeviation: '9' }, blur);
+
+    this.gGround = svgEl('g', { 'aria-hidden': 'true' }, this.svg);
+    this.shadow = svgEl('polygon', { fill: '#000', 'fill-opacity': '.38', filter: 'url(#blur-' + id + ')' }, this.gGround);
+    this.ring1 = svgEl('polyline', { fill: 'none', stroke: '#3fd0c9', 'stroke-width': '1.4', 'stroke-dasharray': '10 8' }, this.gGround);
+    this.ring2 = svgEl('polyline', { fill: 'none', stroke: '#4aa3ff', 'stroke-width': '1' }, this.gGround);
+    this.cross1 = svgEl('line', { stroke: '#3fd0c9', 'stroke-width': '1', 'stroke-opacity': '.7' }, this.gGround);
+    this.cross2 = svgEl('line', { stroke: '#3fd0c9', 'stroke-width': '1', 'stroke-opacity': '.7' }, this.gGround);
+    this.gLayers = svgEl('g', {}, this.svg);
+    this.gGuide = svgEl('g', { 'aria-hidden': 'true' }, this.svg);
+    this.axis = svgEl('line', { stroke: '#ffcf5c', 'stroke-width': '1.2', 'stroke-dasharray': '4 5', 'stroke-opacity': '.6', display: 'none' }, this.gGuide);
+    this.gLabels = svgEl('g', { 'aria-hidden': 'true' }, this.svg);
+    this.gToken = svgEl('g', { 'aria-hidden': 'true', display: 'none' }, this.svg);
+    this.tokenDot = svgEl('circle', { r: 8, fill: '#ffcf5c', filter: 'url(#glow-' + id + ')' }, this.gToken);
+    this.tokenTxt = svgEl('text', { fill: '#ffe9a8' }, this.gToken);
+    this.tokenTxt.textContent = 'llamada al sistema';
+    this.title = svgEl('text', { x: 14, y: 26, fill: '#fff', 'font-weight': 'bold', 'aria-hidden': 'true' }, this.svg);
+    this.title.textContent = tech.name;
+
+    this.items = []; this.byId = {};
+    tech.layers.forEach(L => {
+      const g = svgEl('g', { 'data-layer': L.id, 'data-tech': tech.key }, this.gLayers);
+      const faces = FACES.map(() => svgEl('polygon', { class: 'face', 'stroke-linejoin': 'round' }, g));
+      const it = { L, g, faces, glow: 0, glowT: 0, rgb: hex2rgb(L.color), depth: 0 };
+      if (!L.noLabel) {
+        it.line = svgEl('polyline', { fill: 'none', 'stroke-width': '1', 'stroke-opacity': '.8' }, this.gLabels);
+        it.dot = svgEl('circle', { r: 3, fill: '#3fd0c9' }, this.gLabels);
+        it.text = svgEl('text', { fill: '#d9fbff' }, this.gLabels);
+      }
+      this.items.push(it); this.byId[L.id] = it;
+    });
+    wrap.appendChild(this.svg);
+    this.applyCompact();
+  }
+
+  /* Cambia entre vista grande (una técnica) y compacta (comparar) */
+  setCompact(c) { this.compact = c; if (this.svg) this.applyCompact(); }
+  applyCompact() {
+    const c = this.compact;
+    this.W = c ? 420 : 680; this.H = c ? 400 : 520;
+    this.S = c ? 31 : 40; this.cx = c ? 142 : 250; this.cy = c ? 215 : 272;
+    this.LX = c ? 286 : 492; this.fs = c ? 10.5 : 13;
+    this.svg.setAttribute('viewBox', `0 0 ${this.W} ${this.H}`);
+    this.title.setAttribute('font-size', c ? 13 : 17);
+    this.tokenTxt.setAttribute('font-size', c ? 9.5 : 12);
+    this.items.forEach(it => { if (it.text) { it.text.setAttribute('font-size', this.fs); it.text.textContent = c ? it.L.short : it.L.name; } });
+  }
+
+  /* ---- Corrida de una llamada al sistema ---- */
+  startRun(reduced) {
+    const path = this.tech.path, kf = [];
+    const tr = reduced ? .01 : .75, dw = reduced ? 1 : .55, up = reduced ? .01 : .4;
+    let t = 0;
+    kf.push({ t, id: '_top', dir: 'down' });
+    path.forEach(id => {
+      t += tr; kf.push({ t, id, dir: 'down' });
+      t += dw; kf.push({ t, id, dir: 'down', leave: true });
+    });
+    for (let i = path.length - 2; i >= 0; i--) { t += up; kf.push({ t, id: path[i], dir: 'up' }); }
+    t += up; kf.push({ t, id: '_top', dir: 'up' });
+    this.items.forEach(i => { i.glowT = 0; });
+    this.run = { t: 0, idx: 0, kf, cost: 0 };
+    this.hooks.start(this);
+  }
+  updateRun(dt) {
+    const r = this.run; if (!r) return;
+    r.t += dt;
+    const kf = r.kf;
+    while (r.idx < kf.length && r.t >= kf[r.idx].t) {
+      const k = kf[r.idx];
+      if (k.dir === 'down' && k.id !== '_top') {
+        const it = this.byId[k.id];
+        if (!k.leave) { r.cost += it.L.cost; it.glowT = 1; this.hooks.visit(this, it.L, r.cost); }
+        else it.glowT = .55;
+      }
+      r.idx++;
+    }
+    if (r.t >= kf[kf.length - 1].t) {
+      const cost = r.cost; this.items.forEach(i => { i.glowT = 0; });
+      this.run = null; this.hooks.finish(this, cost);
+    }
+  }
+
+  /* ---- Dibujo de un cuadro ---- */
+  draw(cam, ctx) {
+    const T = this.tech, W = this.W;
+    const gap = .12 + ctx.explode * 1.15;
+    const levels = [];
+    T.layers.forEach(L => { levels[L.level] = Math.max(levels[L.level] || 0, L.h); });
+    const base = []; let acc = 0;
+    levels.forEach((h, i) => { base[i] = acc; acc += h + gap; });
+    const total = acc - gap, mid = total / 2;
+
+    const yaw = (cam.yaw + ctx.gyro.yaw) * Math.PI / 180;
+    const pitch = clamp(cam.pitch + ctx.gyro.pitch, 8, 86) * Math.PI / 180;
+    const ca = Math.cos(yaw), sa = Math.sin(yaw), cb = Math.cos(pitch), sb = Math.sin(pitch);
+    const S = this.S * cam.zoom, D = 14, F = 14;
+    const px = cam.panx * W, py = cam.pany * W + ctx.float * (this.compact ? .6 : 1);
+    const cx = this.cx, cy = this.cy;
+
+    const rotN = n => { const x1 = n[0] * ca + n[2] * sa, z1 = -n[0] * sa + n[2] * ca;
+      return [x1, n[1] * cb + z1 * sb, -n[1] * sb + z1 * cb]; };
+    const proj = (x, y, z) => {
+      y -= mid;
+      const x1 = x * ca + z * sa, z1 = -x * sa + z * ca;
+      const y2 = y * cb + z1 * sb, z2 = -y * sb + z1 * cb;
+      const k = F / (z2 + D);
+      return { sx: cx + px + S * x1 * k, sy: cy + py - S * y2 * k, x: x1, y: y2, z: z2 };
+    };
+    const layerY = id => id === '_top' ? total + 1.3 : base[this.byId[id].L.level] + this.byId[id].L.h / 2;
+    const alpha = ctx.ar ? .74 : .92;
+
+    /* Suelo: sombra, anillos y retícula de anclaje */
+    const ringPts = (R, y) => { const p = []; for (let i = 0; i <= 56; i++) { const a = i / 56 * Math.PI * 2; const q = proj(R * Math.cos(a), y, R * Math.sin(a)); p.push(q.sx.toFixed(1) + ',' + q.sy.toFixed(1)); } return p.join(' '); };
+    const gy = -.45;
+    this.shadow.setAttribute('points', ringPts(3.6, gy - .05));
+    this.ring1.setAttribute('points', ringPts(4.7, gy));
+    this.ring2.setAttribute('points', ringPts(3.9, gy));
+    this.ring1.setAttribute('stroke-dashoffset', (-ctx.time * 18).toFixed(1));
+    const ro = ctx.ar ? .95 : .5;
+    this.ring1.setAttribute('stroke-opacity', ro); this.ring2.setAttribute('stroke-opacity', ro * .6);
+    const a1 = proj(-5.3, gy, 0), a2 = proj(5.3, gy, 0), b1 = proj(0, gy, -5.3), b2 = proj(0, gy, 5.3);
+    this.cross1.setAttribute('x1', a1.sx); this.cross1.setAttribute('y1', a1.sy); this.cross1.setAttribute('x2', a2.sx); this.cross1.setAttribute('y2', a2.sy);
+    this.cross2.setAttribute('x1', b1.sx); this.cross2.setAttribute('y1', b1.sy); this.cross2.setAttribute('x2', b2.sx); this.cross2.setAttribute('y2', b2.sy);
+    this.cross1.setAttribute('stroke-opacity', ro * .7); this.cross2.setAttribute('stroke-opacity', ro * .7);
+
+    /* Capas */
+    const sel = ctx.selected && ctx.selected.tech === T.key ? ctx.selected.id : null;
+    const labelData = [];
+    this.items.forEach(it => {
+      const L = it.L;
+      it.glow += (it.glowT - it.glow) * Math.min(1, ctx.dt * 7);
+      if (ctx.reduced) it.glow = it.glowT;
+      const cyL = base[L.level] + L.h / 2;
+      const vs = [];
+      for (let i = 0; i < 8; i++) vs.push(proj(L.x + (i & 1 ? 1 : -1) * L.w / 2, cyL + (i & 2 ? 1 : -1) * L.h / 2, (i & 4 ? 1 : -1) * L.d / 2));
+      const c = proj(L.x, cyL, 0); it.depth = c.z;
+      const isSel = sel === L.id;
+      const [r0, g0, b0] = it.rgb, am = it.glow * .55;
+      FACES.forEach((F2, fi) => {
+        const poly = it.faces[fi];
+        const nr = rotN(F2.n);
+        let mx = 0, my = 0, mz = 0;
+        F2.v.forEach(vi => { mx += vs[vi].x; my += vs[vi].y; mz += vs[vi].z; });
+        mx /= 4; my /= 4; mz /= 4;
+        if (nr[0] * mx + nr[1] * my + nr[2] * (mz + D) >= 0) { poly.setAttribute('display', 'none'); return; }
+        const dot = Math.max(0, nr[0] * LIGHT[0] + nr[1] * LIGHT[1] + nr[2] * LIGHT[2]);
+        const sh = .5 + .62 * dot;
+        const r = Math.round(clamp(r0 * sh * (1 - am) + 255 * sh * am, 0, 255));
+        const g = Math.round(clamp(g0 * sh * (1 - am) + 207 * sh * am, 0, 255));
+        const b = Math.round(clamp(b0 * sh * (1 - am) + 92 * sh * am, 0, 255));
+        poly.setAttribute('display', 'inline');
+        poly.setAttribute('points', F2.v.map(vi => vs[vi].sx.toFixed(1) + ',' + vs[vi].sy.toFixed(1)).join(' '));
+        poly.setAttribute('fill', `rgb(${r},${g},${b})`);
+        poly.setAttribute('fill-opacity', alpha);
+        poly.setAttribute('stroke', isSel ? '#ffffff' : (it.glow > .05 ? '#ffcf5c' : 'rgba(170,255,250,.6)'));
+        poly.setAttribute('stroke-width', isSel ? 2.4 : (it.glow > .05 ? 1.8 : 1));
+      });
+      if (!L.noLabel) {
+        let mxs = -1e9; vs.forEach(v => { if (v.sx > mxs) mxs = v.sx; });
+        labelData.push({ it, ax: mxs, ay: c.sy, ly: c.sy });
+      }
+    });
+
+    /* Orden de pintado: por nivel (abajo→arriba) y, dentro del nivel, lejos→cerca */
+    const order = this.items.slice().sort((a, b) => a.L.level - b.L.level || b.depth - a.depth);
+    const key = order.map(o => o.L.id).join(',');
+    if (key !== this.lastOrder) { order.forEach(o => this.gLayers.appendChild(o.g)); this.lastOrder = key; }
+
+    /* Etiquetas flotantes con líneas guía (evitan solaparse) */
+    labelData.sort((a, b) => a.ly - b.ly);
+    const minGap = this.compact ? 17 : 24;
+    labelData.forEach((d, i) => { d.ly = clamp(d.ly, 44, this.H - 20); if (i && d.ly - labelData[i - 1].ly < minGap) d.ly = labelData[i - 1].ly + minGap; });
+    labelData.forEach(d => {
+      const it = d.it, hot = it.glow > .05 || sel === it.L.id, col = hot ? '#ffcf5c' : '#3fd0c9';
+      const ax = Math.min(d.ax + 4, this.LX - 22);
+      it.line.setAttribute('points', `${ax.toFixed(1)},${d.ay.toFixed(1)} ${this.LX - 14},${d.ly.toFixed(1)} ${this.LX - 5},${d.ly.toFixed(1)}`);
+      it.line.setAttribute('stroke', col);
+      it.dot.setAttribute('cx', ax.toFixed(1)); it.dot.setAttribute('cy', d.ay.toFixed(1)); it.dot.setAttribute('fill', col);
+      it.text.setAttribute('x', this.LX); it.text.setAttribute('y', (d.ly + 4).toFixed(1));
+      it.text.setAttribute('fill', hot ? '#ffe9a8' : '#d9fbff');
+    });
+
+    /* Token de la llamada al sistema */
+    if (this.run) {
+      const r = this.run, kf = r.kf; let i = 0;
+      while (i < kf.length - 2 && r.t >= kf[i + 1].t) i++;
+      const a = kf[i], b = kf[i + 1];
+      const u = clamp((r.t - a.t) / Math.max(1e-6, b.t - a.t), 0, 1), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+      const y = layerY(a.id) + (layerY(b.id) - layerY(a.id)) * e;
+      const p = proj(0, y, 0), top = proj(0, total + 1.3, 0), bot = proj(0, gy, 0);
+      this.gToken.setAttribute('display', 'inline'); this.axis.setAttribute('display', 'inline');
+      this.axis.setAttribute('x1', top.sx); this.axis.setAttribute('y1', top.sy); this.axis.setAttribute('x2', bot.sx); this.axis.setAttribute('y2', bot.sy);
+      this.tokenDot.setAttribute('cx', p.sx); this.tokenDot.setAttribute('cy', p.sy);
+      this.tokenDot.setAttribute('r', (this.compact ? 5.5 : 8) * Math.max(.7, cam.zoom));
+      this.tokenDot.setAttribute('fill', b.dir === 'up' && a.dir === 'up' ? '#3fd0c9' : '#ffcf5c');
+      this.tokenTxt.setAttribute('x', p.sx + 12); this.tokenTxt.setAttribute('y', p.sy - 10);
+    } else { this.gToken.setAttribute('display', 'none'); this.axis.setAttribute('display', 'none'); }
+  }
+}
+
+/* ======================================================================
+ * 4. ESTADO Y ELEMENTOS
+ * ==================================================================== */
+const stage = $('#stage'), scenesBox = $('#scenes'), video = $('#cam');
+const HOME = { yaw: 35, pitch: 28, zoom: 1, panx: 0, pany: 0 };
+const cam = Object.assign({}, HOME, { t: Object.assign({}, HOME) });
+const gyro = { yaw: 0, pitch: 0, active: false, on: false };
+const state = { mode: 'single', tech: 'emu', explode: 0, explodeT: 0, selected: null,
+  ar: false, arMode: '', guide: false, step: 0, quiz: false };
+const lastCost = { emu: null, para: null, cont: null };
+let arToken = 0, stream = null;
+
+/* Hooks de las corridas */
+const hooks = {
+  start(sc) { lastCost[sc.tech.key] = 0; updateBars(); if (state.mode === 'single') $('#runlog').textContent = 'La aplicación ejecuta una llamada al sistema (por ejemplo, leer un archivo)…'; },
+  visit(sc, L, cost) {
+    lastCost[sc.tech.key] = cost; updateBars();
+    if (state.mode === 'single') $('#runlog').textContent = `Capa «${L.name}»: ${L.step}`;
+  },
+  finish(sc, cost) {
+    lastCost[sc.tech.key] = cost; updateBars();
+    const all = ORDER.every(k => lastCost[k] !== null);
+    const msg = `${sc.tech.short}: sobrecarga acumulada de ${cost} unidades (ilustrativo).`;
+    const running = scenes.some(s => s.run);
+    if (state.mode === 'single') {
+      $('#runlog').textContent = msg + (all ? ' Comparación: ' + ORDER.map(k => `${TECH[k].short} ${lastCost[k]}`).join(' · ') + '.' : ' Ejecuta también las otras técnicas para compararlas.');
+    } else if (!running) {
+      $('#runlog').textContent = 'Resultado: ' + ORDER.map(k => `${TECH[k].short} ${lastCost[k]}`).join(' · ') + ' unidades. Menos capas atravesadas = menos sobrecarga.';
+    }
+  }
+};
+
+const scenes = ORDER.map(k => {
+  const wrap = document.createElement('div'); wrap.className = 'scene'; wrap.dataset.tech = k;
+  scenesBox.appendChild(wrap);
+  return new Scene(TECH[k], wrap, hooks);
+});
+const sceneOf = k => scenes[ORDER.indexOf(k)];
+
+/* ======================================================================
+ * 5. PANEL: información, lista de capas, barras de costo
+ * ==================================================================== */
+function renderInfo() {
+  const box = $('#info');
+  const s = state.selected;
+  if (s) {
+    const T = TECH[s.tech], L = T.layers.find(l => l.id === s.id);
+    box.innerHTML = `<h2>${L.name}</h2><p class="lead"><span class="tag">${T.name}</span></p>
+      <h3>¿Qué es?</h3><p>${L.what}</p><h3>¿Para qué sirve?</h3><p>${L.use}</p>
+      <h3>Ejemplo real</h3><p>${L.example}</p>
+      <p><button class="btn" id="bClear">Quitar selección</button></p>`;
+    $('#bClear').addEventListener('click', () => select(null));
+  } else if (state.mode === 'single') {
+    const T = TECH[state.tech];
+    box.innerHTML = `<h2>${T.name}</h2><h3>¿Qué es?</h3><p>${T.what}</p>
+      <h3>¿Para qué sirve?</h3><p>${T.use}</p><h3>Ejemplo real</h3><p>${T.example}</p>
+      <p class="small">Haz clic en una capa del modelo (o en la lista) para ver su explicación.</p>`;
+  } else {
+    box.innerHTML = `<h2>Comparación lado a lado</h2>
+      <p>Las tres técnicas comparten abajo el <strong>hardware</strong> y un <strong>kernel privilegiado</strong>. Lo que cambia es lo que hay encima:</p>
+      <p>• <strong>Emulación:</strong> middleware + kernel invitado sin modificar.<br>
+      • <strong>Paravirtualización:</strong> kernel invitado modificado que usa hypercalls.<br>
+      • <strong>Contenedores:</strong> sin kernel invitado; todos comparten el kernel.</p>
+      <p class="small">Pulsa «Ejecutar una instrucción» para correr las tres a la vez y comparar su sobrecarga.</p>`;
+  }
+}
+
+function renderLayerList() {
+  const box = $('#layerList'); box.innerHTML = '';
+  const techs = state.mode === 'single' ? [state.tech] : ORDER;
+  techs.forEach(k => {
+    const T = TECH[k];
+    if (techs.length > 1) { const h = document.createElement('h3'); h.textContent = T.name; box.appendChild(h); }
+    const ul = document.createElement('ul'); ul.className = 'layers';
+    T.layers.slice().reverse().forEach(L => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.className = 'lbtn'; b.type = 'button';
+      const on = state.selected && state.selected.tech === k && state.selected.id === L.id;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.innerHTML = `<span class="sw" style="background:${L.color}"></span><span>${L.name}</span>`;
+      b.addEventListener('click', () => select(on ? null : { tech: k, id: L.id }));
+      li.appendChild(b); ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  });
+}
+
+function renderBars() {
+  const box = $('#bars'); box.innerHTML = '';
+  ORDER.forEach(k => {
+    const row = document.createElement('div'); row.className = 'row'; row.id = 'row-' + k;
+    row.innerHTML = `<span>${TECH[k].short}</span><div class="bar" role="progressbar" aria-label="Sobrecarga de ${TECH[k].short}" aria-valuemin="0" aria-valuemax="${MAXCOST}" aria-valuenow="0"><i></i></div><span class="v">—</span>`;
+    box.appendChild(row);
+  });
+  updateBars();
+}
+function updateBars() {
+  ORDER.forEach(k => {
+    const row = $('#row-' + k); if (!row) return;
+    const v = lastCost[k];
+    row.querySelector('i').style.width = v === null ? '0%' : (v / MAXCOST * 100) + '%';
+    row.querySelector('.bar').setAttribute('aria-valuenow', v === null ? 0 : v);
+    row.querySelector('.v').textContent = v === null ? '—' : v;
+  });
+}
+
+function select(s) { state.selected = s; renderInfo(); renderLayerList(); }
+
+/* ======================================================================
+ * 6. MODOS: pestañas, comparar, capas, ejecutar
+ * ==================================================================== */
+function setTab(key, fromTab) {
+  const cmp = key === 'cmp';
+  state.mode = cmp ? 'compare' : 'single';
+  if (!cmp) state.tech = key;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.tab === key;
+    t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1;
+    if (on && fromTab) t.focus();
+  });
+  stage.classList.toggle('single', !cmp); stage.classList.toggle('compare', cmp);
+  scenes.forEach(sc => {
+    sc.setCompact(cmp);
+    sc.wrap.hidden = !cmp && sc.tech.key !== key;
+  });
+  if (state.selected && !cmp && state.selected.tech !== key) state.selected = null;
+  $('#hint').textContent = hintText();
+  renderInfo(); renderLayerList();
+}
+function hintText() {
+  return state.ar ? 'Arrastra para mover · pellizca para escalar y girar · clic en una capa'
+                  : 'Arrastra para girar · rueda o pellizco para zoom · clic en una capa';
+}
+function setExplode(on) {
+  state.explodeT = on ? 1 : 0;
+  const b = $('#bExplode'); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.textContent = on ? 'Capas: ensamblar' : 'Capas: separar';
+}
+function runSyscall() {
+  const list = state.mode === 'single' ? [sceneOf(state.tech)] : scenes;
+  if (list.some(s => s.run)) return;
+  if (state.explodeT < .5) setExplode(true);
+  if (state.mode === 'compare') $('#runlog').textContent = 'Ejecutando la llamada al sistema en las tres técnicas a la vez…';
+  list.forEach(s => s.startRun(rmq.matches));
+}
+function resetView() { Object.assign(cam.t, HOME); }
+
+/* ======================================================================
+ * 7. MODO GUIADO Y QUIZ
+ * ==================================================================== */
+function toggleGuide(on) {
+  state.guide = on;
+  $('#guideCard').hidden = !on; $('#bGuide').setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (on) { state.step = 0; applyStep(); $('#guideCard').scrollIntoView({ block: 'nearest', behavior: rmq.matches ? 'auto' : 'smooth' }); }
+}
+function applyStep() {
+  const s = GUIDE[state.step];
+  $('#guideN').textContent = `(paso ${state.step + 1} de ${GUIDE.length})`;
+  $('#guideText').textContent = s.t;
+  $('#gPrev').disabled = state.step === 0;
+  $('#gNext').textContent = state.step === GUIDE.length - 1 ? 'Finalizar' : 'Siguiente →';
+  setTab(s.tech === 'cmp' ? 'cmp' : s.tech);
+  setExplode(s.explode);
+  select(s.sel ? { tech: s.tech, id: s.sel } : null);
+  scenes.forEach(sc => { sc.run = null; sc.items.forEach(i => { i.glowT = 0; }); });
+  if (s.run) setTimeout(() => { if (state.guide) runSyscall(); }, 350);
+  if (s.quiz) toggleQuiz(true);
+}
+
+function toggleQuiz(on) {
+  state.quiz = on;
+  $('#quizCard').hidden = !on; $('#bQuiz').setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (on) { renderQuiz(); $('#quizCard').scrollIntoView({ block: 'nearest', behavior: rmq.matches ? 'auto' : 'smooth' }); }
+}
+function renderQuiz() {
+  const box = $('#quizBody'); box.innerHTML = '';
+  let score = 0, done = 0;
+  const summary = document.createElement('p'); summary.setAttribute('aria-live', 'polite');
+  QUIZ.forEach((Q, qi) => {
+    const fs = document.createElement('fieldset');
+    const lg = document.createElement('legend'); lg.textContent = `${qi + 1}. ${Q.q}`; fs.appendChild(lg);
+    const fb = document.createElement('div'); fb.className = 'fb'; fb.setAttribute('role', 'status');
+    Q.o.forEach((txt, oi) => {
+      const lab = document.createElement('label'), inp = document.createElement('input');
+      inp.type = 'radio'; inp.name = 'q' + qi; inp.value = oi;
+      inp.addEventListener('change', () => {
+        fs.querySelectorAll('input').forEach(i => { i.disabled = true; });
+        const ok = oi === Q.a; if (ok) score++; done++;
+        fb.innerHTML = ok ? `<span class="ok">✔ Correcto.</span> ${Q.why}` : `<span class="ko">✘ No es esa.</span> ${Q.why}`;
+        if (done === QUIZ.length) {
+          summary.innerHTML = `<strong>Resultado: ${score} de ${QUIZ.length}.</strong> `;
+          const rb = document.createElement('button'); rb.className = 'btn'; rb.textContent = 'Reintentar';
+          rb.addEventListener('click', renderQuiz); summary.appendChild(rb);
+        }
+      });
+      lab.appendChild(inp); lab.appendChild(document.createTextNode(' ' + txt)); fs.appendChild(lab);
+    });
+    fs.appendChild(fb); box.appendChild(fs);
+  });
+  box.appendChild(summary);
+}
+
+/* ======================================================================
+ * 8. REALIDAD AUMENTADA (cámara + giroscopio, con respaldo simulado)
+ * ==================================================================== */
+function setStatus(msg) { $('#status').textContent = msg; }
+function updateHud() {
+  $('#hud').textContent = !state.ar ? 'Vista 3D'
+    : (state.arMode === 'camera' ? 'AR · cámara' : 'AR · simulado') + (gyro.active ? ' + giroscopio' : '');
+}
+function onOrient(e) {
+  if (e.beta === null || e.gamma === null || e.beta === undefined) return;
+  if (!gyro.active) { gyro.active = true; updateHud(); }
+  gyro.yaw = clamp(e.gamma, -45, 45) * .8;
+  gyro.pitch = clamp(e.beta - 60, -40, 40) * .3;
+}
+function requestGyro() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      return DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') startGyro(); return r === 'granted'; }).catch(() => false);
+    }
+    if ('DeviceOrientationEvent' in window) { startGyro(); return Promise.resolve(true); }
+  } catch (e) { /* sin giroscopio */ }
+  return Promise.resolve(false);
+}
+function startGyro() { if (gyro.on) return; gyro.on = true; window.addEventListener('deviceorientation', onOrient); }
+function stopGyro() { window.removeEventListener('deviceorientation', onOrient); gyro.on = false; gyro.active = false; gyro.yaw = 0; gyro.pitch = 0; }
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null; stage.classList.remove('cam');
+}
+
+async function setAR(on) {
+  const myToken = ++arToken;
+  const b = $('#bAR');
+  state.ar = on; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.textContent = on ? 'Desactivar AR' : 'Activar AR';
+  stage.classList.toggle('ar', on);
+  $('#hint').textContent = hintText();
+  if (!on) { stopCamera(); stopGyro(); state.arMode = ''; updateHud(); setStatus('AR desactivado.'); return; }
+
+  const gyroP = requestGyro();           // debe iniciarse dentro del gesto del usuario (iOS)
+  state.arMode = 'sim'; updateHud();
+  setStatus('Solicitando acceso a la cámara…');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('unsupported'), { name: 'NotSupportedError' });
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    if (myToken !== arToken) { s.getTracks().forEach(t => t.stop()); return; }
+    stream = s; video.srcObject = s;
+    try { await video.play(); } catch (e) { /* autoplay bloqueado: se ve igualmente */ }
+    stage.classList.add('cam'); state.arMode = 'camera';
+    setStatus('AR con cámara activo. Arrastra para mover el modelo; pellizca para escalar y girar.');
+  } catch (err) {
+    if (myToken !== arToken) return;
+    const why = { NotAllowedError: 'permiso de cámara denegado', NotFoundError: 'no se encontró una cámara',
+      NotReadableError: 'la cámara está en uso por otra app', NotSupportedError: 'este navegador o contexto no permite usar la cámara' }[err && err.name] || 'no se pudo abrir la cámara';
+    state.arMode = 'sim';
+    setStatus(`AR simulado: ${why}. Se muestra un entorno de realidad aumentada simulado.`);
+  }
+  updateHud();
+  gyroP.then(() => { if (myToken === arToken) updateHud(); });
+}
+
+/* ======================================================================
+ * 9. ENTRADA: arrastre, pellizco, rueda y teclado
+ * ==================================================================== */
+const ptrs = new Map(); let moved = false, startPt = null, pinch = null;
+const pinchState = () => { const [a, b] = Array.from(ptrs.values());
+  return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, a: Math.atan2(b.y - a.y, b.x - a.x) }; };
+
+stage.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* ignorar */ }
+  if (ptrs.size === 1) { moved = false; startPt = { x: e.clientX, y: e.clientY }; }
+  pinch = ptrs.size === 2 ? pinchState() : null;
+});
+stage.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (startPt && Math.hypot(e.clientX - startPt.x, e.clientY - startPt.y) > 5) moved = true;
+  const rect = stage.getBoundingClientRect();
+  if (ptrs.size === 1) {
+    if (state.ar) { cam.t.panx = clamp(cam.t.panx + dx / rect.width, -.6, .6); cam.t.pany = clamp(cam.t.pany + dy / rect.width, -.6, .6); }
+    else { cam.t.yaw += dx * .45; cam.t.pitch = clamp(cam.t.pitch + dy * .35, 8, 85); }
+  } else if (ptrs.size === 2) {
+    const s = pinchState();
+    if (pinch) { cam.t.zoom = clamp(cam.t.zoom * s.d / pinch.d, .5, 2.6); if (state.ar) cam.t.yaw += (s.a - pinch.a) * 180 / Math.PI; }
+    pinch = s; moved = true;
+  }
+});
+const endPtr = e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId); pinch = ptrs.size === 2 ? pinchState() : null;
+  if (ptrs.size === 0 && !moved && e.type === 'pointerup') {
+    const t = document.elementFromPoint(e.clientX, e.clientY), g = t && t.closest && t.closest('[data-layer]');
+    if (g) {
+      const s = { tech: g.dataset.tech, id: g.dataset.layer };
+      select(state.selected && state.selected.tech === s.tech && state.selected.id === s.id ? null : s);
+    } else if (state.selected) select(null);
+  }
+};
+stage.addEventListener('pointerup', endPtr); stage.addEventListener('pointercancel', endPtr);
+stage.addEventListener('wheel', e => { e.preventDefault(); cam.t.zoom = clamp(cam.t.zoom * Math.exp(-e.deltaY * .0015), .5, 2.6); }, { passive: false });
+stage.addEventListener('keydown', e => {
+  const k = e.key; let used = true;
+  if (k === 'ArrowLeft') cam.t.yaw -= 6; else if (k === 'ArrowRight') cam.t.yaw += 6;
+  else if (k === 'ArrowUp') cam.t.pitch = clamp(cam.t.pitch - 4, 8, 85); else if (k === 'ArrowDown') cam.t.pitch = clamp(cam.t.pitch + 4, 8, 85);
+  else if (k === '+' || k === '=') cam.t.zoom = clamp(cam.t.zoom * 1.1, .5, 2.6);
+  else if (k === '-' || k === '_') cam.t.zoom = clamp(cam.t.zoom / 1.1, .5, 2.6);
+  else if (k === '0') resetView(); else if (k === 'Escape') select(null); else used = false;
+  if (used) e.preventDefault();
+});
+
+/* Pestañas (con navegación por flechas) */
+const tabs = Array.from(document.querySelectorAll('.tab'));
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => setTab(t.dataset.tab));
+  t.addEventListener('keydown', e => {
+    let n = null;
+    if (e.key === 'ArrowRight') n = (i + 1) % tabs.length; else if (e.key === 'ArrowLeft') n = (i + tabs.length - 1) % tabs.length;
+    else if (e.key === 'Home') n = 0; else if (e.key === 'End') n = tabs.length - 1;
+    if (n !== null) { e.preventDefault(); setTab(tabs[n].dataset.tab, true); }
+  });
+});
+
+/* Botones */
+$('#bExplode').addEventListener('click', () => setExplode(state.explodeT < .5));
+$('#bRun').addEventListener('click', runSyscall);
+$('#bGuide').addEventListener('click', () => toggleGuide(!state.guide));
+$('#bQuiz').addEventListener('click', () => toggleQuiz(!state.quiz));
+$('#bAR').addEventListener('click', () => setAR(!state.ar));
+$('#bReset').addEventListener('click', resetView);
+$('#gPrev').addEventListener('click', () => { if (state.step > 0) { state.step--; applyStep(); } });
+$('#gNext').addEventListener('click', () => { if (state.step < GUIDE.length - 1) { state.step++; applyStep(); } else toggleGuide(false); });
+$('#gClose').addEventListener('click', () => toggleGuide(false));
+
+/* ======================================================================
+ * 10. BUCLE DE ANIMACIÓN
+ * ==================================================================== */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const reduced = rmq.matches;
+  const k = reduced ? 1 : 1 - Math.pow(.001, dt);
+  ['yaw', 'pitch', 'zoom', 'panx', 'pany'].forEach(p => { cam[p] += (cam.t[p] - cam[p]) * k; });
+  state.explode += (state.explodeT - state.explode) * k;
+  const ctx = { explode: state.explode, selected: state.selected, ar: state.ar, gyro, dt, reduced, time: now / 1000,
+    float: (state.ar && !reduced) ? Math.sin(now / 900) * 5 : 0 };
+  scenes.forEach(sc => {
+    if (sc.wrap.hidden) return;
+    sc.updateRun(dt);
+    sc.draw(cam, ctx);
+  });
+  requestAnimationFrame(frame);
+}
+
+/* ======================================================================
+ * 11. ARRANQUE
+ * ==================================================================== */
+renderBars();
+setTab('emu');
+requestAnimationFrame(frame);
+window.addEventListener('pagehide', () => { stopCamera(); stopGyro(); });
+})();
+</script>
+</body>
+</html>
