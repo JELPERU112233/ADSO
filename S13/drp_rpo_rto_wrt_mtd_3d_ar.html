@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRP en 3D y AR: RPO, RTO, WRT y MTD</title>
+<style>
+/* ===== Base: Arial en todo el documento (incluye texto dentro de SVG) ===== */
+:root{
+  --bg:#06222a; --bg2:#0b3440; --panel:rgba(10,52,64,.82); --line:rgba(120,230,225,.38);
+  --teal:#3fd0c9; --blue:#4aa3ff; --amber:#ffcf5c; --ink:#e8fbfd; --mut:#b4dce1;
+}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);line-height:1.5;
+  background:radial-gradient(1200px 700px at 15% -10%,#0f4a5a 0,var(--bg) 60%) fixed,var(--bg)}
+button,input{font:inherit}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:-999px;top:0;background:var(--amber);color:#000;padding:.5rem 1rem;z-index:99}
+.skip:focus{left:8px;top:8px}
+header,main,.wrap{max-width:1280px;margin:0 auto;padding:0 1rem}
+header{padding-top:1.2rem}
+h1{font-size:clamp(1.5rem,3.4vw,2.3rem);margin:.1rem 0;color:#fff}
+h1 span{color:var(--teal)}
+.sub{color:var(--mut);margin:.2rem 0 1rem;max-width:80ch}
+h2{font-size:1.15rem;margin:.1rem 0 .5rem;color:#fff}
+h3{font-size:1rem;margin:.6rem 0 .2rem;color:var(--teal)}
+p{margin:.3rem 0}
+
+/* ===== Controles ===== */
+.tabs,.toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.btn,.tab{background:#0f4a5a;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+  padding:.55rem .9rem;cursor:pointer;font-size:.92rem;min-height:40px}
+.btn:hover,.tab:hover{background:#14606f}
+.btn:focus-visible,.tab:focus-visible,.stage:focus-visible,input:focus-visible,.lbtn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.tab[aria-selected="true"]{background:linear-gradient(135deg,#1b7f8a,#1f78d1);border-color:var(--teal);font-weight:bold}
+.btn[aria-pressed="true"]{background:#1b7f8a;border-color:var(--teal)}
+.btn.primary{background:linear-gradient(135deg,#1b7f8a,#1f78d1);font-weight:bold}
+
+/* ===== Layout ===== */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:1rem;align-items:start;margin-top:.6rem}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+
+/* ===== Escenario 3D / AR ===== */
+.stage{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#04181e;
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage.single{aspect-ratio:680/520}
+.scenes{position:relative;width:100%}
+.stage.single .scenes{position:absolute;inset:0}
+.scene{position:absolute;inset:0}
+.scene svg{width:100%;height:100%;display:block}
+.scene[hidden]{display:none}
+.stage.compare .scenes{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.stage.compare .scene{position:relative;inset:auto;aspect-ratio:420/400}
+@media (max-width:900px){.stage.compare .scenes{grid-template-columns:1fr}}
+svg text{paint-order:stroke;stroke:#04181e;stroke-width:3px;stroke-linejoin:round}
+.face{cursor:pointer}
+.arbg{position:absolute;inset:0;display:none;overflow:hidden;background:linear-gradient(#0a2e3a,#04181e)}
+.arbg .grid{position:absolute;left:-60%;right:-60%;bottom:-8%;height:75%;
+  background-image:linear-gradient(rgba(63,208,201,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(63,208,201,.35) 1px,transparent 1px);
+  background-size:48px 48px;transform:perspective(380px) rotateX(62deg);transform-origin:50% 100%;animation:gridmove 4s linear infinite}
+@keyframes gridmove{to{background-position:0 48px}}
+.stage.ar .arbg{display:block}
+.stage.cam .arbg{display:none}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.stage.cam video{display:block}
+.scan{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--teal),transparent);
+  opacity:.55;display:none;animation:scan 5s linear infinite;pointer-events:none}
+.stage.ar .scan{display:block}
+@keyframes scan{from{top:0}to{top:100%}}
+.hud{position:absolute;top:10px;right:10px;background:rgba(4,24,30,.72);border:1px solid var(--line);border-radius:999px;
+  padding:.2rem .7rem;font-size:.78rem;color:var(--teal);pointer-events:none;z-index:3}
+.hint{position:absolute;left:10px;bottom:8px;font-size:.78rem;color:var(--mut);background:rgba(4,24,30,.6);
+  padding:.15rem .5rem;border-radius:6px;pointer-events:none;z-index:3}
+.stage.ar{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal),0 0 28px rgba(63,208,201,.28)}
+
+/* ===== Paneles ===== */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem;margin-bottom:.8rem;backdrop-filter:blur(6px)}
+.card.holo{box-shadow:inset 0 0 22px rgba(63,208,201,.12)}
+.lead{color:var(--mut)}
+.tag{display:inline-block;background:#07303a;border:1px solid var(--line);border-radius:6px;padding:.05rem .45rem;font-size:.8rem;color:var(--amber)}
+.layers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
+.lbtn{width:100%;text-align:left;background:#0b3d4a;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.4rem .6rem;cursor:pointer;display:flex;gap:.5rem;align-items:center}
+.lbtn:hover{background:#12586a}
+.lbtn[aria-pressed="true"]{border-color:var(--amber);background:#17535f}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid #fff6;flex:none}
+.bars{display:grid;gap:.45rem}
+.row{display:grid;grid-template-columns:130px 1fr 52px;gap:.5rem;align-items:center;font-size:.86rem}
+.bar{height:12px;background:#07303a;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--blue));transition:width .2s}
+.log{min-height:3.2em;color:var(--ink);font-size:.9rem}
+.small{font-size:.8rem;color:var(--mut)}
+.step{font-size:.8rem;color:var(--amber)}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:.5rem 0;padding:.5rem .7rem}
+legend{padding:0 .3rem;font-weight:bold}
+label{display:block;padding:.2rem 0;cursor:pointer}
+.fb{font-size:.88rem;margin-top:.3rem}
+.ok{color:#7dffb0}.ko{color:#ff9d9d}
+
+/* ===== Tabla ===== */
+.tablewrap{overflow-x:auto;margin:1rem 0}
+table{border-collapse:collapse;width:100%;min-width:760px;background:var(--panel);border:1px solid var(--line)}
+caption{text-align:left;font-weight:bold;padding:.6rem 0;color:#fff;font-size:1.1rem}
+th,td{border:1px solid var(--line);padding:.55rem .7rem;text-align:left;vertical-align:top;font-size:.9rem}
+thead th{background:#12586a;color:#fff}
+tbody th{background:#0b3d4a;color:var(--teal);width:14%}
+footer{max-width:1280px;margin:0 auto;padding:0 1rem 2rem;color:var(--mut);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.stage.single{aspect-ratio:760/520}
+.stepper{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}
+.sbtn{background:#0f4a5a;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem;cursor:pointer;font-size:.88rem;min-height:40px;display:inline-flex;align-items:center;gap:.4rem}
+.sbtn:hover{background:#14606f}
+.sbtn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.sbtn[aria-current="step"]{background:linear-gradient(135deg,#1b7f8a,#1f78d1);border-color:var(--teal);font-weight:bold}
+.sbtn .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#07303a;border:1px solid var(--line);font-size:.78rem;color:var(--amber)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.sl{margin:.5rem 0}.sl label{display:block;padding:0;font-size:.88rem;cursor:default}.sl output{color:var(--amber);font-weight:bold;margin-left:.3rem}
+input[type=range]{width:100%;accent-color:#3fd0c9;min-height:28px}
+.verdict{font-weight:bold;font-size:.92rem;padding:.4rem .6rem;border-radius:8px;border:1px solid var(--line);background:#07303a}
+
+.dlg{max-width:min(560px,92vw);width:100%;border:1px solid var(--teal);border-radius:14px;padding:1.1rem 1.3rem;color:var(--ink);
+  background:linear-gradient(160deg,#0d4350,#072a33);box-shadow:0 0 0 1px rgba(63,208,201,.35),0 18px 60px rgba(0,0,0,.6)}
+.dlg::backdrop{background:rgba(2,14,18,.55)}
+.dlg h2{font-size:1.3rem;margin:.2rem 0 .5rem;color:#fff}
+.dlg .key{margin:.6rem 0;padding:.5rem .8rem;border-left:4px solid var(--amber);background:#07303a;color:#ffe9a8;font-weight:bold;border-radius:0 8px 8px 0}
+.dlg .toolbar{margin-top:.8rem}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#stage">Saltar al modelo 3D</a>
+
+<header>
+  <h1>DRP: <span>RPO, RTO, WRT y MTD</span> en 3D y realidad aumentada</h1>
+  <p class="sub">Recorre en 8 etapas un <strong>Disaster Recovery Plan</strong>: desde la operación normal y el último backup, pasando por el desastre, hasta que la producción se reanuda.
+  Gira la línea de tiempo en 3D, sepárala en capas, simula un desastre y cambia los valores para ver si cumples el tiempo máximo tolerable.</p>
+</header>
+
+<main>
+  <div class="stepper" id="stepper" role="group" aria-label="Etapas de la animación"></div>
+
+  <div class="toolbar" role="toolbar" aria-label="Acciones de la animación">
+    <button class="btn" id="bPrev">← Anterior</button>
+    <button class="btn primary" id="bPlay" aria-pressed="false">▶ Reproducir</button>
+    <button class="btn" id="bNext">Siguiente →</button>
+    <button class="btn" id="bExplode" aria-pressed="false">Capas: separar</button>
+    <button class="btn" id="bRun">Simular un desastre</button>
+    <button class="btn" id="bQuiz" aria-pressed="false">Mini-quiz</button>
+    <button class="btn" id="bAR" aria-pressed="false">Activar AR</button>
+    <button class="btn" id="bReset">Restablecer vista</button>
+  </div>
+  <p id="status" class="small" role="status" aria-live="polite"></p>
+
+  <div class="layout">
+    <div class="stage single" id="stage" tabindex="0"
+         aria-label="Línea de tiempo 3D interactiva. Flechas: girar. Más y menos: zoom. Cero: restablecer. Escape: quitar selección. Avance y retroceso de página: cambiar de etapa.">
+      <div class="arbg" aria-hidden="true"><div class="grid"></div></div>
+      <video id="cam" playsinline muted aria-hidden="true"></video>
+      <div class="scenes" id="scenes"><div class="scene" id="scene"></div></div>
+      <div class="scan" aria-hidden="true"></div>
+      <div class="hud" id="hud" aria-hidden="true">Vista 3D</div>
+      <div class="hint" id="hint" aria-hidden="true">Arrastra para girar · rueda o pellizco para zoom · clic en un elemento</div>
+    </div>
+
+    <aside aria-label="Panel didáctico">
+      <section class="card holo" aria-label="Etapa actual" aria-live="polite">
+        <div id="stageCard"></div>
+      </section>
+
+      <section class="card" aria-label="Elemento seleccionado" aria-live="polite">
+        <div id="info"></div>
+      </section>
+
+      <section class="card" aria-label="Simulador">
+        <h2>Simulador: ¿cumples el tiempo tolerable?</h2>
+        <div class="sl"><label for="sRpo">RPO (minutos entre el último backup y el desastre) <output id="oRpo">30</output></label><input type="range" id="sRpo" min="5" max="120" step="5" value="30"></div>
+        <div class="sl"><label for="sRto">RTO (minutos hasta restaurar los datos) <output id="oRto">60</output></label><input type="range" id="sRto" min="5" max="180" step="5" value="60"></div>
+        <div class="sl"><label for="sWrt">WRT (minutos para validar y reanudar producción) <output id="oWrt">30</output></label><input type="range" id="sWrt" min="5" max="120" step="5" value="30"></div>
+        <div class="sl"><label for="sMtd">MTD tolerable por el negocio (minutos) <output id="oMtd">120</output></label><input type="range" id="sMtd" min="30" max="300" step="5" value="120"></div>
+        <p id="verdict" class="verdict" role="status" aria-live="polite"></p>
+        <p><button class="btn" id="bSimReset">Valores de la clase (30 / 60 / 30)</button></p>
+      </section>
+
+      <section class="card" aria-label="Capas y elementos">
+        <h2>Capas</h2>
+        <div id="layerBtns" class="toolbar" role="group" aria-label="Mostrar u ocultar capas"></div>
+        <h3>Elementos visibles en esta etapa</h3>
+        <div id="elemList"></div>
+      </section>
+
+      <section class="card" aria-label="Simular un desastre">
+        <h2>Simular un desastre</h2>
+        <p class="log" id="runlog" aria-live="polite">Pulsa «Simular un desastre» para ver cómo avanza el tiempo: último backup, desastre, restauración y reanudación de la producción.</p>
+      </section>
+
+      <section class="card holo" id="quizCard" hidden aria-label="Mini-quiz">
+        <h2>Mini-quiz (3 preguntas)</h2>
+        <div id="quizBody"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Tabla comparativa de los términos básicos del DRP</caption>
+      <thead><tr><th scope="col">Término</th><th scope="col">Pregunta clave</th><th scope="col">Se mide desde… hasta…</th><th scope="col">Ejemplo (11:00 desastre)</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">RPO<br><span class="small">Recovery Point Objective</span></th><td>¿Qué tanto estoy dispuesto a perder?</td><td>Último backup → desastre.</td><td>10:30 → 11:00 = 30 min de datos en riesgo.</td></tr>
+        <tr><th scope="row">RTO<br><span class="small">Recovery Time Objective</span></th><td>¿Qué tan rápido puedo recuperar la información?</td><td>Desastre → datos restaurados (Recovery).</td><td>11:00 → 12:00 = 60 min.</td></tr>
+        <tr><th scope="row">WRT<br><span class="small">Working Recovery Time</span></th><td>¿Está listo para usar en producción? Integridad de sistema y datos validada.</td><td>Datos restaurados → producción reanudada.</td><td>12:00 → 12:30 = 30 min.</td></tr>
+        <tr><th scope="row">MTD<br><span class="small">Maximum Tolerable Downtime</span></th><td>¿Cuánto tiempo total sin servicio es tolerable?</td><td>Desastre → producción reanudada (MTD = RTO + WRT).</td><td>11:00 → 12:30 = 90 min.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+
+<dialog id="stageDlg" class="dlg" aria-labelledby="dlgTitle" aria-describedby="dlgText">
+  <p class="step" id="dlgTag"></p>
+  <h2 id="dlgTitle"></h2>
+  <p id="dlgText"></p>
+  <blockquote id="dlgKey" class="key" hidden></blockquote>
+  <h3>Qué observar en el modelo</h3>
+  <p id="dlgLook"></p>
+  <div class="toolbar">
+    <button class="btn" id="dlgPrev">← Anterior</button>
+    <button class="btn" id="dlgNext">Siguiente →</button>
+    <button class="btn primary" id="dlgClose" autofocus>Cerrar</button>
+  </div>
+</dialog>
+
+<footer>
+  <p><strong>Notas didácticas:</strong> los términos, las preguntas clave, la fórmula MTD = RTO + WRT y las 7 consideraciones siguen tus diapositivas (PUCP, 1INF35). Los horarios (10:30, 11:00, 12:00, 12:30) coinciden con el ejemplo de las diapositivas;
+  el simulador usa otros valores solo para explorar. En la literatura el MTD suele entenderse como el límite que el negocio tolera, y el tiempo real de caída (RTO + WRT) debe ser menor o igual a ese límite; por eso el simulador compara ambos.
+  Las formas 3D (bloques por intervalo) simplifican las curvas de las diapositivas.</p>
+  <noscript><p>Esta animación necesita JavaScript.</p></noscript>
+</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================================================================
+ * 1. UTILIDADES
+ * ==================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const rmq = window.matchMedia('(prefers-reduced-motion: reduce)');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const svgEl = (name, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const pad2 = n => String(n).padStart(2, '0');
+const clock = m => { const t = 11 * 60 + Math.round(m); return pad2(Math.floor(t / 60)) + ':' + pad2(((t % 60) + 60) % 60); };   // 0 = desastre = 11:00
+const FACES = [
+  { v: [2, 3, 7, 6], n: [0, 1, 0] }, { v: [0, 1, 5, 4], n: [0, -1, 0] },
+  { v: [1, 3, 7, 5], n: [1, 0, 0] }, { v: [0, 2, 6, 4], n: [-1, 0, 0] },
+  { v: [4, 5, 7, 6], n: [0, 0, 1] }, { v: [0, 1, 3, 2], n: [0, 0, -1] }
+];
+const LIGHT = (() => { const l = [-.35, .75, -.55], m = Math.hypot(...l); return l.map(c => c / m); })();
+
+/* ======================================================================
+ * 2. DATOS DIDÁCTICOS (según las diapositivas del curso)
+ * ==================================================================== */
+const STAGES = [
+  { short: 'Operación normal', key: '', look: 'Observa la barra azul larga y los puntos cian que avanzan: son los datos que genera la producción. Todavía no hay desastre.', title: 'Business as usual', tag: 'Línea de tiempo',
+    t: 'El sistema funciona con normalidad y la producción genera datos todo el tiempo (puntos cian). Un DRP (Disaster Recovery Plan) define cómo volver a esta situación después de un desastre.' },
+  { short: 'Último backup', key: '', look: 'Mira el poste gris (último backup): a su izquierda los puntos son verdes (protegidos); a su derecha, amarillos (sin copia todavía).', title: 'El último backup', tag: 'Hitos',
+    t: 'En algún momento se completó la última copia de seguridad (10:30 en el ejemplo). Los datos anteriores están protegidos (verde); los posteriores todavía no tienen copia (amarillo).' },
+  { short: 'Desastre', key: '', look: 'Fíjate en el poste rojo (DISASTER): a su derecha la barra se vuelve celeste, que es el tiempo sin servicio. Los puntos dejan de fluir.', title: 'Contingencia: ocurre el desastre', tag: 'Hitos',
+    t: 'A las 11:00 ocurre el desastre y se activa la contingencia. La producción se detiene: la barra azul pasa a celeste, que es el tiempo sin servicio.' },
+  { short: 'RPO', key: '¿Qué tanto estoy dispuesto a perder?', look: 'El bloque rojo va del poste gris al poste rojo: su ancho es el RPO. Los puntos rojos son los datos que se perderían.', title: 'RPO – Recovery Point Objective', tag: 'Objetivos',
+    t: '¿Qué tanto estoy dispuesto a perder? El RPO es el tiempo entre el último backup y el desastre: lo creado en ese lapso (rojo) se pierde.' },
+  { short: 'RTO', key: '¿Qué tan rápido puedo recuperar la información? ¿Listo para usar en producción?', look: 'El bloque ámbar va del desastre al poste naranja (Recovery): su ancho es el RTO. Los datos ya están restaurados, pero todavía no en producción.', title: 'RTO – Recovery Time Objective', tag: 'Objetivos',
+    t: '¿Qué tan rápido puedo recuperar la información? El RTO va del desastre hasta que los datos están restaurados (Recovery). Pero ¿ya está listo para usar en producción? Aún no.' },
+  { short: 'WRT', key: 'Recuperación real y listo para usar en producción. Validada integridad de sistema y datos.', look: 'El bloque verde va de Recovery al poste verde (Resume Production): es el WRT. Después la barra vuelve al azul de operación normal.', title: 'WRT – Working Recovery Time', tag: 'Objetivos',
+    t: 'Recuperación real y lista para usar en producción: se valida la integridad del sistema y de los datos. Al terminar se reanuda la producción (Resume Production).' },
+  { short: 'MTD', key: 'MTD = RTO + WRT', look: 'El bloque azul superior abarca RTO + WRT. Mueve los deslizadores del simulador y mira cómo cambia su ancho frente al MTD tolerable.', title: 'MTD – Maximum Tolerable Downtime', tag: 'Objetivos',
+    t: 'El tiempo total sin servicio: MTD = RTO + WRT. En el ejemplo, 60 + 30 = 90 minutos. Prueba el simulador para ver si cumples el tiempo tolerable de tu negocio.' },
+  { short: 'Consideraciones', key: '', look: 'Siete pilares aparecen al fondo. Haz clic en cada uno; con «Capas: separar» se elevan como una capa propia.', title: 'DRP: 7 consideraciones', tag: 'Buenas prácticas',
+    t: 'Siete prácticas para que el plan funcione: copias automáticas y frecuentes, cifradas, con una copia externa, probadas, con acceso restringido, monitorizadas y con conocimiento para restaurar rápido. Haz clic en cada pilar.' }
+];
+
+const INFO = {
+  bau: { name: 'Business as usual (operación normal)', from: 1,
+    what: 'Periodo en el que los sistemas producen con normalidad.',
+    use: 'Es la situación a la que el DRP busca volver después de un desastre.',
+    ex: 'Una tienda en línea procesando pedidos con normalidad.' },
+  bk: { name: 'Último backup', from: 2,
+    what: 'Momento de la última copia de seguridad completada (10:30 en el ejemplo).',
+    use: 'Marca hasta dónde se puede recuperar: lo posterior al backup no tiene copia.',
+    ex: 'Un respaldo programado cada 30 minutos.' },
+  ds: { name: 'Contingencia / Desastre', from: 3,
+    what: 'Evento que interrumpe el servicio y activa el plan de recuperación (11:00 en el ejemplo).',
+    use: 'Inicia el reloj del tiempo sin servicio (downtime) y de la recuperación.',
+    ex: 'Falla de un servidor, ransomware, incendio o corte eléctrico.' },
+  rpo: { name: 'RPO – Recovery Point Objective', from: 4,
+    what: 'Pregunta clave: ¿qué tanto estoy dispuesto a perder? Es el tiempo entre el último backup y el desastre.',
+    use: 'Define cada cuánto hacer backups: a menor RPO aceptable, más frecuentes deben ser.',
+    ex: 'Backup a las 10:30 y desastre a las 11:00: RPO = 30 minutos de datos en riesgo.' },
+  rto: { name: 'RTO – Recovery Time Objective', from: 5,
+    what: 'Pregunta clave: ¿qué tan rápido puedo recuperar la información? Va del desastre hasta que los datos están restaurados.',
+    use: 'Marca cuánto tiempo se acepta para tener los datos de vuelta.',
+    ex: 'Desastre a las 11:00 y datos restaurados a las 12:00: RTO = 60 minutos.' },
+  rc: { name: 'Recovery (datos restaurados)', from: 5,
+    what: 'Hito en el que los datos ya fueron restaurados desde el backup.',
+    use: 'Cierra el RTO y abre el WRT: los datos están, pero falta validar para producción.',
+    ex: 'Restauración de la base de datos terminada a las 12:00.' },
+  wrt: { name: 'WRT – Working Recovery Time', from: 6,
+    what: 'Recuperación real y lista para usar en producción: se valida la integridad del sistema y de los datos.',
+    use: 'Evita volver a producción con datos corruptos o servicios incompletos.',
+    ex: 'De 12:00 a 12:30 se prueban las aplicaciones y se verifican los datos.' },
+  rs: { name: 'Resume Production (reanudar producción)', from: 6,
+    what: 'Hito en el que el servicio vuelve a operar normalmente.',
+    use: 'Cierra el WRT y el tiempo total sin servicio.',
+    ex: 'Los usuarios vuelven a usar el sistema a las 12:30.' },
+  mtd: { name: 'MTD – Maximum Tolerable Downtime', from: 7,
+    what: 'Tiempo total sin servicio según las diapositivas: MTD = RTO + WRT.',
+    use: 'Permite comparar el tiempo real de caída con lo que el negocio puede tolerar.',
+    ex: '60 min (RTO) + 30 min (WRT) = 90 minutos sin servicio.' },
+  p1: { name: '1. Copias de seguridad automáticas y frecuentes', from: 8,
+    what: 'Los respaldos se ejecutan solos y con la frecuencia necesaria.',
+    use: 'Reducen el RPO: cuanto más frecuentes, menos datos se pierden.',
+    ex: 'Un trabajo programado que respalda cada 15 minutos.' },
+  p2: { name: '2. Copias protegidas con contraseña y encriptadas', from: 8,
+    what: 'Los respaldos están protegidos con contraseña y totalmente cifrados.',
+    use: 'Si alguien roba un respaldo, no puede leer su contenido.',
+    ex: 'Cifrado AES-256 con la clave guardada aparte.' },
+  p3: { name: '3. Copia en una ubicación externa', from: 8,
+    what: 'Una copia del archivo de respaldo se guarda fuera del sitio principal.',
+    use: 'Permite recuperarse aunque el sitio principal se pierda por completo.',
+    ex: 'Otra sede, un servicio en la nube o cintas fuera del edificio.' },
+  p4: { name: '4. Verificación y prueba de respaldo', from: 8,
+    what: 'Existe un proceso para verificar y probar que los respaldos funcionan.',
+    use: 'Un backup que nunca se probó puede no restaurar cuando se necesita.',
+    ex: 'Una restauración de prueba cada mes.' },
+  p5: { name: '5. Acceso restringido a personas autorizadas', from: 8,
+    what: 'Solo un número limitado de personas autorizadas puede acceder al respaldo.',
+    use: 'Evita borrados, robos o manipulaciones del respaldo.',
+    ex: 'Roles de acceso mínimos y autenticación multifactor.' },
+  p6: { name: '6. Todas las actividades de respaldo monitorizadas', from: 8,
+    what: 'Cada actividad de respaldo se vigila y se registra.',
+    use: 'Detecta a tiempo respaldos fallidos o accesos sospechosos.',
+    ex: 'Alertas automáticas cuando un trabajo de respaldo falla.' },
+  p7: { name: '7. Capacidad y conocimiento para restaurar rápido', from: 8,
+    what: 'El equipo tiene la posibilidad y el conocimiento para restaurar los respaldos con rapidez.',
+    use: 'Ayuda a cumplir el RTO y el WRT.',
+    ex: 'Procedimientos escritos y simulacros periódicos.' }
+};
+const INFO_ORDER = ['bau', 'bk', 'ds', 'rpo', 'rto', 'rc', 'wrt', 'rs', 'mtd', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+
+const QUIZ = [
+  { q: '¿Qué mide el RPO?',
+    o: ['Cuánto tarda en restaurarse el servicio', 'Cuántos datos estoy dispuesto a perder: el tiempo entre el último backup y el desastre', 'Cuánto cuesta el respaldo'], a: 1,
+    why: 'El RPO responde «¿qué tanto estoy dispuesto a perder?». La velocidad de recuperación la mide el RTO.' },
+  { q: 'El desastre ocurre a las 11:00, los datos se restauran a las 12:00 y la producción se reanuda a las 12:30. ¿Cuánto vale MTD = RTO + WRT?',
+    o: ['60 minutos', '30 minutos', '90 minutos'], a: 2,
+    why: 'RTO = 60 min (11:00–12:00), WRT = 30 min (12:00–12:30) y MTD = 60 + 30 = 90 minutos.' },
+  { q: '¿Qué se valida durante el WRT?',
+    o: ['Que el backup esté cifrado', 'La integridad del sistema y de los datos antes de reanudar producción', 'El costo del almacenamiento'], a: 1,
+    why: 'El WRT es la recuperación real y lista para producción: se valida la integridad del sistema y de los datos.' }
+];
+
+/* ======================================================================
+ * 3. PARÁMETROS DEL SIMULADOR Y GEOMETRÍA (el tiempo se mide en minutos; 0 = desastre = 11:00)
+ * ==================================================================== */
+const target = { rpo: 30, rto: 60, wrt: 30, mtd: 120 };
+const cur = { rpo: 30, rto: 60, wrt: 30 };
+const anim = { aEnd: 0, bEnd: 0 };
+let geo = { t0: -65, t1: 160, sc: 13 / 225, X: m => m };
+function updateGeo() {
+  const t0 = -cur.rpo - 35, t1 = cur.rto + cur.wrt + 70, sc = 13 / (t1 - t0);
+  geo = { t0, t1, sc, X: m => -6.5 + (m - t0) * sc };
+}
+const resumeMin = () => cur.rto + cur.wrt;
+
+/* ======================================================================
+ * 4. OBJETOS DE LA ESCENA
+ *    kind: box | text ; layer: 0 línea de tiempo, 1 hitos, 2 objetivos, 3 buenas prácticas
+ * ==================================================================== */
+const OBJS = [];
+const add = o => { OBJS.push(Object.assign({ vis: 0, pulse: 0, glow: 0, glowT: 0 }, o)); };
+const span = (a, b) => { const x0 = geo.X(a), x1 = geo.X(b); return { x: (x0 + x1) / 2, w: Math.max(.02, x1 - x0) }; };
+const LB = '#cfe9ec';
+
+/* Capa 0: línea de tiempo (barra azul = operación; celeste = sin servicio) */
+add({ id: 'segA', info: 'bau', kind: 'box', layer: 0, from: 1, zk: 0, color: '#1f6fbf', alpha: .95, y0: () => 0,
+  dims: () => Object.assign(span(geo.t0, anim.aEnd), { z: 0, d: 3, h: .35 }) });
+add({ id: 'segB', info: 'ds', kind: 'box', layer: 0, from: 3, zk: 0, color: '#8fd3f4', alpha: .92, y0: () => 0,
+  dims: () => Object.assign(span(0, anim.bEnd), { z: 0, d: 3, h: .35 }) });
+add({ id: 'segC', info: 'bau', kind: 'box', layer: 0, from: 6, zk: 0, color: '#1f6fbf', alpha: .95, y0: () => 0,
+  dims: () => Object.assign(span(anim.bEnd, geo.t1), { z: 0, d: 3, h: .35 }) });
+
+/* Capa 1: hitos (postes) */
+const PINH = 3.0, py0 = ex => .35 + ex * 1.1;
+[['pbk', 'bk', 2, '#b9c7d6', () => -cur.rpo], ['pds', 'ds', 3, '#ff4545', () => 0], ['prc', 'rc', 5, '#ff9a3c', () => cur.rto], ['prs', 'rs', 6, '#4ccf63', resumeMin]].forEach(([id, info, from, color, mf]) =>
+  add({ id, info, kind: 'box', layer: 1, from, zk: 1, color, alpha: .95, y0: py0,
+    dims: () => ({ x: geo.X(mf()), z: -1.1, w: .16, d: .16, h: PINH }) }));
+
+/* Capa 2: objetivos (bloques por intervalo) */
+const by0 = ex => .35 + ex * 2.4, my0 = ex => 1.45 + ex * 3.8;
+add({ id: 'rpo', info: 'rpo', kind: 'box', layer: 2, from: 4, zk: 1, color: '#f19a9a', alpha: .88, y0: by0, dims: () => Object.assign(span(-cur.rpo, 0), { z: .2, d: 1.4, h: 1.0 }) });
+add({ id: 'rto', info: 'rto', kind: 'box', layer: 2, from: 5, zk: 1, color: '#f6c45c', alpha: .88, y0: by0, dims: () => Object.assign(span(0, cur.rto), { z: .2, d: 1.4, h: 1.0 }) });
+add({ id: 'wrt', info: 'wrt', kind: 'box', layer: 2, from: 6, zk: 1, color: '#7bc67e', alpha: .88, y0: by0, dims: () => Object.assign(span(cur.rto, resumeMin()), { z: .2, d: 1.4, h: 1.0 }) });
+add({ id: 'mtd', info: 'mtd', kind: 'box', layer: 2, from: 7, zk: 1, color: '#35a7e8', alpha: .85, y0: my0, dims: () => Object.assign(span(0, resumeMin()), { z: .2, d: 1.4, h: .6 }) });
+
+/* Capa 3: buenas prácticas (7 pilares al fondo) */
+const PLN = ['1 Backups automáticos', '2 Cifrado y contraseña', '3 Copia externa', '4 Verificar y probar', '5 Acceso restringido', '6 Monitoreo', '7 Restaurar rápido'];
+const ply0 = ex => ex * 5.0;
+for (let i = 0; i < 7; i++) add({ id: 'pl' + (i + 1), info: 'p' + (i + 1), kind: 'box', layer: 3, from: 8, zk: 1, color: '#3fd0c9', alpha: .9, y0: ply0,
+  dims: () => ({ x: -6 + i * 2, z: 3.7, w: 1.3, d: 1.0, h: 1.6 }) });
+
+/* Etiquetas (billboards). str puede ser función; cond limita la visibilidad. */
+const txt = (str, p, layer, from, color, size, extra = {}) => add(Object.assign({ kind: 'text', str, p, layer, from, color, size }, extra));
+txt('Tiempo →', () => [geo.X(geo.t1) - 1.0, 0, -2.8], 0, 1, LB, 12);
+const bauEnd = () => state.stage >= 2 ? Math.min(anim.aEnd, -cur.rpo) : anim.aEnd;
+txt('Business as usual', () => [geo.X((geo.t0 + bauEnd()) / 2), .4, -.1], 0, 1, '#ffffff', 13, { bold: true, cond: () => state.stage < 4 && bauEnd() - geo.t0 > 30 });
+txt('Servicio interrumpido', () => [geo.X(anim.bEnd / 2), .4, -.1], 0, 3, '#d9f3ff', 13, { bold: true, cond: () => anim.bEnd > 38 });
+for (let i = 0; i < 16; i++) {
+  const step = () => (geo.t1 - geo.t0) > 260 ? 60 : 30, tm = () => Math.ceil(geo.t0 / step()) * step() + i * step();
+  txt(() => clock(tm()), () => [geo.X(tm()), 0, -2.0], 0, 1, '#9fc7cc', 11, { cond: () => tm() <= geo.t1 });
+}
+const pinTxt = (id, label, from, color, mf, up) => {
+  txt(label, ex => [geo.X(mf()), py0(ex) + PINH + .35 + up, -1.1], 1, from, color, 13, { bold: true });
+  txt(() => clock(mf()), ex => [geo.X(mf()), py0(ex) + PINH + .8 + up, -1.1], 1, from, '#e8fbfd', 11);
+};
+pinTxt('pbk', 'Último backup', 2, '#d6e2ee', () => -cur.rpo, 0);
+pinTxt('pds', 'DISASTER', 3, '#ff8a8a', () => 0, .9);
+pinTxt('prc', 'RECOVERY', 5, '#ffbd7a', () => cur.rto, 0);
+pinTxt('prs', 'Resume Production', 6, '#8fe69f', resumeMin, .9);
+const blockTxt = (str, a, b, from, color, y0f, h) =>
+  txt(str, ex => [geo.X((a() + b()) / 2), y0f(ex) + .5, -.55], 2, from, color, 14, { bold: true });
+blockTxt(() => `RPO · ${Math.round(cur.rpo)} min`, () => -cur.rpo, () => 0, 4, '#ffb3b3', by0, 1.0);
+blockTxt(() => `RTO · ${Math.round(cur.rto)} min`, () => 0, () => cur.rto, 5, '#ffd98a', by0, 1.0);
+blockTxt(() => `WRT · ${Math.round(cur.wrt)} min`, () => cur.rto, resumeMin, 6, '#a8ecaa', by0, 1.0);
+txt(() => `MTD = RTO + WRT · ${Math.round(cur.rto + cur.wrt)} min`, ex => [geo.X(resumeMin() / 2), my0(ex) + .6 + .35, .2], 2, 7, '#8fd6ff', 14, { bold: true });
+for (let i = 0; i < 7; i++) txt(PLN[i], ex => [-6 + i * 2, ply0(ex) + 1.6 + .35, 3.7], 3, 8, '#9ff0ea', 11, { bold: true });
+
+/* ======================================================================
+ * 5. ESTADO
+ * ==================================================================== */
+const stage = $('#stage'), video = $('#cam'), sceneBox = $('#scene');
+const HOME = { yaw: 16, pitch: 31, zoom: 1, panx: 0, pany: 0 };
+const cam = Object.assign({}, HOME, { t: Object.assign({}, HOME) });
+const gyro = { yaw: 0, pitch: 0, active: false, on: false };
+const layerOn = [true, true, true, true];
+const state = { stage: 1, explode: 0, explodeT: 0, sel: null, ar: false, arMode: '', quiz: false, play: false };
+let run = null, playTimer = null, arToken = 0, stream = null, lastOrder = '';
+
+/* ======================================================================
+ * 6. SVG
+ * ==================================================================== */
+const svg = svgEl('svg', { viewBox: '0 0 760 520', role: 'img', preserveAspectRatio: 'xMidYMid meet',
+  'aria-label': 'Línea de tiempo 3D de un plan de recuperación ante desastres con hitos y bloques RPO, RTO, WRT y MTD. Usa los botones de etapa y la lista de elementos para explorarla con teclado.' });
+const defs = svgEl('defs', {}, svg);
+const glowF = svgEl('filter', { id: 'glow', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
+svgEl('feGaussianBlur', { stdDeviation: '4', result: 'b' }, glowF);
+const mg = svgEl('feMerge', {}, glowF); svgEl('feMergeNode', { in: 'b' }, mg); svgEl('feMergeNode', { in: 'SourceGraphic' }, mg);
+const blurF = svgEl('filter', { id: 'blur', x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
+svgEl('feGaussianBlur', { stdDeviation: '10' }, blurF);
+const gGround = svgEl('g', { 'aria-hidden': 'true', style: 'pointer-events:none' }, svg);
+const shadow = svgEl('polygon', { fill: '#000', 'fill-opacity': '.4', filter: 'url(#blur)' }, gGround);
+const ring1 = svgEl('polyline', { fill: 'none', stroke: '#3fd0c9', 'stroke-width': '1.4', 'stroke-dasharray': '10 8' }, gGround);
+const ring2 = svgEl('polyline', { fill: 'none', stroke: '#4aa3ff', 'stroke-width': '1' }, gGround);
+const cross1 = svgEl('line', { stroke: '#3fd0c9', 'stroke-width': '1' }, gGround);
+const cross2 = svgEl('line', { stroke: '#3fd0c9', 'stroke-width': '1' }, gGround);
+const gLayers = svgEl('g', {}, svg);
+const gDots = svgEl('g', { 'aria-hidden': 'true', style: 'pointer-events:none' }, svg);
+const DOTS = Array.from({ length: 26 }, () => svgEl('circle', { r: 3.4 }, gDots));
+const gToken = svgEl('g', { 'aria-hidden': 'true', display: 'none', style: 'pointer-events:none' }, svg);
+const tokLine = svgEl('line', { stroke: '#ffcf5c', 'stroke-width': 1.6, 'stroke-dasharray': '4 4' }, gToken);
+const tokDot = svgEl('circle', { r: 8, fill: '#ffcf5c', filter: 'url(#glow)' }, gToken);
+const tokTxt = svgEl('text', { fill: '#ffe9a8', 'font-size': 14, 'font-weight': 'bold', 'text-anchor': 'middle' }, gToken);
+const gTexts = svgEl('g', { 'aria-hidden': 'true', style: 'pointer-events:none' }, svg);
+const badge = svgEl('text', { x: 16, y: 28, fill: '#fff', 'font-size': 16, 'font-weight': 'bold', 'aria-hidden': 'true' }, svg);
+sceneBox.appendChild(svg);
+
+OBJS.forEach(o => {
+  if (o.kind === 'box') {
+    o.g = svgEl('g', { 'data-id': o.id, 'data-info': o.info }, gLayers);
+    o.faces = FACES.map(() => svgEl('polygon', { class: 'face', 'stroke-linejoin': 'round' }, o.g));
+    o.rgb = hex2rgb(o.color);
+  } else {
+    o.g = svgEl('text', { 'text-anchor': 'middle', fill: o.color, 'font-size': o.size }, gTexts);
+    if (o.bold) o.g.setAttribute('font-weight', 'bold');
+    o.last = '';
+  }
+});
+
+/* ======================================================================
+ * 7. DIBUJO (perspectiva calculada en JS)
+ * ==================================================================== */
+function draw(dt, time) {
+  const ex = state.explode, rm = rmq.matches, ar = state.ar;
+  const yaw = (cam.yaw + gyro.yaw) * Math.PI / 180, pitch = clamp(cam.pitch + gyro.pitch, 8, 86) * Math.PI / 180;
+  const ca = Math.cos(yaw), sa = Math.sin(yaw), cb = Math.cos(pitch), sb = Math.sin(pitch);
+  const S = 50 * cam.zoom, D = 14, F = 14, W = 760;
+  const mid = 1.9 + ex * 1.4;
+  const float = (ar && !rm) ? Math.sin(time * 1.1) * 5 : 0;
+  const px = cam.panx * W, py = cam.pany * W + float, cx = 380, cy = 262;
+  const rotN = n => { const x1 = n[0] * ca + n[2] * sa, z1 = -n[0] * sa + n[2] * ca; return [x1, n[1] * cb + z1 * sb, -n[1] * sb + z1 * cb]; };
+  const proj = (x, y, z) => {
+    y -= mid;
+    const x1 = x * ca + z * sa, z1 = -x * sa + z * ca, y2 = y * cb + z1 * sb, z2 = -y * sb + z1 * cb, k = F / (z2 + D);
+    return { sx: cx + px + S * x1 * k, sy: cy + py - S * y2 * k, x: x1, y: y2, z: z2, k };
+  };
+  const P = q => { const r = proj(q[0], q[1], q[2]); return r.sx.toFixed(1) + ',' + r.sy.toFixed(1); };
+
+  /* suelo: sombra, anillos y retícula de anclaje */
+  const ring = (R, y) => { const a = []; for (let i = 0; i <= 64; i++) { const t = i / 64 * Math.PI * 2; a.push(P([R * Math.cos(t), y, R * Math.sin(t)])); } return a.join(' '); };
+  const gy = -.5;
+  shadow.setAttribute('points', ring(6.6, gy - .05));
+  ring1.setAttribute('points', ring(9.6, gy)); ring2.setAttribute('points', ring(8.2, gy));
+  ring1.setAttribute('stroke-dashoffset', (-time * 18).toFixed(1));
+  const ro = ar ? .95 : .4;
+  ring1.setAttribute('stroke-opacity', ro); ring2.setAttribute('stroke-opacity', ro * .6);
+  const a1 = proj(-10, gy, 0), a2 = proj(10, gy, 0), b1 = proj(0, gy, -10), b2 = proj(0, gy, 10);
+  [['x1', 'y1', a1, cross1], ['x2', 'y2', a2, cross1], ['x1', 'y1', b1, cross2], ['x2', 'y2', b2, cross2]].forEach(([ax, ay, p, l]) => { l.setAttribute(ax, p.sx); l.setAttribute(ay, p.sy); });
+  cross1.setAttribute('stroke-opacity', ro * .6); cross2.setAttribute('stroke-opacity', ro * .6);
+
+  const orderList = [];
+  OBJS.forEach(o => {
+    const tgt = (state.stage >= o.from && layerOn[o.layer] && (!o.cond || o.cond())) ? 1 : 0;
+    o.vis = rm ? tgt : o.vis + (tgt - o.vis) * (1 - Math.exp(-dt * 5));
+    if (Math.abs(tgt - o.vis) < .004) o.vis = tgt;
+    if (o.pulse > 0) o.pulse = Math.max(0, o.pulse - dt);
+    o.glow += (o.glowT - o.glow) * (rm ? 1 : Math.min(1, dt * 7));
+    const on = o.vis > .01;
+    o.g.setAttribute('display', on ? 'inline' : 'none');
+    if (!on) return;
+    const sel = o.info && state.sel === o.info, pv = Math.min(1, o.pulse / 1.2), shift = (1 - o.vis) * 1.2;
+
+    if (o.kind === 'box') {
+      const dm = o.dims(), y0 = o.y0(ex) + shift, cyb = y0 + dm.h / 2, vs = [];
+      for (let i = 0; i < 8; i++) vs.push(proj(dm.x + (i & 1 ? 1 : -1) * dm.w / 2, cyb + (i & 2 ? 1 : -1) * dm.h / 2, dm.z + (i & 4 ? 1 : -1) * dm.d / 2));
+      const c = proj(dm.x, cyb, dm.z);
+      const [r0, g0, b0] = o.rgb, am = o.glow * .55, pm = pv * .45;
+      FACES.forEach((f, fi) => {
+        const poly = o.faces[fi], nr = rotN(f.n);
+        let mx = 0, my = 0, mz = 0;
+        f.v.forEach(vi => { mx += vs[vi].x; my += vs[vi].y; mz += vs[vi].z; });
+        mx /= 4; my /= 4; mz /= 4;
+        if (nr[0] * mx + nr[1] * my + nr[2] * (mz + D) >= 0) { poly.setAttribute('display', 'none'); return; }
+        const sh = .5 + .62 * Math.max(0, nr[0] * LIGHT[0] + nr[1] * LIGHT[1] + nr[2] * LIGHT[2]);
+        const mix = (v, amb, pul) => Math.round(clamp(clamp((v * (1 - am) + amb * am) * (1 - pm) + pul * pm, 0, 255) * sh, 0, 255));
+        poly.setAttribute('display', 'inline');
+        poly.setAttribute('points', f.v.map(vi => vs[vi].sx.toFixed(1) + ',' + vs[vi].sy.toFixed(1)).join(' '));
+        poly.setAttribute('fill', `rgb(${mix(r0, 255, 210)},${mix(g0, 207, 255)},${mix(b0, 92, 255)})`);
+        poly.setAttribute('fill-opacity', (o.alpha * o.vis * (ar ? .82 : 1)).toFixed(3));
+        poly.setAttribute('stroke', sel ? '#ffffff' : (o.glow > .05 ? '#ffcf5c' : 'rgba(190,255,250,.55)'));
+        poly.setAttribute('stroke-width', sel ? 2.4 : (o.glow > .05 || pv > .05 ? 1.9 : 1));
+      });
+      orderList.push({ o, k: o.zk, d: c.z });
+    } else {
+      const p = o.p(ex), q = proj(p[0], p[1] + shift * .4, p[2]);
+      if (typeof o.str === 'function') { const s = o.str(); if (s !== o.last) { o.g.textContent = s; o.last = s; } }
+      else if (!o.last) { o.g.textContent = o.str; o.last = o.str; }
+      o.g.setAttribute('x', q.sx.toFixed(1)); o.g.setAttribute('y', q.sy.toFixed(1));
+      o.g.setAttribute('font-size', (o.size * clamp(cam.zoom * q.k, .6, 1.6)).toFixed(1));
+      o.g.setAttribute('opacity', o.vis.toFixed(2));
+    }
+  });
+
+  /* puntos de datos que fluyen por la barra de operación */
+  const dotsOn = state.stage >= 1 && layerOn[0];
+  const xa = geo.X(geo.t0 + 4), xb = geo.X(anim.aEnd) - .15, xbk = geo.X(-cur.rpo);
+  DOTS.forEach((d, i) => {
+    if (!dotsOn || xb - xa < .5) { d.setAttribute('display', 'none'); return; }
+    const u = rm ? (i + .5) / DOTS.length : ((time * .06 + i / DOTS.length) % 1), x = xa + u * (xb - xa), q = proj(x, .5, 0);
+    let col = '#6fe3ff';
+    if (state.stage >= 2) col = x < xbk ? '#35e0a1' : (state.stage >= 4 ? '#ff6b6b' : '#ffd166');
+    d.setAttribute('display', 'inline'); d.setAttribute('cx', q.sx.toFixed(1)); d.setAttribute('cy', q.sy.toFixed(1));
+    d.setAttribute('r', (3.4 * clamp(cam.zoom * q.k, .6, 1.5)).toFixed(1)); d.setAttribute('fill', col); d.setAttribute('opacity', ar ? .95 : .85);
+  });
+
+  /* orden de pintado: línea de tiempo primero; después lejos → cerca */
+  orderList.sort((a, b) => a.k - b.k || b.d - a.d);
+  const key = orderList.map(e => e.o.id).join(',');
+  if (key !== lastOrder) { orderList.forEach(e => gLayers.appendChild(e.o.g)); lastOrder = key; }
+
+  /* cursor de la simulación */
+  if (run) {
+    const a = proj(geo.X(run.m), .35, -1.4), b = proj(geo.X(run.m), 3.6, -1.4);
+    gToken.setAttribute('display', 'inline');
+    tokLine.setAttribute('x1', a.sx); tokLine.setAttribute('y1', a.sy); tokLine.setAttribute('x2', b.sx); tokLine.setAttribute('y2', b.sy);
+    tokDot.setAttribute('cx', a.sx); tokDot.setAttribute('cy', a.sy); tokDot.setAttribute('r', 8 * Math.max(.7, cam.zoom));
+    tokDot.setAttribute('fill', run.m < 0 ? '#6fe3ff' : (run.m < resumeMin() ? '#ff6b6b' : '#4ccf63'));
+    tokTxt.setAttribute('x', b.sx); tokTxt.setAttribute('y', b.sy - 8); tokTxt.textContent = clock(run.m);
+  } else gToken.setAttribute('display', 'none');
+}
+
+/* ======================================================================
+ * 8. SIMULAR UN DESASTRE (el cursor recorre la línea de tiempo)
+ * ==================================================================== */
+const byId = id => OBJS.find(o => o.id === id);
+function startRun() {
+  if (run) return;
+  if (state.stage < 7) { setStage(7); setTimeout(startRun, 900); return; }
+  const start = -cur.rpo - 20, end = resumeMin() + 25, rm = rmq.matches;
+  const ev = [
+    { m: -cur.rpo, id: 'pbk', msg: () => `Se completa el último backup (${clock(-cur.rpo)}): lo anterior queda protegido.` },
+    { m: 0, id: 'pds', msg: () => `¡Desastre a las ${clock(0)}! La producción se detiene. Los datos creados desde el último backup se pierden: RPO = ${Math.round(cur.rpo)} min.` },
+    { m: cur.rto, id: 'prc', msg: () => `Datos restaurados a las ${clock(cur.rto)} (RTO = ${Math.round(cur.rto)} min). Aún falta validar para producción.` },
+    { m: resumeMin(), id: 'prs', msg: () => `Se valida la integridad (WRT = ${Math.round(cur.wrt)} min) y se reanuda la producción a las ${clock(resumeMin())}. Tiempo sin servicio: MTD = ${Math.round(cur.rto + cur.wrt)} min.` }
+  ];
+  run = { m: start, start, end, ev, idx: 0, t: 0, dur: rm ? ev.length * 2.2 : 16 };
+  OBJS.forEach(o => { o.glowT = 0; });
+  $('#runlog').textContent = 'La producción opera con normalidad (Business as usual)…';
+}
+function updateRun(dt) {
+  if (!run) return;
+  run.t += dt;
+  const rm = rmq.matches, u = clamp(run.t / run.dur, 0, 1);
+  run.m = rm ? (run.idx < run.ev.length ? run.ev[run.idx].m : run.end) : run.start + (run.end - run.start) * u;
+  while (run.idx < run.ev.length && (rm ? run.t >= (run.idx + 1) * 2.2 - 2.2 + .01 : run.m >= run.ev[run.idx].m)) {
+    const e = run.ev[run.idx]; $('#runlog').textContent = e.msg(); const o = byId(e.id); if (o) o.pulse = 1.8; run.idx++;
+    if (rm) run.m = e.m;
+  }
+  const m = run.m;
+  byId('rpo').glowT = (m >= -cur.rpo && m < 0) ? 1 : 0;
+  byId('rto').glowT = (m >= 0 && m < cur.rto) ? 1 : 0;
+  byId('wrt').glowT = (m >= cur.rto && m < resumeMin()) ? 1 : 0;
+  byId('mtd').glowT = (m >= 0 && m < resumeMin()) ? 1 : 0;
+  if (run.t >= run.dur + (rm ? 2.2 : 0)) {
+    OBJS.forEach(o => { o.glowT = 0; });
+    run = null;
+    $('#runlog').textContent += ' ' + verdictText();
+  }
+}
+
+/* ======================================================================
+ * 9. PANELES
+ * ==================================================================== */
+function renderStepper() {
+  const box = $('#stepper'); box.innerHTML = '';
+  STAGES.forEach((s, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sbtn'; b.id = 'st' + (i + 1);
+    b.innerHTML = `<span class="num">${i + 1}</span>${s.short}`;
+    b.addEventListener('click', () => { setStage(i + 1); openStageDlg(); }); box.appendChild(b);
+  });
+}
+function renderStageCard() {
+  const s = STAGES[state.stage - 1];
+  $('#stageCard').innerHTML = `<p class="step">Etapa ${state.stage} de ${STAGES.length} · <span class="tag">${s.tag}</span></p><h2>${s.title}</h2><p>${s.t}</p>`;
+  badge.textContent = `Etapa ${state.stage}/${STAGES.length} · ${s.title}`;
+  STAGES.forEach((_, i) => { const b = $('#st' + (i + 1)); if (b) { if (i + 1 === state.stage) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); } });
+}
+function renderInfo() {
+  const box = $('#info'), i = INFO[state.sel];
+  if (!i) { box.innerHTML = '<h2>Elemento</h2><p class="small">Haz clic en un elemento del modelo (o en la lista) para ver qué es, para qué sirve y un ejemplo.</p>'; return; }
+  box.innerHTML = `<h2>${i.name}</h2><h3>¿Qué es?</h3><p>${i.what}</p><h3>¿Para qué sirve?</h3><p>${i.use}</p><h3>Ejemplo</h3><p>${i.ex}</p><p><button class="btn" id="bClear">Quitar selección</button></p>`;
+  $('#bClear').addEventListener('click', () => select(null));
+}
+function renderLayers() {
+  const box = $('#layerBtns'); box.innerHTML = '';
+  [['Línea de tiempo', '#1f6fbf'], ['Hitos', '#ff4545'], ['Objetivos (RPO·RTO·WRT·MTD)', '#f6c45c'], ['Buenas prácticas', '#3fd0c9']].forEach((l, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.setAttribute('aria-pressed', layerOn[i] ? 'true' : 'false');
+    b.innerHTML = `<span class="sw" style="background:${l[1]};display:inline-block;vertical-align:middle;margin-right:.4rem"></span>${l[0]}`;
+    b.addEventListener('click', () => { layerOn[i] = !layerOn[i]; renderLayers(); }); box.appendChild(b);
+  });
+}
+function renderElems() {
+  const box = $('#elemList'); box.innerHTML = '';
+  const ul = document.createElement('ul'); ul.className = 'layers';
+  INFO_ORDER.filter(k => INFO[k].from <= state.stage).forEach(k => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button'; b.className = 'lbtn'; b.setAttribute('aria-pressed', state.sel === k ? 'true' : 'false'); b.textContent = INFO[k].name;
+    b.addEventListener('click', () => select(state.sel === k ? null : k)); li.appendChild(b); ul.appendChild(li);
+  });
+  box.appendChild(ul);
+}
+function select(k) { state.sel = k; renderInfo(); renderElems(); }
+
+/* ======================================================================
+ * 10. SIMULADOR (controles deslizantes)
+ * ==================================================================== */
+function verdictText() {
+  const real = target.rto + target.wrt, tol = target.mtd, ok = real <= tol;
+  return ok ? `✔ Cumple: tiempo sin servicio (RTO + WRT) = ${real} min ≤ MTD tolerable = ${tol} min. Pérdida máxima de datos (RPO): ${target.rpo} min.`
+            : `✘ No cumple: RTO + WRT = ${real} min supera el MTD tolerable de ${tol} min por ${real - tol} min. Pérdida máxima de datos (RPO): ${target.rpo} min.`;
+}
+function updateSim(src) {
+  [['sRpo', 'rpo'], ['sRto', 'rto'], ['sWrt', 'wrt'], ['sMtd', 'mtd']].forEach(([id, k]) => { target[k] = +$('#' + id).value; $('#o' + k[0].toUpperCase() + k.slice(1)).textContent = target[k]; });
+  const v = $('#verdict'), ok = target.rto + target.wrt <= target.mtd;
+  v.textContent = verdictText(); v.className = 'verdict ' + (ok ? 'ok' : 'ko');
+}
+['sRpo', 'sRto', 'sWrt', 'sMtd'].forEach(id => $('#' + id).addEventListener('input', updateSim));
+$('#bSimReset').addEventListener('click', () => { $('#sRpo').value = 30; $('#sRto').value = 60; $('#sWrt').value = 30; $('#sMtd').value = 120; updateSim(); });
+
+/* ======================================================================
+ * 11. CONTROL DE ETAPAS, CAPAS, REPRODUCCIÓN
+ * ==================================================================== */
+function setStage(n) {
+  n = clamp(n, 1, STAGES.length);
+  const changed = n !== state.stage; state.stage = n;
+  if (changed) OBJS.forEach(o => { if (o.from === n) o.pulse = 1.8; });
+  if (state.sel && INFO[state.sel].from > n) state.sel = null;
+  $('#bPrev').disabled = n === 1; $('#bNext').disabled = n === STAGES.length;
+  renderStageCard(); renderInfo(); renderElems();
+  if (n === STAGES.length && state.play) togglePlay(false);
+}
+function setExplode(on) {
+  state.explodeT = on ? 1 : 0;
+  const b = $('#bExplode'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = on ? 'Capas: ensamblar' : 'Capas: separar';
+}
+function togglePlay(on) {
+  state.play = on; const b = $('#bPlay');
+  b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = on ? '⏸ Pausar' : '▶ Reproducir';
+  clearInterval(playTimer);
+  if (on) {
+    if (state.stage === STAGES.length) setStage(1);
+    playTimer = setInterval(() => { if (state.stage < STAGES.length) setStage(state.stage + 1); else togglePlay(false); }, 6000);
+  }
+}
+function resetView() { Object.assign(cam.t, HOME); }
+
+
+/* ======================================================================
+ * 11b. VENTANA EMERGENTE DE CADA ETAPA (cuadro de diálogo accesible)
+ * ==================================================================== */
+const dlg = $('#stageDlg');
+function renderStageDlg() {
+  const s = STAGES[state.stage - 1];
+  $('#dlgTag').textContent = `Etapa ${state.stage} de ${STAGES.length} · ${s.tag}`;
+  $('#dlgTitle').textContent = s.title;
+  $('#dlgText').textContent = s.t;
+  const k = $('#dlgKey'); k.hidden = !s.key; k.textContent = s.key ? '«' + s.key + '»' : '';
+  $('#dlgLook').textContent = s.look;
+  $('#dlgPrev').disabled = state.stage === 1;
+  $('#dlgNext').disabled = state.stage === STAGES.length;
+}
+function openStageDlg() {
+  renderStageDlg();
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+}
+function closeStageDlg() { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
+$('#dlgClose').addEventListener('click', closeStageDlg);
+$('#dlgPrev').addEventListener('click', () => { setStage(state.stage - 1); renderStageDlg(); });
+$('#dlgNext').addEventListener('click', () => { setStage(state.stage + 1); renderStageDlg(); });
+dlg.addEventListener('click', e => { if (e.target === dlg) closeStageDlg(); });   // clic en el fondo cierra
+
+/* ======================================================================
+ * 12. QUIZ
+ * ==================================================================== */
+function toggleQuiz(on) {
+  state.quiz = on; $('#quizCard').hidden = !on; $('#bQuiz').setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (on) { renderQuiz(); $('#quizCard').scrollIntoView({ block: 'nearest', behavior: rmq.matches ? 'auto' : 'smooth' }); }
+}
+function renderQuiz() {
+  const box = $('#quizBody'); box.innerHTML = '';
+  let score = 0, done = 0;
+  const summary = document.createElement('p'); summary.setAttribute('aria-live', 'polite');
+  QUIZ.forEach((Q, qi) => {
+    const fs = document.createElement('fieldset'), lg = document.createElement('legend');
+    lg.textContent = `${qi + 1}. ${Q.q}`; fs.appendChild(lg);
+    const fb = document.createElement('div'); fb.className = 'fb'; fb.setAttribute('role', 'status');
+    Q.o.forEach((t, oi) => {
+      const lab = document.createElement('label'), inp = document.createElement('input');
+      inp.type = 'radio'; inp.name = 'q' + qi; inp.value = oi;
+      inp.addEventListener('change', () => {
+        fs.querySelectorAll('input').forEach(x => { x.disabled = true; });
+        const ok = oi === Q.a; if (ok) score++; done++;
+        fb.innerHTML = ok ? `<span class="ok">✔ Correcto.</span> ${Q.why}` : `<span class="ko">✘ No es esa.</span> ${Q.why}`;
+        if (done === QUIZ.length) {
+          summary.innerHTML = `<strong>Resultado: ${score} de ${QUIZ.length}.</strong> `;
+          const rb = document.createElement('button'); rb.className = 'btn'; rb.type = 'button'; rb.textContent = 'Reintentar';
+          rb.addEventListener('click', renderQuiz); summary.appendChild(rb);
+        }
+      });
+      lab.appendChild(inp); lab.appendChild(document.createTextNode(' ' + t)); fs.appendChild(lab);
+    });
+    fs.appendChild(fb); box.appendChild(fs);
+  });
+  box.appendChild(summary);
+}
+
+/* ======================================================================
+ * 13. REALIDAD AUMENTADA (cámara + giroscopio, con respaldo simulado)
+ * ==================================================================== */
+function setStatus(m) { $('#status').textContent = m; }
+function updateHud() {
+  $('#hud').textContent = !state.ar ? 'Vista 3D' : (state.arMode === 'camera' ? 'AR · cámara' : 'AR · simulado') + (gyro.active ? ' + giroscopio' : '');
+}
+const hintText = () => state.ar ? 'Arrastra para mover · pellizca para escalar y girar · clic en un elemento' : 'Arrastra para girar · rueda o pellizco para zoom · clic en un elemento';
+function onOrient(e) {
+  if (e.beta === null || e.gamma === null || e.beta === undefined) return;
+  if (!gyro.active) { gyro.active = true; updateHud(); }
+  gyro.yaw = clamp(e.gamma, -45, 45) * .8; gyro.pitch = clamp(e.beta - 60, -40, 40) * .3;
+}
+function startGyro() { if (gyro.on) return; gyro.on = true; window.addEventListener('deviceorientation', onOrient); }
+function stopGyro() { window.removeEventListener('deviceorientation', onOrient); gyro.on = false; gyro.active = false; gyro.yaw = 0; gyro.pitch = 0; }
+function requestGyro() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+      return DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') startGyro(); return r === 'granted'; }).catch(() => false);
+    if ('DeviceOrientationEvent' in window) { startGyro(); return Promise.resolve(true); }
+  } catch (e) { /* sin giroscopio */ }
+  return Promise.resolve(false);
+}
+function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } video.srcObject = null; stage.classList.remove('cam'); }
+async function setAR(on) {
+  const my = ++arToken, b = $('#bAR');
+  state.ar = on; b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = on ? 'Desactivar AR' : 'Activar AR';
+  stage.classList.toggle('ar', on); $('#hint').textContent = hintText();
+  if (!on) { stopCamera(); stopGyro(); state.arMode = ''; updateHud(); setStatus('AR desactivado.'); return; }
+  const gp = requestGyro();
+  state.arMode = 'sim'; updateHud(); setStatus('Solicitando acceso a la cámara…');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('x'), { name: 'NotSupportedError' });
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    if (my !== arToken) { s.getTracks().forEach(t => t.stop()); return; }
+    stream = s; video.srcObject = s;
+    try { await video.play(); } catch (e) { /* autoplay bloqueado */ }
+    stage.classList.add('cam'); state.arMode = 'camera';
+    setStatus('AR con cámara activo. Arrastra para mover el modelo; pellizca para escalar y girar.');
+  } catch (err) {
+    if (my !== arToken) return;
+    const why = { NotAllowedError: 'permiso de cámara denegado', NotFoundError: 'no se encontró una cámara', NotReadableError: 'la cámara está en uso por otra app',
+      NotSupportedError: 'este navegador o contexto no permite usar la cámara' }[err && err.name] || 'no se pudo abrir la cámara';
+    state.arMode = 'sim'; setStatus(`AR simulado: ${why}. Se muestra un entorno de realidad aumentada simulado.`);
+  }
+  updateHud(); gp.then(() => { if (my === arToken) updateHud(); });
+}
+
+/* ======================================================================
+ * 14. ENTRADA: arrastre, pellizco, rueda y teclado
+ * ==================================================================== */
+const ptrs = new Map(); let moved = false, startPt = null, pinch = null;
+const pinchState = () => { const [a, b] = Array.from(ptrs.values()); return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, a: Math.atan2(b.y - a.y, b.x - a.x) }; };
+stage.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* ignorar */ }
+  if (ptrs.size === 1) { moved = false; startPt = { x: e.clientX, y: e.clientY }; }
+  pinch = ptrs.size === 2 ? pinchState() : null;
+});
+stage.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (startPt && Math.hypot(e.clientX - startPt.x, e.clientY - startPt.y) > 5) moved = true;
+  const rect = stage.getBoundingClientRect();
+  if (ptrs.size === 1) {
+    if (state.ar) { cam.t.panx = clamp(cam.t.panx + dx / rect.width, -.6, .6); cam.t.pany = clamp(cam.t.pany + dy / rect.width, -.6, .6); }
+    else { cam.t.yaw += dx * .45; cam.t.pitch = clamp(cam.t.pitch + dy * .35, 8, 85); }
+  } else if (ptrs.size === 2) {
+    const s = pinchState();
+    if (pinch) { cam.t.zoom = clamp(cam.t.zoom * s.d / pinch.d, .5, 2.6); if (state.ar) cam.t.yaw += (s.a - pinch.a) * 180 / Math.PI; }
+    pinch = s; moved = true;
+  }
+});
+const endPtr = e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId); pinch = ptrs.size === 2 ? pinchState() : null;
+  if (ptrs.size === 0 && !moved && e.type === 'pointerup') {
+    const t = document.elementFromPoint(e.clientX, e.clientY), g = t && t.closest && t.closest('[data-info]');
+    if (g) { const k = g.dataset.info; if (INFO[k] && INFO[k].from <= state.stage) select(state.sel === k ? null : k); } else if (state.sel) select(null);
+  }
+};
+stage.addEventListener('pointerup', endPtr); stage.addEventListener('pointercancel', endPtr);
+stage.addEventListener('wheel', e => { e.preventDefault(); cam.t.zoom = clamp(cam.t.zoom * Math.exp(-e.deltaY * .0015), .5, 2.6); }, { passive: false });
+stage.addEventListener('keydown', e => {
+  const k = e.key; let used = true;
+  if (k === 'ArrowLeft') cam.t.yaw -= 6; else if (k === 'ArrowRight') cam.t.yaw += 6;
+  else if (k === 'ArrowUp') cam.t.pitch = clamp(cam.t.pitch - 4, 8, 85); else if (k === 'ArrowDown') cam.t.pitch = clamp(cam.t.pitch + 4, 8, 85);
+  else if (k === '+' || k === '=') cam.t.zoom = clamp(cam.t.zoom * 1.1, .5, 2.6);
+  else if (k === '-' || k === '_') cam.t.zoom = clamp(cam.t.zoom / 1.1, .5, 2.6);
+  else if (k === 'PageDown') setStage(state.stage + 1); else if (k === 'PageUp') setStage(state.stage - 1);
+  else if (k === '0') resetView(); else if (k === 'Escape') select(null); else used = false;
+  if (used) e.preventDefault();
+});
+$('#bPrev').addEventListener('click', () => setStage(state.stage - 1));
+$('#bNext').addEventListener('click', () => setStage(state.stage + 1));
+$('#bPlay').addEventListener('click', () => togglePlay(!state.play));
+$('#bExplode').addEventListener('click', () => setExplode(state.explodeT < .5));
+$('#bRun').addEventListener('click', startRun);
+$('#bQuiz').addEventListener('click', () => toggleQuiz(!state.quiz));
+$('#bAR').addEventListener('click', () => setAR(!state.ar));
+$('#bReset').addEventListener('click', resetView);
+
+/* ======================================================================
+ * 15. BUCLE DE ANIMACIÓN Y ARRANQUE
+ * ==================================================================== */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const rm = rmq.matches, k = rm ? 1 : 1 - Math.pow(.001, dt), ks = rm ? 1 : 1 - Math.exp(-dt * 6);
+  ['yaw', 'pitch', 'zoom', 'panx', 'pany'].forEach(p => { cam[p] += (cam.t[p] - cam[p]) * k; });
+  state.explode += (state.explodeT - state.explode) * k;
+  ['rpo', 'rto', 'wrt'].forEach(p => { cur[p] += (target[p] - cur[p]) * ks; if (Math.abs(target[p] - cur[p]) < .05) cur[p] = target[p]; });
+  updateGeo();
+  const aT = state.stage >= 3 ? 0 : geo.t1, bT = state.stage >= 6 ? resumeMin() : geo.t1;
+  anim.aEnd += (aT - anim.aEnd) * ks; anim.bEnd += (bT - anim.bEnd) * ks;
+  if (Math.abs(aT - anim.aEnd) < .05) anim.aEnd = aT; if (Math.abs(bT - anim.bEnd) < .05) anim.bEnd = bT;
+  updateRun(dt);
+  draw(dt, now / 1000);
+  requestAnimationFrame(frame);
+}
+renderStepper(); renderLayers(); updateSim(); updateGeo(); anim.aEnd = geo.t1; anim.bEnd = geo.t1;
+setStage(1); OBJS.forEach(o => { if (o.from === 1) o.pulse = 1.8; });
+renderInfo(); $('#hint').textContent = hintText();
+requestAnimationFrame(frame);
+window.addEventListener('pagehide', () => { stopCamera(); stopGyro(); clearInterval(playTimer); });
+})();
+
+</script>
+</body>
+</html>
