@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autoevaluación RA · Respaldo y Recuperación (DRP)</title>
+<style>
+:root{
+  --navy:#0B1F3A; --navy2:#12304F; --navy3:#1B3F63; --teal:#1AA6B7; --cyan:#4FE3F5; --amber:#F28F3B; --amberl:#FFB454;
+  --ink:#0B1F3A; --mut:#3D5068; --lt:#EAF0F4; --white:#FFFFFF; --ok:#1E9E5A; --bad:#D6314F;
+  --red:#E21B3C; --blue:#1368CE; --yellow:#D89E00; --green:#26890C;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1B3F63 0%,#0B1F3A 60%);color:var(--white);min-height:100vh}
+button{font-family:Arial,Helvetica,sans-serif;cursor:pointer}
+.wrap{max-width:980px;margin:0 auto;padding:16px 16px 40px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.brand{font-size:13px;color:#BFD3E6;letter-spacing:.3px}
+.brand b{color:var(--white)}
+.pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:var(--white);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
+.stats{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hide{display:none!important}
+.card{background:var(--white);color:var(--ink);border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+h1{font-size:34px;line-height:1.15;margin:0 0 8px}
+h2{font-size:22px;margin:0 0 10px}
+p{line-height:1.5;margin:0 0 12px}
+.lead{font-size:17px;color:var(--mut)}
+.btn{background:var(--teal);color:var(--white);border:0;border-radius:12px;padding:14px 22px;font-size:17px;font-weight:700;box-shadow:0 4px 0 #0E7C89}
+.btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(2px);box-shadow:0 2px 0 #0E7C89}
+.btn.alt{background:var(--navy);box-shadow:0 4px 0 #050f1e}
+.btn.ghost{background:transparent;color:var(--navy);border:2px solid var(--navy);box-shadow:none}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.opt-row{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 18px}
+.switch{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--mut)}
+.switch input{width:20px;height:20px}
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.feat div{background:var(--lt);border-radius:12px;padding:12px;font-size:14px;color:var(--mut)}
+.feat b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+/* progreso */
+.prog{height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-bottom:12px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--cyan));width:0;transition:width .4s}
+
+/* escenario RA */
+.stage{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#071426 0%,#0E2A47 100%);border:1px solid rgba(79,227,245,.35);width:100%;height:320px;perspective:900px;touch-action:pan-y}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.0}
+.stage.cam video{opacity:1}
+.stage.cam .tint{opacity:1}
+.tint{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,20,38,.15),rgba(7,20,38,.45));opacity:0;transition:opacity .4s;pointer-events:none}
+.arlayer{position:absolute;inset:0;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .12s linear}
+.floor{position:absolute;left:-25%;bottom:-18%;width:150%;height:62%;transform:perspective(380px) rotateX(64deg);background-image:linear-gradient(rgba(79,227,245,.28) 1px,transparent 1px),linear-gradient(90deg,rgba(79,227,245,.28) 1px,transparent 1px);background-size:38px 38px;animation:floor 3.5s linear infinite;opacity:.8;-webkit-mask-image:linear-gradient(to top,#000 40%,transparent);mask-image:linear-gradient(to top,#000 40%,transparent)}
+@keyframes floor{to{background-position:0 38px}}
+.scan{position:absolute;left:0;right:0;height:46px;background:linear-gradient(180deg,transparent,rgba(79,227,245,.22),transparent);animation:scan 3.6s ease-in-out infinite;pointer-events:none}
+@keyframes scan{0%{top:-46px}100%{top:100%}}
+.hud{position:absolute;inset:0;pointer-events:none}
+.hud text{font:700 11px Arial;fill:var(--cyan);letter-spacing:1.2px}
+.scene{position:absolute;inset:0;width:100%;height:100%}
+.scene .h{fill:rgba(79,227,245,.10);stroke:#4FE3F5;stroke-width:1.6}
+.scene .ln{fill:none;stroke:#4FE3F5;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.scene .a{fill:rgba(255,180,84,.16);stroke:#FFB454;stroke-width:1.8}
+.scene .al{fill:none;stroke:#FFB454;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.scene .d{fill:rgba(255,92,122,.16);stroke:#FF5C7A;stroke-width:1.8}
+.scene .dl{fill:none;stroke:#FF5C7A;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.scene .dash{stroke-dasharray:5 5}
+.scene .t{fill:#E8FBFF;font:700 15px Arial;text-anchor:middle}
+.scene .ts{fill:#A9DDE8;font:13px Arial;text-anchor:middle}
+.scene .tw{fill:#FFD9A0;font:700 13px Arial;text-anchor:middle}
+.scene .tr{fill:#FFB3C1;font:700 13px Arial;text-anchor:middle}
+.scene g.glow{filter:drop-shadow(0 0 5px rgba(79,227,245,.65))}
+.fl{animation:fl 4.2s ease-in-out infinite}
+.fl2{animation:fl 5.2s ease-in-out infinite reverse}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.hot{cursor:pointer;outline:none}
+.hot .pulse{fill:rgba(255,180,84,.25);stroke:#FFB454;stroke-width:1.5;animation:pulse 1.8s ease-out infinite;transform-box:fill-box;transform-origin:center}
+.hot .core{fill:#FFB454}
+.hot text{fill:#0B1F3A;font:700 12px Arial;text-anchor:middle}
+.hot:focus-visible .pulse,.hot:hover .pulse{stroke:#fff;stroke-width:2.5}
+.hot.used .pulse{animation:none;fill:rgba(79,227,245,.18);stroke:#4FE3F5}
+.hot.used .core{fill:#4FE3F5}
+@keyframes pulse{0%{transform:scale(.7);opacity:1}100%{transform:scale(1.7);opacity:0}}
+.hint{margin:10px 0 14px;background:rgba(255,255,255,.08);border:1px dashed rgba(79,227,245,.5);border-radius:12px;padding:10px 12px;font-size:14px;color:#D6ECF5;min-height:44px}
+.hint b{color:var(--amberl)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.mini{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:var(--white);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700}
+.mini[aria-pressed="true"]{background:var(--teal);border-color:var(--teal)}
+
+/* pregunta y respuestas */
+.qcard{background:var(--white);color:var(--ink);border-radius:16px;padding:16px 18px;margin-top:12px;display:flex;gap:14px;align-items:center;justify-content:space-between}
+.qcard h2{margin:0;font-size:22px;line-height:1.3}
+.qcard .tag{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.6px;margin-bottom:4px}
+.timer{position:relative;width:64px;height:64px;flex:none}
+.timer svg{width:64px;height:64px;transform:rotate(-90deg)}
+.timer circle{fill:none;stroke-width:7}
+.timer .bg{stroke:#DCE6EE}.timer .fg{stroke:var(--teal);stroke-linecap:round;transition:stroke .3s}
+.timer span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.ans{display:flex;align-items:center;gap:12px;text-align:left;border:0;border-radius:14px;padding:16px;color:var(--white);font-size:17px;font-weight:700;min-height:84px;box-shadow:0 5px 0 rgba(0,0,0,.28);transition:transform .08s,filter .2s,opacity .2s}
+.ans:hover:not(:disabled){filter:brightness(1.08)}
+.ans:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.28)}
+.ans svg{flex:none;width:34px;height:34px}
+.ans .k{margin-left:auto;font-size:12px;opacity:.8;border:1px solid rgba(255,255,255,.6);border-radius:6px;padding:1px 6px}
+.ans[data-c="0"]{background:var(--red)} .ans[data-c="1"]{background:var(--blue)} .ans[data-c="2"]{background:var(--yellow)} .ans[data-c="3"]{background:var(--green)}
+.ans:disabled{cursor:default}
+.ans.dim{opacity:.35}
+.ans.right{outline:4px solid #fff;box-shadow:0 0 0 8px rgba(30,158,90,.55)}
+.ans.wrong{outline:4px solid #fff;opacity:1;box-shadow:0 0 0 8px rgba(214,49,79,.6)}
+
+/* feedback */
+.fb{margin-top:14px;border-radius:16px;background:var(--white);color:var(--ink);padding:18px 20px;animation:pop .25s ease-out}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.fb .head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.fb .badge{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.fb.ok .badge{background:var(--ok)} .fb.bad .badge{background:var(--bad)} .fb.to .badge{background:var(--amber)}
+.fb h3{margin:0;font-size:21px}
+.fb .pts{margin-left:auto;font-weight:700;color:var(--ok);font-size:18px}
+.fb .blk{background:var(--lt);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:15px;line-height:1.5}
+.fb .blk b{display:block;font-size:12px;letter-spacing:.6px;color:var(--mut);margin-bottom:2px}
+.fb .src{font-size:13px;color:var(--mut)}
+
+/* final */
+.score-big{font-size:56px;font-weight:700;color:var(--teal);line-height:1}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.kpis div{background:var(--lt);border-radius:12px;padding:10px;text-align:center;font-size:13px;color:var(--mut)}
+.kpis b{display:block;font-size:24px;color:var(--ink)}
+.rev{list-style:none;margin:10px 0;padding:0}
+.rev li{display:flex;gap:10px;align-items:flex-start;background:var(--lt);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px;line-height:1.45}
+.rev .ic{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.rev .g{background:var(--ok)} .rev .r{background:var(--bad)}
+.rev small{display:block;color:var(--mut)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#fff;color:var(--ink);border-radius:12px;padding:10px 16px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:9}
+:focus-visible{outline:3px solid var(--amberl);outline-offset:2px}
+@media (max-width:640px){
+  h1{font-size:27px}
+  .feat{grid-template-columns:1fr}
+  .answers{grid-template-columns:1fr}
+  .ans{min-height:68px;font-size:16px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .qcard h2{font-size:19px}
+  .stage{height:250px}
+  .hudb{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .floor,.scan,.fl,.fl2,.hot .pulse{animation:none!important}
+  .arlayer{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><b>Administración de Sistemas Operativos (1INF35)</b> · Capítulo 7 · Respaldo y Recuperación</div>
+    <div class="stats hide" id="stats">
+      <span class="pill" id="pQ">Pregunta 1/10</span>
+      <span class="pill" id="pS">0 pts</span>
+      <span class="pill" id="pR">Racha 0</span>
+    </div>
+  </div>
+
+  <!-- INICIO -->
+  <section class="card" id="start">
+    <h1>Autoevaluación RA: Respaldo y Recuperación (DRP)</h1>
+    <p class="lead">10 preguntas tipo Kahoot sobre el Capítulo 7. Cada pregunta tiene una escena de realidad aumentada: toca los puntos pulsantes para ver pistas de las láminas.</p>
+    <div class="feat">
+      <div><b>Responde rápido</b>Con temporizador ganas más puntos por velocidad (hasta 1000 por pregunta).</div>
+      <div><b>Feedback inmediato</b>Cada respuesta explica por qué es correcta o por qué no, con la lámina de referencia.</div>
+      <div><b>Cámara RA opcional</b>Activa la cámara para ver el holograma sobre tu entorno (se pide permiso).</div>
+    </div>
+    <div class="opt-row">
+      <label class="switch"><input type="checkbox" id="optTimer" checked> Usar temporizador (25 s)</label>
+    </div>
+    <div class="row"><button class="btn" id="btnStart">Comenzar</button></div>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="game" class="hide">
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="stage" id="stage" aria-label="Escena de realidad aumentada de la pregunta">
+      <video id="cam" playsinline muted autoplay></video>
+      <div class="tint"></div>
+      <div class="arlayer" id="arlayer">
+        <div class="floor"></div>
+        <svg class="scene" id="scene" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Escena holográfica"></svg>
+      </div>
+      <div class="scan"></div>
+      <svg class="hud" viewBox="0 0 600 300" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="#4FE3F5" stroke-width="2.2" stroke-linecap="round">
+          <path d="M14 38V14H38"/><path d="M562 14H586V38"/><path d="M14 262V286H38"/><path d="M586 262V286H562"/>
+        </g>
+        <text x="48" y="28" id="hudL">OBJETO RA 01/10</text>
+        <text x="552" y="28" text-anchor="end" id="hudR">ESCANEANDO</text>
+        <text class="hudb" x="300" y="292" text-anchor="middle" opacity=".85">TOCA LOS PUNTOS PULSANTES PARA OBTENER PISTAS</text>
+      </svg>
+    </div>
+    <div class="tools">
+      <button class="mini" id="btnCam" aria-pressed="false">Cámara RA: apagada</button>
+      <span class="pill" id="pH">Pistas usadas: 0</span>
+    </div>
+    <div class="hint" id="hint" aria-live="polite">Toca un punto pulsante del holograma para ver una pista de la lámina.</div>
+
+    <div class="qcard">
+      <div>
+        <div class="tag" id="qTag">PREGUNTA</div>
+        <h2 id="qText"></h2>
+      </div>
+      <div class="timer" id="timerBox" aria-label="Tiempo restante">
+        <svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="27"/><circle class="fg" id="tFg" cx="32" cy="32" r="27" stroke-dasharray="169.65" stroke-dashoffset="0"/></svg>
+        <span id="tNum">25</span>
+      </div>
+    </div>
+    <div class="answers" id="answers" role="group" aria-label="Opciones de respuesta"></div>
+    <div id="fb" aria-live="polite"></div>
+  </section>
+
+  <!-- FINAL -->
+  <section class="card hide" id="end">
+    <h1 id="endTitle">Resultados</h1>
+    <div class="score-big" id="endScore">0</div>
+    <p class="lead" id="endMsg"></p>
+    <div class="kpis">
+      <div><b id="kC">0</b>Aciertos</div>
+      <div><b id="kA">0%</b>Precisión</div>
+      <div><b id="kS">0</b>Mejor racha</div>
+      <div><b id="kH">0</b>Pistas usadas</div>
+    </div>
+    <h2>Repaso por pregunta</h2>
+    <ul class="rev" id="rev"></ul>
+    <div class="row">
+      <button class="btn" id="btnAgain">Reintentar las 10</button>
+      <button class="btn alt" id="btnWrong">Repasar solo lo fallado</button>
+    </div>
+    <p class="src" style="margin-top:14px;font-size:13px;color:#3D5068">Preguntas basadas únicamente en el texto del Capítulo 7 (Semana 14, 2026-2). Las láminas que son solo imagen no se usaron como fuente.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- utilidades de escena ---------- */
+const chip=(cx,cy,w,txt,c)=>`<g><rect class="${c||'h'}" x="${cx-w/2}" y="${cy-14}" width="${w}" height="28" rx="14"/><text class="ts" x="${cx}" y="${cy+5}">${txt}</text></g>`;
+const hot=(i,x,y)=>`<g class="hot" tabindex="0" role="button" aria-label="Pista ${i+1}" data-h="${i}" transform="translate(${x} ${y})"><circle class="pulse" r="13"/><circle class="core" r="8"/><text y="4">?</text></g>`;
+const doc=(x,y,c)=>`<g><path class="${c||'h'}" d="M${x} ${y}h26l10 10v38h-36z"/><path class="${(c==='a')?'al':'ln'}" d="M${x+26} ${y}v10h10M${x+8} ${y+22}h20M${x+8} ${y+32}h20M${x+8} ${y+42}h12"/></g>`;
+const arrow=(x1,y1,x2,y2,c)=>{const a=Math.atan2(y2-y1,x2-x1),s=8;return `<path class="${c||'ln'}" d="M${x1} ${y1}L${x2} ${y2}M${x2} ${y2}l${-s*Math.cos(a-0.5)} ${-s*Math.sin(a-0.5)}M${x2} ${y2}l${-s*Math.cos(a+0.5)} ${-s*Math.sin(a+0.5)}"/>`;};
+const bar=(x,y,w,h,c)=>`<rect class="${c||'h'}" x="${x}" y="${y}" width="${w}" height="${h}" rx="3"/>`;
+
+/* ---------- escenas (cada una devuelve contenido SVG, 600x300) ---------- */
+const SC=[
+/* 1 riesgos */
+()=>`<g class="glow fl">
+  <path class="ln" d="M272 134V112a28 28 0 0 1 56 0V134"/>
+  <rect class="h" x="255" y="134" width="90" height="76" rx="10"/>
+  <circle class="a" cx="300" cy="166" r="9"/><path class="al" d="M300 175v17"/>
+  <text class="t" x="300" y="232">CIFRADO</text></g>
+  <g class="fl2">
+  ${chip(300,52,150,'Pérdida de claves')}
+  ${chip(112,92,140,'Ransomware','d')}
+  ${chip(488,92,150,'Ataques internos')}
+  ${chip(100,176,150,'Errores humanos')}
+  ${chip(500,176,150,'Fallas en la nube')}
+  <path class="ln dash" d="M182 100L262 150M418 100L338 150M175 176L255 172M425 176L345 172M300 66V110" opacity=".55"/></g>
+  ${hot(0,350,128)}${hot(1,190,86)}`,
+/* 2 respaldo vs recuperación */
+()=>`<g class="glow fl">
+  <rect class="h" x="60" y="62" width="200" height="170" rx="14"/>
+  <text class="t" x="160" y="92">RESPALDO</text>
+  ${doc(88,112)}${arrow(134,136,168,136)}${doc(176,112,'a')}
+  <text class="ts" x="160" y="204">datos → copia</text></g>
+  <g class="glow fl2">
+  <rect class="h" x="340" y="62" width="200" height="170" rx="14"/>
+  <text class="t" x="440" y="92">RECUPERACIÓN</text>
+  ${doc(366,112,'a')}${arrow(412,136,446,136)}
+  <rect class="h" x="456" y="112" width="52" height="50" rx="6"/><path class="ln" d="M464 128h36M464 140h36"/>
+  <circle class="a" cx="508" cy="112" r="12"/><path class="al" d="M502 112l4 5 8-9"/>
+  <text class="ts" x="440" y="204">copia → sistema operativo</text></g>
+  ${arrow(268,148,332,148,'ln dash')}
+  ${hot(0,250,76)}${hot(1,530,76)}`,
+/* 3 ISO */
+()=>`<g class="glow fl">
+  <rect class="h" x="205" y="30" width="190" height="236" rx="12"/>
+  <text class="t" x="300" y="62">ISO/IEC 27001:2022</text>
+  <text class="ts" x="300" y="86">Anexo A · control 8.13</text>
+  <text class="ts" x="300" y="112">Copia de seguridad</text>
+  <text class="ts" x="300" y="130">de la información</text>
+  <path class="ln" d="M235 156h130M235 176h130M235 196h90" opacity=".7"/>
+  <circle class="a" cx="300" cy="236" r="16"/><path class="al" d="M292 236l6 6 11-12"/></g>
+  <g class="fl2">${chip(88,128,128,'A.12.3.1 (2013)','h')}${chip(512,128,132,'Versión 2022','a')}
+  ${arrow(152,128,200,128,'ln dash')}${arrow(448,128,400,128,'al dash')}</g>
+  ${hot(0,160,108)}${hot(1,388,44)}`,
+/* 4 tipos por contenido */
+()=>{
+  const panel=(x,title,bars)=>{let s=`<rect class="h" x="${x}" y="46" width="170" height="210" rx="12"/><text class="t" x="${x+85}" y="74">${title}</text><path class="ln" d="M${x+14} 216h142" opacity=".6"/>`;
+    bars.forEach((b,i)=>{const bx=x+20+i*28;s+=bar(bx,216-b[0],18,b[0],b[1]);s+=`<text class="ts" x="${bx+9}" y="236">${i+1}</text>`;});return s;};
+  return `<g class="glow fl">${panel(36,'COMPLETO',[[110,'a']])}</g>
+  <g class="glow fl2">${panel(215,'DIFERENCIAL',[[110,'a'],[24,'h'],[44,'h'],[64,'h'],[84,'h']])}</g>
+  <g class="glow fl">${panel(394,'INCREMENTAL',[[110,'a'],[22,'h'],[22,'h'],[22,'h'],[22,'h']])}</g>
+  ${hot(0,196,60)}${hot(1,562,60)}`;},
+/* 5 deduplicación */
+()=>`<g class="fl">
+  <text class="ts" x="170" y="56">bloques entrantes</text>
+  ${[['#a1f','a'],['#9c2','h'],['#a1f','a'],['#a1f','a']].map((b,i)=>`<g><rect class="${b[1]}" x="${52+i*66}" y="72" width="54" height="54" rx="6"/><text class="${b[1]==='a'?'tw':'ts'}" x="${79+i*66}" y="104">${b[0]}</text></g>`).join('')}
+  <path class="ln" d="M52 146h252" opacity=".5"/>
+  <text class="ts" x="170" y="168">3 de 4 bloques son iguales</text></g>
+  <g class="glow fl2">${arrow(318,100,372,100,'al')}
+  <rect class="h" x="392" y="52" width="160" height="150" rx="12"/>
+  <text class="t" x="472" y="78">ALMACENAMIENTO</text>
+  <rect class="a" x="412" y="96" width="54" height="54" rx="6"/><text class="tw" x="439" y="128">#a1f</text>
+  <rect class="h" x="478" y="96" width="54" height="54" rx="6"/><text class="ts" x="505" y="128">#9c2</text>
+  <text class="ts" x="472" y="178">+ metadatos</text></g>
+  ${hot(0,330,76)}${hot(1,562,56)}`,
+/* 6 respaldo vs archivo */
+()=>{
+  const disk=(x,y,c)=>`<g><path class="${c||'h'}" d="M${x} ${y}v58a44 14 0 0 0 88 0v-58"/><ellipse class="${c||'h'}" cx="${x+44}" cy="${y}" rx="44" ry="14"/><path class="ln" d="M${x} ${y+24}a44 14 0 0 0 88 0" opacity=".7"/></g>`;
+  return `<g class="glow fl">
+  <text class="t" x="150" y="58">RESPALDO</text>
+  ${disk(60,78)}${arrow(158,112,208,112,'ln dash')}${disk(214,86,'a')}
+  <text class="ts" x="150" y="188">copia para restaurar</text></g>
+  <g class="glow fl2">
+  <text class="t" x="440" y="58">ARCHIVO</text>
+  <rect class="h" x="380" y="76" width="120" height="104" rx="8"/>
+  <path class="ln" d="M380 112h120M380 146h120M424 94h32M424 128h32M424 162h32"/>
+  <circle class="a" cx="518" cy="92" r="20"/><path class="al" d="M518 80v12l8 6"/>
+  <text class="ts" x="440" y="206">conservar a largo plazo</text></g>
+  ${hot(0,252,66)}${hot(1,540,150)}`;},
+/* 7 ransomware NAS */
+()=>`<g class="fl">
+  <rect class="d" x="64" y="104" width="76" height="86" rx="8"/><path class="dl" d="M64 132h76M64 160h76"/>
+  <rect class="d" x="86" y="86" width="32" height="22" rx="4"/>
+  <text class="tr" x="102" y="214">Servidor cifrado</text>
+  <circle class="h" cx="300" cy="147" r="26"/><path class="ln" d="M286 147h28M300 133v28"/>
+  <text class="ts" x="300" y="196">red</text>
+  <rect class="d" x="456" y="104" width="86" height="86" rx="8"/><path class="dl" d="M456 132h86M456 160h86"/>
+  <circle class="d" cx="499" cy="82" r="14"/><path class="dl" d="M493 82h12M499 76v12"/>
+  <text class="tr" x="499" y="214">NAS en la red (cifrado)</text>
+  <path class="dl" d="M140 147h134M326 147h130"/></g>
+  <g class="glow fl2">
+  <rect class="al dash" x="236" y="232" width="128" height="52" rx="10"/>
+  <path class="al" d="M300 240l-14 6v10c0 8 6 14 14 18 8-4 14-10 14-18v-10z"/>
+  <text class="tw" x="300" y="226">¿copia aislada?</text>
+  <path class="al dash" d="M300 232v-34" opacity=".7"/></g>
+  ${hot(0,150,102)}${hot(1,372,262)}`,
+/* 8 BCP vs DRP */
+()=>`<g class="glow fl">
+  <circle class="h" cx="165" cy="140" r="78"/><text class="t" x="165" y="146" style="font-size:26px">BCP</text>
+  <text class="ts" x="165" y="250">Continuidad del negocio</text></g>
+  <g class="glow fl2">
+  <circle class="a" cx="435" cy="140" r="78"/><text class="tw" x="435" y="146" style="font-size:26px">DRP</text>
+  <text class="ts" x="435" y="250">Recuperación de desastres</text></g>
+  <path class="ln dash" d="M246 140h106"/><circle class="h" cx="300" cy="140" r="16"/><text class="t" x="300" y="146">?</text>
+  ${hot(0,232,78)}${hot(1,508,78)}`,
+/* 9 RPO / RTO */
+()=>`<g class="glow fl">
+  <path class="ln" d="M60 190H540"/>
+  <circle class="h" cx="120" cy="190" r="12"/><circle class="d" cx="300" cy="190" r="12"/><circle class="a" cx="480" cy="190" r="12"/>
+  <text class="ts" x="120" y="222">Último respaldo</text><text class="tr" x="300" y="222">Desastre</text><text class="tw" x="480" y="222">Sistema restablecido</text>
+  <path class="ln" d="M120 150v-12h180v12"/><text class="t" x="210" y="124" style="font-size:20px">A</text>
+  <path class="al" d="M300 150v-12h180v12"/><text class="tw" x="390" y="124" style="font-size:20px">B</text>
+  <text class="ts" x="210" y="262">datos en riesgo</text><text class="ts" x="390" y="262">servicio detenido</text></g>
+  ${hot(0,210,92)}${hot(1,390,92)}`,
+/* 10 MTD */
+()=>`<g class="glow fl">
+  <rect class="h" x="80" y="128" width="250" height="48" rx="8"/><text class="t" x="205" y="158">RTO</text>
+  <rect class="a" x="330" y="128" width="190" height="48" rx="8"/><text class="tw" x="425" y="158" style="font-size:15px">WRT</text>
+  <path class="ln" d="M80 110v-14h440v14"/><text class="t" x="300" y="82">MTD = ?</text>
+  <text class="ts" x="205" y="204">hasta restablecer el servicio</text>
+  <text class="ts" x="425" y="204">validar y dejar listo</text>
+  <path class="ln" d="M80 232h440" opacity=".5"/><text class="ts" x="300" y="256">línea de tiempo de la caída</text></g>
+  ${hot(0,512,118)}${hot(1,150,92)}`
+];
+
+/* ---------- banco de preguntas (la primera opción es la correcta; se baraja al mostrar) ---------- */
+const Q=[
+{tag:"RIESGOS",s:7,q:"Según el capítulo, ¿cuál es hoy el mayor peligro para la información de una organización?",
+ hints:["La lámina 7 afirma que el peligro principal ya no es el mismo tipo de evento que antes.","Ransomware: ataques que cifran datos y exigen rescate (lámina 7)."],
+ o:["El cifrado malicioso y la manipulación de los datos",
+    "Los incendios e inundaciones en el centro de datos",
+    "El desgaste normal del hardware",
+    "La falta de espacio en disco"],
+ ok:"La lámina 7 señala que el mayor peligro ya no es una catástrofe física, sino el cifrado malicioso y la manipulación de datos. El ransomware encabeza esa lista junto con ataques internos, errores humanos, fallas en la nube y pérdida de claves.",
+ why:["","Son riesgos reales (lámina 4), pero la lámina 7 aclara que ya no son el mayor peligro.","Las fallas de hardware y software aparecen entre los riesgos de la lámina 4, pero no como el peligro principal actual.","El capítulo no lo presenta como riesgo principal; la lámina 7 habla de cifrado malicioso y manipulación de datos."]},
+{tag:"RESPALDO VS RECUPERACIÓN",s:9,q:"¿Cuál afirmación distingue correctamente respaldo de recuperación?",
+ hints:["Respaldo: el acto de copiar datos como medida preventiva (lámina 9).","Recuperación: restaurar a un estado operativo, lo que incluye validación y puesta en marcha (lámina 9)."],
+ o:["El respaldo copia los datos como medida preventiva; la recuperación los restaura a un estado operativo y valida su integridad",
+    "Son dos nombres para el mismo proceso",
+    "La recuperación es crear duplicados de los datos; el respaldo es la puesta en marcha",
+    "Tener respaldos automáticos garantiza que la recuperación funcionará"],
+ ok:"La lámina 9 los presenta como fases distintas y críticas. Además advierte que un respaldo sin una estrategia de recuperación probada es una falsa sensación de seguridad.",
+ why:["","La lámina 9 los presenta como fases distintas y críticas de la gestión de datos.","Está invertido: copiar y almacenar es el respaldo; restaurar, validar y poner en marcha es la recuperación.","Un respaldo sin recuperación probada da una falsa sensación de seguridad (lámina 9). Por eso existen las pruebas de restauración."]},
+{tag:"ISO 27001:2022",s:10,q:"El control A.8.13 de ISO/IEC 27001:2022 exige que la organización...",
+ hints:["A.8.13 reemplaza a A.12.3.1 de la versión 2013 (lámina 10).","Piensa en dos verbos: qué se hace con las copias y con qué regularidad (lámina 10)."],
+ o:["cree y pruebe copias de datos, software e imágenes de sistemas de forma regular, según una política de respaldo",
+    "conserve los respaldos únicamente en cinta magnética",
+    "externalice todos los respaldos a un proveedor en la nube",
+    "haga respaldos solo después de un incidente de seguridad"],
+ ok:"El control A.8.13 (copia de seguridad de la información) busca proteger contra la pérdida de información: pide crear y probar copias de datos, software e imágenes de sistemas de manera regular y conforme a una política de respaldo.",
+ why:["","La norma no impone un medio concreto; pide copias y pruebas conforme a una política de respaldo.","El control no obliga a una ubicación ni a un proveedor específicos.","Exige hacerlo de manera regular, no solo ante incidentes."]},
+{tag:"TIPOS DE RESPALDO",s:29,q:"Con una estrategia de respaldo diferencial, ¿qué necesitas para restaurar?",
+ hints:["Completo: una foto íntegra; restaurarlo solo requiere ese respaldo (lámina 29).","Diferencial: cambios desde el último completo; crece cada día hasta el siguiente completo (lámina 29)."],
+ o:["El último respaldo completo y el último diferencial",
+    "Solo el último diferencial",
+    "El completo y todos los diferenciales anteriores, en orden",
+    "Solo el respaldo completo"],
+ ok:"El diferencial guarda los cambios desde el último completo, así que la restauración usa el completo más el último diferencial. Es un punto medio: ocupa más espacio que el incremental, pero restaura con menos piezas.",
+ why:["","Un diferencial contiene solo los cambios desde el último completo; sin el completo no hay base para restaurar.","Eso describe al incremental (completo más todos los incrementales, en orden). Del diferencial solo importa el último.","Con solo el completo perderías los cambios hechos después de esa copia."]},
+{tag:"DEDUPLICACIÓN",s:24,q:"¿Cómo trabaja la deduplicación cuando llega un bloque de datos a almacenar?",
+ hints:["Cada bloque tiene una firma digital única: un hash (lámina 24).","Hay una verificación extra antes de dar por duplicado un bloque (lámina 24)."],
+ o:["Calcula su hash y lo compara con las huellas guardadas; si coincide, confirma bit a bit y solo actualiza metadatos",
+    "Lo comprime con pérdida para que ocupe menos bits",
+    "Siempre guarda el bloque completo y borra los duplicados al final del año",
+    "Lo cifra con una clave y lo envía a la nube"],
+ ok:"Según la lámina 24, se crea el hash del bloque entrante y se compara con las huellas previas. Si coincide, se compara bit a bit y, si se confirma, solo se actualizan los metadatos en lugar de guardar otra copia.",
+ why:["","Eso es compresión (con pérdida). La deduplicación elimina copias excesivas usando hashes de bloques.","No funciona así: puede ser en línea o en segundo plano, y se basa en comparar huellas (hash) de los bloques.","Cifrar o enviar a la nube no es deduplicar; la deduplicación identifica bloques repetidos mediante hash."]},
+{tag:"RESPALDO VS ARCHIVO",s:28,q:"¿Qué describe mejor a un archivo (archive) frente a un respaldo?",
+ hints:["Compara la fila «Uso típico» de ambos en la lámina 28.","Medios comunes del archivo: cinta magnética y nube (lámina 28)."],
+ o:["Datos inactivos que se conservan a largo plazo por razones legales o de cumplimiento; no es una copia",
+    "Una copia en otra ubicación para restaurar tras un incidente",
+    "Una copia incremental de los últimos cambios",
+    "Un respaldo comprimido sin pérdida"],
+ ok:"La lámina 28 resume: el respaldo protege contra la pérdida de datos; el archivo conserva datos que ya no se usan pero deben mantenerse (retención a largo plazo por razones legales o de cumplimiento).",
+ why:["","Esa es la definición de respaldo, no de archivo (lámina 28).","El incremental es un tipo de respaldo por contenido, no un archivo.","La compresión es un proceso técnico; el archivo es otra función: retener datos inactivos."]},
+{tag:"CASO RANSOMWARE",s:33,q:"Un servidor fue cifrado por ransomware y los respaldos, guardados en un NAS conectado a la red, también. ¿Qué error se cometió y qué habría ayudado?",
+ hints:["Pregúntate si el NAS estaba aislado o era alcanzable desde la red (lámina 33).","Las copias inmutables y verificadas son la última defensa frente al ransomware (lámina 32)."],
+ o:["Todas las copias eran alcanzables desde la red: faltó una copia offline o inmutable (regla 3-2-1-1-0)",
+    "Faltó respaldar con más frecuencia; eso habría evitado el cifrado de las copias",
+    "El error fue usar disco; con cinta y sin verificación habría bastado",
+    "No hubo error: ningún respaldo puede sobrevivir a un ransomware"],
+ ok:"El error fue dejar todas las copias al alcance del atacante. La regla 3-2-1-1-0 añade una copia offline (air-gapped) o inmutable y la verificación de cada copia: son la última defensa frente al ransomware (lámina 32).",
+ why:["","Más frecuencia mejora el punto de recuperación, pero copias igualmente alcanzables por el atacante también se cifran.","El problema no es el medio: la copia debe estar desconectada o protegida contra borrado, y además verificada.","Sí hubo error. Las copias offline o inmutables y verificadas sí pueden sobrevivir (lámina 32)."]},
+{tag:"BCP VS DRP",s:36,q:"¿Cuál relación entre BCP y DRP es correcta?",
+ hints:["BCP: continuidad del negocio; se enfoca en procesos, personas y estrategias (lámina 36).","DRP: se centra en los sistemas de TI y la infraestructura tecnológica (lámina 36)."],
+ o:["El DRP es un componente del BCP y se centra en recuperar los sistemas de TI y la infraestructura",
+    "El BCP se centra solo en TI y el DRP en procesos y personas",
+    "Son planes independientes y sin relación",
+    "El DRP previene todas las interrupciones; el BCP solo las documenta"],
+ ok:"La lámina 36 explica que el DRP es un componente del BCP, con alcance tecnológico y enfoque en TI (responde a desastres), mientras el BCP tiene alcance amplio, enfoque en el negocio y previene interrupciones. Ambos trabajan en conjunto.",
+ why:["","Está invertido: el BCP tiene alcance amplio (negocio, procesos, personas); el DRP tiene alcance tecnológico.","Ambos son cruciales y trabajan en conjunto para la resiliencia (lámina 36); el DRP es parte del BCP.","El BCP asegura que las funciones críticas sigan operando y previene interrupciones; el DRP responde a desastres recuperando TI."]},
+{tag:"RPO Y RTO",s:37,q:"Una empresa tolera perder como máximo 1 hora de datos y puede estar caída hasta 4 horas. ¿Cuáles son su RPO y su RTO?",
+ hints:["RPO: ¿qué tanto estoy dispuesto a perder? Es la cantidad de datos, medida en tiempo (lámina 39).","RTO: el tiempo máximo que un sistema puede estar inactivo (lámina 40)."],
+ o:["RPO = 1 hora; RTO = 4 horas",
+    "RPO = 4 horas; RTO = 1 hora",
+    "RPO = 1 hora; RTO = 1 hora",
+    "RPO = 5 horas; RTO = 5 horas"],
+ ok:"El RPO mide cuántos datos puedo perder (medido en tiempo): 1 hora. El RTO mide cuánto tiempo puedo estar caído: 4 horas. Un RPO bajo implica respaldos más frecuentes; un RTO bajo, recuperación más rápida (lámina 37).",
+ why:["","Están invertidos: el RPO es la pérdida de datos tolerable (1 h); el RTO es el tiempo de inactividad tolerable (4 h).","El RTO es el tiempo máximo de inactividad, que aquí es de 4 horas.","No se suman: cada uno mide algo distinto (datos que puedo perder y tiempo que puedo estar caído)."]},
+{tag:"MTD",s:42,q:"Si el RTO de un servicio es de 4 horas y su WRT es de 2 horas, ¿cuál es su MTD según el capítulo?",
+ hints:["WRT: recuperación real, lista para usar en producción, con integridad validada (lámina 41).","La lámina 42 resume la relación entre MTD, RTO y WRT en una sola fórmula."],
+ o:["6 horas (MTD = RTO + WRT)",
+    "4 horas",
+    "2 horas",
+    "8 horas"],
+ ok:"El MTD (tiempo máximo tolerable de inactividad) es MTD = RTO + WRT. Con 4 h de RTO y 2 h de WRT, el MTD es de 6 horas: además de restablecer, hay que validar y dejar el sistema listo para producción.",
+ why:["","Sería solo el RTO; falta sumar el WRT (validar y dejar listo para producción).","Sería solo el WRT; el MTD también incluye el RTO.","La fórmula suma, no multiplica: MTD = RTO + WRT."]}
+];
+
+/* ---------- estado ---------- */
+const $=id=>document.getElementById(id);
+const SHAPES=[
+ '<svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 4L31 29H3z" fill="#fff"/></svg>',
+ '<svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 2L31 17 17 32 3 17z" fill="#fff"/></svg>',
+ '<svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="#fff"/></svg>',
+ '<svg viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="5" width="24" height="24" rx="2" fill="#fff"/></svg>'];
+const CHECK='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROSS='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>';
+const CLOCK='<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M12 7v5.5l3.5 2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const TOTAL_T=25;
+let st=null, timerId=null;
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function show(id){["start","game","end"].forEach(x=>$(x).classList.toggle("hide",x!==id));$("stats").classList.toggle("hide",id!=="game");window.scrollTo({top:0});}
+
+function begin(indices){
+  st={list:indices,pos:0,score:0,streak:0,best:0,hints:0,res:[],useTimer:$("optTimer").checked,locked:false,tStart:0};
+  show("game");render();
+}
+function cur(){return Q[st.list[st.pos]];}
+
+function render(){
+  const qi=st.list[st.pos],q=Q[qi];st.locked=false;st.usedHints=new Set();
+  const opts=shuffle(q.o.map((t,i)=>({t,ok:i===0,why:q.why[i]})));
+  st.opts=opts;
+  $("pQ").textContent="Pregunta "+(st.pos+1)+"/"+st.list.length;
+  $("pS").textContent=st.score+" pts";$("pR").textContent="Racha "+st.streak;
+  $("pH").textContent="Pistas usadas: "+st.hints;
+  $("progBar").style.width=(st.pos/st.list.length*100)+"%";
+  $("qTag").textContent=q.tag;$("qText").textContent=q.q;
+  $("hudL").textContent="OBJETO RA "+String(st.pos+1).padStart(2,"0")+"/"+String(st.list.length).padStart(2,"0");
+  $("hudR").textContent="ESCANEANDO";
+  $("scene").innerHTML=SC[qi]();
+  $("hint").innerHTML="Toca un punto pulsante del holograma para ver una pista de la lámina.";
+  document.querySelectorAll(".hot").forEach(h=>{
+    const go=()=>{const k=+h.dataset.h;h.classList.add("used");
+      if(!st.usedHints.has(k)){st.usedHints.add(k);st.hints++;$("pH").textContent="Pistas usadas: "+st.hints;}
+      $("hint").innerHTML="<b>Pista "+(k+1)+":</b> "+q.hints[k];};
+    h.addEventListener("click",go);
+    h.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
+  });
+  const box=$("answers");box.innerHTML="";
+  opts.forEach((o,i)=>{const b=document.createElement("button");b.className="ans";b.dataset.c=i;b.type="button";
+    b.innerHTML=SHAPES[i]+'<span>'+o.t+'</span><span class="k">'+(i+1)+'</span>';
+    b.addEventListener("click",()=>answer(i));box.appendChild(b);});
+  $("fb").innerHTML="";
+  $("timerBox").classList.toggle("hide",!st.useTimer);
+  if(st.useTimer){startTimer();}
+}
+
+function startTimer(){
+  clearInterval(timerId);st.tStart=performance.now();
+  const fg=$("tFg"),num=$("tNum");const C=169.65;
+  const tick=()=>{const el=(performance.now()-st.tStart)/1000,left=Math.max(0,TOTAL_T-el);
+    fg.style.strokeDashoffset=String(C*(1-left/TOTAL_T));num.textContent=String(Math.ceil(left));
+    fg.style.stroke=left<6?"#D6314F":"#1AA6B7";
+    if(left<=0){clearInterval(timerId);answer(-1);}};
+  tick();timerId=setInterval(tick,100);
+}
+
+function answer(i){
+  if(st.locked)return;st.locked=true;clearInterval(timerId);
+  const q=cur(),opts=st.opts,okIdx=opts.findIndex(o=>o.ok);
+  const timeout=i<0,right=i===okIdx;
+  let pts=0;
+  if(right){const el=st.useTimer?(performance.now()-st.tStart)/1000:0;pts=st.useTimer?Math.round(500+500*Math.max(0,1-el/TOTAL_T)):1000;
+    st.score+=pts;st.streak++;st.best=Math.max(st.best,st.streak);}else{st.streak=0;}
+  st.res.push({qi:st.list[st.pos],right,timeout});
+  $("pS").textContent=st.score+" pts";$("pR").textContent="Racha "+st.streak;
+  $("hudR").textContent=right?"CORRECTO":(timeout?"TIEMPO AGOTADO":"INCORRECTO");
+  document.querySelectorAll(".ans").forEach((b,k)=>{b.disabled=true;
+    if(k===okIdx)b.classList.add("right");else if(k===i)b.classList.add("wrong");else b.classList.add("dim");});
+  const last=st.pos===st.list.length-1;
+  let html='<div class="fb '+(right?'ok':(timeout?'to':'bad'))+'"><div class="head"><div class="badge">'+(right?CHECK:(timeout?CLOCK:CROSS))+'</div><h3>'+
+    (right?"¡Correcto!":(timeout?"Se acabó el tiempo":"Incorrecto"))+'</h3>'+(right?'<span class="pts">+'+pts+' pts</span>':'')+'</div>';
+  if(!right&&!timeout)html+='<div class="blk"><b>POR QUÉ NO ES ESA</b>'+opts[i].why+'</div>';
+  html+='<div class="blk"><b>'+(right?"POR QUÉ ES CORRECTA":"RESPUESTA CORRECTA")+'</b>'+(right?'':'<strong>'+opts[okIdx].t+'.</strong> ')+q.ok+'</div>';
+  html+='<div class="row" style="justify-content:space-between;margin-top:10px"><span class="src">Fuente: Capítulo 7, lámina '+q.s+'</span><button class="btn" id="btnNext" type="button">'+(last?"Ver resultados":"Siguiente")+'</button></div></div>';
+  $("fb").innerHTML=html;
+  $("btnNext").addEventListener("click",next);$("btnNext").focus({preventScroll:true});
+  $("fb").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function next(){
+  if(st.pos<st.list.length-1){st.pos++;render();window.scrollTo({top:0,behavior:"smooth"});}else{finish();}
+}
+
+function finish(){
+  stopCam();
+  const n=st.list.length,c=st.res.filter(r=>r.right).length,pct=Math.round(c/n*100);
+  $("progBar").style.width="100%";
+  $("endScore").textContent=st.score+" pts";
+  $("kC").textContent=c+"/"+n;$("kA").textContent=pct+"%";$("kS").textContent=st.best;$("kH").textContent=st.hints;
+  let msg;
+  if(pct>=90)msg="Dominas el tema: tu criterio de respaldo y recuperación es sólido.";
+  else if(pct>=70)msg="Muy bien: tienes buenas bases. Repasa las láminas de los puntos fallados.";
+  else if(pct>=50)msg="Vas en camino: vuelve a las láminas indicadas y reintenta.";
+  else msg="Conviene repasar el capítulo con calma y volver a intentarlo.";
+  $("endMsg").textContent=msg;
+  $("rev").innerHTML=st.res.map(r=>{const q=Q[r.qi];
+    return '<li><span class="ic '+(r.right?'g':'r')+'">'+(r.right?CHECK.replace('width="22" height="22"','width="14" height="14"'):CROSS.replace('width="22" height="22"','width="14" height="14"'))+'</span><div><strong>'+q.tag+'</strong>'+
+      (r.timeout?' (sin responder)':'')+'<small>'+(r.right?'Concepto dominado.':'Repasa: lámina '+q.s+'.')+' '+(r.right?'':q.o[0]+'.')+'</small></div></li>';}).join("");
+  $("btnWrong").classList.toggle("hide",c===n);
+  show("end");
+}
+
+/* ---------- cámara RA opcional ---------- */
+let stream=null;
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}$("stage").classList.remove("cam");$("cam").srcObject=null;
+  const b=$("btnCam");b.setAttribute("aria-pressed","false");b.textContent="Cámara RA: apagada";}
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),3500);}
+$("btnCam").addEventListener("click",async()=>{
+  if(stream){stopCam();return;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast("Tu navegador no permite la cámara aquí. Se mantiene la vista holográfica.");return;}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+    $("cam").srcObject=stream;await $("cam").play().catch(()=>{});$("stage").classList.add("cam");
+    const b=$("btnCam");b.setAttribute("aria-pressed","true");b.textContent="Cámara RA: encendida";}
+  catch(e){toast("No se pudo usar la cámara (permiso o contexto no seguro). Se mantiene la vista holográfica.");}
+});
+
+/* ---------- paralaje del holograma ---------- */
+const stage=$("stage"),layer=$("arlayer");
+function tilt(x,y){layer.style.setProperty("--ry",(x*9)+"deg");layer.style.setProperty("--rx",(-y*7)+"deg");}
+stage.addEventListener("pointermove",e=>{const r=stage.getBoundingClientRect();tilt((e.clientX-r.left)/r.width-.5,(e.clientY-r.top)/r.height-.5);});
+stage.addEventListener("pointerleave",()=>tilt(0,0));
+window.addEventListener("deviceorientation",e=>{if(e.gamma==null||e.beta==null)return;tilt(Math.max(-.5,Math.min(.5,e.gamma/60)),Math.max(-.5,Math.min(.5,(e.beta-45)/60)));});
+
+/* ---------- eventos ---------- */
+$("btnStart").addEventListener("click",()=>begin(Q.map((_,i)=>i)));
+$("btnAgain").addEventListener("click",()=>begin(Q.map((_,i)=>i)));
+$("btnWrong").addEventListener("click",()=>{const w=st.res.filter(r=>!r.right).map(r=>r.qi);if(w.length)begin(w);});
+document.addEventListener("keydown",e=>{
+  if($("game").classList.contains("hide"))return;
+  if(!st.locked&&e.key>="1"&&e.key<="4"){answer(+e.key-1);}
+  else if(st.locked&&e.key==="Enter"&&document.activeElement!==$("btnNext")){e.preventDefault();next();}
+});
+window.__quiz={Q,get st(){return st;}};
+})();
+</script>
+</body>
+</html>
